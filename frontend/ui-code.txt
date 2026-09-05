@@ -1,0 +1,8099 @@
+﻿
+==================== C:\projects\code-break\frontend\src\components\ActivityBar.tsx ====================
+
+import {
+    Code2,
+    FolderTree,
+    Settings2,
+    Users,
+} from "lucide-react";
+
+type ActivityPanel =
+    | "explorer"
+    | "collaboration";
+
+interface ActivityBarProps {
+    activePanel: ActivityPanel;
+    onPanelChange: (
+        panel: ActivityPanel
+    ) => void;
+}
+
+function ActivityBar({
+    activePanel,
+    onPanelChange,
+}: ActivityBarProps) {
+    return (
+        <aside className="activity-bar">
+
+            <div className="activity-bar-top">
+
+                <button
+                    type="button"
+                    className={
+                        activePanel === "explorer"
+                            ? "activity-button activity-button-active"
+                            : "activity-button"
+                    }
+                    onClick={() =>
+                        onPanelChange("explorer")
+                    }
+                    title="Explorer"
+                    aria-label="Explorer"
+                    aria-pressed={
+                        activePanel === "explorer"
+                    }
+                >
+                    <FolderTree
+                        size={19}
+                        strokeWidth={1.8}
+                    />
+
+                    <span className="activity-tooltip">
+                        Explorer
+                    </span>
+                </button>
+
+
+                <button
+                    type="button"
+                    className={
+                        activePanel === "collaboration"
+                            ? "activity-button activity-button-active"
+                            : "activity-button"
+                    }
+                    onClick={() =>
+                        onPanelChange("collaboration")
+                    }
+                    title="Collaboration"
+                    aria-label="Collaboration"
+                    aria-pressed={
+                        activePanel === "collaboration"
+                    }
+                >
+                    <Users
+                        size={19}
+                        strokeWidth={1.8}
+                    />
+
+                    <span className="activity-tooltip">
+                        Collaboration
+                    </span>
+
+                    <span className="activity-badge">
+                        â€¢
+                    </span>
+                </button>
+
+            </div>
+
+
+            <div className="activity-bar-bottom">
+
+                <button
+                    type="button"
+                    className="activity-button"
+                    title="Code Break"
+                    aria-label="Code Break"
+                >
+                    <Code2
+                        size={19}
+                        strokeWidth={1.8}
+                    />
+
+                    <span className="activity-tooltip">
+                        Code Break
+                    </span>
+                </button>
+
+
+                <button
+                    type="button"
+                    className="activity-button"
+                    title="Settings"
+                    aria-label="Settings"
+                >
+                    <Settings2
+                        size={19}
+                        strokeWidth={1.8}
+                    />
+
+                    <span className="activity-tooltip">
+                        Settings
+                    </span>
+                </button>
+
+            </div>
+
+        </aside>
+    );
+}
+
+export default ActivityBar;
+
+==================== C:\projects\code-break\frontend\src\editor\CodeEditor.tsx ====================
+
+import Editor from "@monaco-editor/react"; 
+ 
+interface CodeEditorProps { 
+    value: string; 
+ 
+    onChange: ( 
+        value: string 
+    ) => void; 
+ 
+    readOnly?: boolean; 
+} 
+ 
+export default function CodeEditor({ 
+    value, 
+    onChange, 
+    readOnly = false, 
+}: CodeEditorProps) { 
+ 
+    return ( 
+        <Editor 
+            height="100%" 
+            defaultLanguage="java" 
+            theme="vs-dark" 
+            value={value} 
+            onChange={value => { 
+ 
+                if ( 
+                    readOnly 
+                ) { 
+                    return; 
+                } 
+ 
+                onChange( 
+                    value ?? "" 
+                ); 
+            }} 
+            options={{ 
+                readOnly, 
+ 
+                minimap: { 
+                    enabled: false, 
+                }, 
+ 
+                fontSize: 14, 
+ 
+                automaticLayout: 
+                    true, 
+ 
+                scrollBeyondLastLine: 
+                    false, 
+ 
+                wordWrap: "on", 
+ 
+                padding: { 
+                    top: 10, 
+                }, 
+            }} 
+        /> 
+    ); 
+}
+
+==================== C:\projects\code-break\frontend\src\explorer\FileExplorer.tsx ====================
+
+import {
+    useMemo,
+    useState,
+} from "react";
+
+import {
+    ChevronDown,
+    ChevronRight,
+    File,
+    FileCode2,
+    FileJson,
+    FileText,
+    Folder,
+    FolderOpen,
+    Globe,
+    MoreHorizontal,
+    Package,
+    Plus,
+    RefreshCw,
+    Trash2,
+} from "lucide-react";
+
+
+// =====================================================
+// TYPES
+// =====================================================
+
+export interface ExplorerFile {
+    path: string;
+    name: string;
+    content: string;
+}
+
+interface FileExplorerProps {
+    files: ExplorerFile[];
+    folders: string[];
+    selectedFile: string;
+    workspaceName: string | null;
+
+    onSelectFile: (
+        file: ExplorerFile
+    ) => void;
+
+    onOpenFolder: () => void;
+
+    onCreateFile: () => void;
+
+    onCreateFolder: () => void;
+
+    onDeleteFile: (
+        file: ExplorerFile
+    ) => void;
+
+    onDeleteFolder: (
+        path: string
+    ) => void;
+
+    readOnly?: boolean;
+}
+
+
+// =====================================================
+// TREE
+// =====================================================
+
+interface TreeNode {
+    name: string;
+    path: string;
+    type: "file" | "folder";
+    children: TreeNode[];
+    file?: ExplorerFile;
+}
+
+
+// =====================================================
+// FILE ICON
+// =====================================================
+
+function getFileIcon(
+    name: string
+) {
+    const lower =
+        name.toLowerCase();
+
+    if (
+        lower.endsWith(".tsx") ||
+        lower.endsWith(".ts") ||
+        lower.endsWith(".jsx") ||
+        lower.endsWith(".js")
+    ) {
+        return (
+            <FileCode2
+                size={15}
+                strokeWidth={1.8}
+                className="file-icon file-icon-code"
+            />
+        );
+    }
+
+    if (
+        lower.endsWith(".json")
+    ) {
+        return (
+            <FileJson
+                size={15}
+                strokeWidth={1.8}
+                className="file-icon file-icon-json"
+            />
+        );
+    }
+
+    if (
+        lower.endsWith(".html") ||
+        lower.endsWith(".htm")
+    ) {
+        return (
+            <Globe
+                size={15}
+                strokeWidth={1.8}
+                className="file-icon file-icon-html"
+            />
+        );
+    }
+
+    if (
+        lower.endsWith(".md") ||
+        lower.endsWith(".txt")
+    ) {
+        return (
+            <FileText
+                size={15}
+                strokeWidth={1.8}
+                className="file-icon file-icon-text"
+            />
+        );
+    }
+
+    if (
+        lower.endsWith(".java") ||
+        lower.endsWith(".py") ||
+        lower.endsWith(".go") ||
+        lower.endsWith(".rs") ||
+        lower.endsWith(".cpp") ||
+        lower.endsWith(".c")
+    ) {
+        return (
+            <FileCode2
+                size={15}
+                strokeWidth={1.8}
+                className="file-icon file-icon-code"
+            />
+        );
+    }
+
+    if (
+        lower === "package.json" ||
+        lower === "package-lock.json"
+    ) {
+        return (
+            <Package
+                size={15}
+                strokeWidth={1.8}
+                className="file-icon file-icon-package"
+            />
+        );
+    }
+
+    return (
+        <File
+            size={15}
+            strokeWidth={1.8}
+            className="file-icon"
+        />
+    );
+}
+
+
+// =====================================================
+// COMPONENT
+// =====================================================
+
+export default function FileExplorer({
+    files,
+    folders,
+    selectedFile,
+    workspaceName,
+    onSelectFile,
+    onOpenFolder,
+    onCreateFile,
+    onCreateFolder,
+    onDeleteFile,
+    onDeleteFolder,
+    readOnly = false,
+}: FileExplorerProps) {
+
+    const [
+        expanded,
+        setExpanded,
+    ] = useState<Set<string>>(
+        new Set([""])
+    );
+
+
+    // =================================================
+    // BUILD TREE
+    // =================================================
+
+    const tree =
+        useMemo<TreeNode[]>(
+            () => {
+
+                const root: TreeNode = {
+                    name:
+                        workspaceName ??
+                        "WORKSPACE",
+
+                    path:
+                        "",
+
+                    type:
+                        "folder",
+
+                    children:
+                        [],
+                };
+
+
+                // =====================================
+                // FOLDERS
+                // =====================================
+
+                for (
+                    const folderPath
+                    of folders
+                ) {
+
+                    const parts =
+                        folderPath
+                            .replaceAll(
+                                "\\",
+                                "/"
+                            )
+                            .split("/")
+                            .filter(Boolean);
+
+                    let current =
+                        root;
+
+
+                    for (
+                        let i = 0;
+                        i < parts.length;
+                        i++
+                    ) {
+
+                        const part =
+                            parts[i];
+
+                        const path =
+                            parts
+                                .slice(
+                                    0,
+                                    i + 1
+                                )
+                                .join("/");
+
+
+                        let child =
+                            current.children.find(
+                                node =>
+                                    node.type ===
+                                        "folder" &&
+                                    node.path ===
+                                        path
+                            );
+
+
+                        if (!child) {
+
+                            child = {
+                                name:
+                                    part,
+
+                                path,
+
+                                type:
+                                    "folder",
+
+                                children:
+                                    [],
+                            };
+
+                            current.children.push(
+                                child
+                            );
+                        }
+
+
+                        current =
+                            child;
+                    }
+                }
+
+
+                // =====================================
+                // FILES
+                // =====================================
+
+                for (
+                    const file
+                    of files
+                ) {
+
+                    const parts =
+                        file.path
+                            .replaceAll(
+                                "\\",
+                                "/"
+                            )
+                            .split("/")
+                            .filter(Boolean);
+
+                    if (
+                        parts.length === 0
+                    ) {
+                        continue;
+                    }
+
+
+                    const fileName =
+                        parts.pop()!;
+
+                    let current =
+                        root;
+
+
+                    for (
+                        let i = 0;
+                        i < parts.length;
+                        i++
+                    ) {
+
+                        const part =
+                            parts[i];
+
+                        const path =
+                            parts
+                                .slice(
+                                    0,
+                                    i + 1
+                                )
+                                .join("/");
+
+
+                        let child =
+                            current.children.find(
+                                node =>
+                                    node.type ===
+                                        "folder" &&
+                                    node.path ===
+                                        path
+                            );
+
+
+                        if (!child) {
+
+                            child = {
+                                name:
+                                    part,
+
+                                path,
+
+                                type:
+                                    "folder",
+
+                                children:
+                                    [],
+                            };
+
+                            current.children.push(
+                                child
+                            );
+                        }
+
+
+                        current =
+                            child;
+                    }
+
+
+                    current.children.push({
+                        name:
+                            fileName,
+
+                        path:
+                            file.path,
+
+                        type:
+                            "file",
+
+                        children:
+                            [],
+
+                        file,
+                    });
+                }
+
+
+                // =====================================
+                // SORT
+                // =====================================
+
+                const sortNodes = (
+                    nodes: TreeNode[]
+                ) => {
+
+                    nodes.sort(
+                        (
+                            a,
+                            b
+                        ) => {
+
+                            if (
+                                a.type !==
+                                b.type
+                            ) {
+                                return a.type ===
+                                    "folder"
+                                    ? -1
+                                    : 1;
+                            }
+
+                            return a.name.localeCompare(
+                                b.name,
+                                undefined,
+                                {
+                                    numeric:
+                                        true,
+                                    sensitivity:
+                                        "base",
+                                }
+                            );
+                        }
+                    );
+
+
+                    for (
+                        const node
+                        of nodes
+                    ) {
+                        sortNodes(
+                            node.children
+                        );
+                    }
+                };
+
+
+                sortNodes(
+                    root.children
+                );
+
+
+                return [
+                    root,
+                ];
+
+            },
+            [
+                files,
+                folders,
+                workspaceName,
+            ]
+        );
+
+
+    // =================================================
+    // TOGGLE
+    // =================================================
+
+    const toggleFolder = (
+        path: string
+    ) => {
+
+        setExpanded(
+            current => {
+
+                const next =
+                    new Set(
+                        current
+                    );
+
+                if (
+                    next.has(path)
+                ) {
+                    next.delete(path);
+                } else {
+                    next.add(path);
+                }
+
+                return next;
+            }
+        );
+    };
+
+
+    // =================================================
+    // EXPAND ALL
+    // =================================================
+
+    const expandAll = () => {
+
+        setExpanded(
+            new Set(
+                [
+                    "",
+                    ...folders,
+                ]
+            )
+        );
+    };
+
+
+    // =================================================
+    // COLLAPSE ALL
+    // =================================================
+
+    const collapseAll = () => {
+
+        setExpanded(
+            new Set([
+                "",
+            ])
+        );
+    };
+
+
+    // =================================================
+    // RENDER NODE
+    // =================================================
+
+    const renderNode = (
+        node: TreeNode,
+        depth: number
+    ): React.ReactNode => {
+
+        const padding =
+            8 +
+            depth * 16;
+
+
+        // =============================================
+        // FILE
+        // =============================================
+
+        if (
+            node.type ===
+            "file"
+        ) {
+
+            const selected =
+                node.path ===
+                selectedFile;
+
+
+            return (
+                <div
+                    key={
+                        `file-${node.path}`
+                    }
+                    className={
+                        selected
+                            ? "explorer-tree-item file selected"
+                            : "explorer-tree-item file"
+                    }
+                    style={{
+                        paddingLeft:
+                            `${padding}px`,
+                    }}
+                    onClick={() => {
+
+                        if (
+                            node.file
+                        ) {
+                            onSelectFile(
+                                node.file
+                            );
+                        }
+                    }}
+                    title={
+                        node.path
+                    }
+                >
+
+                    <span
+                        className="tree-spacer"
+                    />
+
+
+                    <span
+                        className="tree-file-icon"
+                    >
+                        {
+                            getFileIcon(
+                                node.name
+                            )
+                        }
+                    </span>
+
+
+                    <span
+                        className="tree-name"
+                    >
+                        {
+                            node.name
+                        }
+                    </span>
+
+
+                    {!readOnly && (
+                        <button
+                            type="button"
+                            className="tree-delete-button"
+                            onClick={event => {
+
+                                event.stopPropagation();
+
+                                if (
+                                    node.file
+                                ) {
+                                    onDeleteFile(
+                                        node.file
+                                    );
+                                }
+                            }}
+                            title="Delete file"
+                            aria-label={
+                                `Delete ${node.name}`
+                            }
+                        >
+                            <Trash2
+                                size={13}
+                            />
+                        </button>
+                    )}
+
+                </div>
+            );
+        }
+
+
+        // =============================================
+        // FOLDER
+        // =============================================
+
+        const isExpanded =
+            expanded.has(
+                node.path
+            );
+
+
+        const hasChildren =
+            node.children.length >
+            0;
+
+
+        return (
+            <div
+                key={
+                    `folder-${node.path}`
+                }
+            >
+
+                <div
+                    className="explorer-tree-item folder"
+                    style={{
+                        paddingLeft:
+                            `${padding}px`,
+                    }}
+                    title={
+                        node.path ||
+                        workspaceName ||
+                        "Workspace"
+                    }
+                >
+
+                    <button
+                        type="button"
+                        className="tree-expand-button"
+                        onClick={() =>
+                            toggleFolder(
+                                node.path
+                            )
+                        }
+                        aria-label={
+                            isExpanded
+                                ? "Collapse folder"
+                                : "Expand folder"
+                        }
+                    >
+                        {
+                            isExpanded
+                                ? (
+                                    <ChevronDown
+                                        size={14}
+                                    />
+                                )
+                                : (
+                                    <ChevronRight
+                                        size={14}
+                                    />
+                                )
+                        }
+                    </button>
+
+
+                    <span
+                        className="tree-folder-icon"
+                    >
+                        {
+                            isExpanded
+                                ? (
+                                    <FolderOpen
+                                        size={15}
+                                        strokeWidth={1.8}
+                                    />
+                                )
+                                : (
+                                    <Folder
+                                        size={15}
+                                        strokeWidth={1.8}
+                                    />
+                                )
+                        }
+                    </span>
+
+
+                    <span
+                        className="tree-name"
+                        onClick={() =>
+                            toggleFolder(
+                                node.path
+                            )
+                        }
+                    >
+                        {
+                            node.name
+                        }
+                    </span>
+
+
+                    {hasChildren && (
+                        <span
+                            className="tree-count"
+                        >
+                            {
+                                node.children.length
+                            }
+                        </span>
+                    )}
+
+
+                    {!readOnly &&
+                        node.path !== "" && (
+                            <button
+                                type="button"
+                                className="tree-delete-button"
+                                onClick={event => {
+
+                                    event.stopPropagation();
+
+                                    onDeleteFolder(
+                                        node.path
+                                    );
+                                }}
+                                title="Delete folder"
+                                aria-label={
+                                    `Delete ${node.name}`
+                                }
+                            >
+                                <Trash2
+                                    size={13}
+                                />
+                            </button>
+                        )}
+
+                </div>
+
+
+                {isExpanded && (
+                    <div>
+                        {
+                            node.children.map(
+                                child =>
+                                    renderNode(
+                                        child,
+                                        depth + 1
+                                    )
+                            )
+                        }
+                    </div>
+                )}
+
+            </div>
+        );
+    };
+
+
+    // =================================================
+    // EMPTY STATE
+    // =================================================
+
+    const isEmpty =
+        files.length === 0 &&
+        folders.length === 0;
+
+
+    // =================================================
+    // UI
+    // =================================================
+
+    return (
+        <aside className="file-explorer">
+
+            {/* =========================================
+                HEADER
+            ========================================= */}
+
+            <div className="explorer-header">
+
+                <div
+                    className="explorer-heading"
+                >
+
+                    <div
+                        className="explorer-title"
+                    >
+                        Explorer
+                    </div>
+
+                    <div
+                        className="explorer-subtitle"
+                    >
+                        {workspaceName ??
+                            "Workspace"}
+                    </div>
+
+                </div>
+
+
+                <div
+                    className="explorer-actions"
+                >
+
+                    {!readOnly && (
+                        <button
+                            type="button"
+                            className="icon-button"
+                            onClick={
+                                onCreateFile
+                            }
+                            title="New file"
+                            aria-label="New file"
+                        >
+                            <Plus
+                                size={15}
+                            />
+                        </button>
+                    )}
+
+
+                    {!readOnly && (
+                        <button
+                            type="button"
+                            className="icon-button"
+                            onClick={
+                                onCreateFolder
+                            }
+                            title="New folder"
+                            aria-label="New folder"
+                        >
+                            <Folder
+                                size={15}
+                            />
+                        </button>
+                    )}
+
+
+                    <button
+                        type="button"
+                        className="icon-button"
+                        onClick={
+                            onOpenFolder
+                        }
+                        disabled={
+                            readOnly
+                        }
+                        title="Open local folder"
+                        aria-label="Open local folder"
+                    >
+                        <Package
+                            size={15}
+                        />
+                    </button>
+
+
+                    <button
+                        type="button"
+                        className="icon-button"
+                        onClick={
+                            expandAll
+                        }
+                        title="Expand all"
+                        aria-label="Expand all"
+                    >
+                        <ChevronDown
+                            size={15}
+                        />
+                    </button>
+
+
+                    <button
+                        type="button"
+                        className="icon-button"
+                        onClick={
+                            collapseAll
+                        }
+                        title="Collapse all"
+                        aria-label="Collapse all"
+                    >
+                        <ChevronRight
+                            size={15}
+                        />
+                    </button>
+
+
+                    <button
+                        type="button"
+                        className="icon-button"
+                        onClick={
+                            expandAll
+                        }
+                        title="Refresh explorer"
+                        aria-label="Refresh explorer"
+                    >
+                        <RefreshCw
+                            size={14}
+                        />
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            {/* =========================================
+                TREE
+            ========================================= */}
+
+            <div
+                className="file-tree"
+            >
+
+                {isEmpty ? (
+
+                    <div
+                        className="explorer-empty"
+                    >
+
+                        <div
+                            className="explorer-empty-icon"
+                        >
+                            <Folder
+                                size={32}
+                                strokeWidth={1.4}
+                            />
+                        </div>
+
+
+                        <p>
+                            No files yet
+                        </p>
+
+
+                        <span>
+                            Open a folder or create
+                            your first file.
+                        </span>
+
+
+                        {!readOnly && (
+                            <button
+                                type="button"
+                                className="explorer-empty-button"
+                                onClick={
+                                    onOpenFolder
+                                }
+                            >
+                                Open Folder
+                            </button>
+                        )}
+
+                    </div>
+
+                ) : (
+
+                    tree.map(
+                        node =>
+                            renderNode(
+                                node,
+                                0
+                            )
+                    )
+
+                )}
+
+            </div>
+
+
+            {/* =========================================
+                FOOTER
+            ========================================= */}
+
+            <div
+                className="explorer-footer"
+            >
+
+                <span>
+                    {files.length}
+                    {" "}
+                    {files.length === 1
+                        ? "file"
+                        : "files"}
+                </span>
+
+                <MoreHorizontal
+                    size={14}
+                />
+
+            </div>
+
+        </aside>
+    );
+}
+
+==================== C:\projects\code-break\frontend\src\explorer\OpenFolderButton.tsx ====================
+
+import {
+    useState,
+} from "react";
+
+import {
+    openLocalFolder,
+} from "../workspace/localWorkspace";
+
+interface OpenFolderButtonProps {
+    mode?:
+        | "OWNER"
+        | "COLLABORATOR";
+
+    disabled?: boolean;
+
+    onOpened?: (
+        name: string
+    ) => void;
+}
+
+export default function OpenFolderButton({
+    mode = "OWNER",
+    disabled = false,
+    onOpened,
+}: OpenFolderButtonProps) {
+
+    const [
+        opening,
+        setOpening,
+    ] = useState(false);
+
+    const handleOpenFolder =
+        async () => {
+
+            if (
+                disabled ||
+                opening
+            ) {
+                return;
+            }
+
+            try {
+
+                setOpening(true);
+
+                const name =
+                    await openLocalFolder(
+                        mode
+                    );
+
+                onOpened?.(
+                    name
+                );
+
+            } catch (error) {
+
+                if (
+                    error instanceof DOMException &&
+                    error.name ===
+                    "AbortError"
+                ) {
+                    return;
+                }
+
+                console.error(
+                    "[OPEN FOLDER]",
+                    error
+                );
+
+            } finally {
+
+                setOpening(false);
+
+            }
+        };
+
+    return (
+        <button
+            type="button"
+            className="explorer-action-button open-folder-button"
+            onClick={
+                handleOpenFolder
+            }
+            disabled={
+                disabled ||
+                opening
+            }
+            title="Open local folder"
+        >
+            {
+                opening
+                    ? "â³"
+                    : "ðŸ“‚"
+            }
+        </button>
+    );
+}
+
+==================== C:\projects\code-break\frontend\src\pages\Dashboard.tsx ====================
+
+import { useEffect, useState } from "react";
+
+import {
+    getProjects,
+    createProject,
+    deleteProject,
+} from "../project/projectApi";
+
+import type {
+    Project,
+} from "../project/projectApi";
+
+
+interface DashboardProps {
+    onOpenProject: (project: Project) => void;
+}
+
+
+export default function Dashboard({
+    onOpenProject,
+}: DashboardProps) {
+
+    // =========================================
+    // PROJECTS
+    // =========================================
+
+    const [projects, setProjects] =
+        useState<Project[]>([]);
+
+    const [loading, setLoading] =
+        useState(true);
+
+    const [error, setError] =
+        useState("");
+
+
+    // =========================================
+    // CREATE PROJECT
+    // =========================================
+
+    const [showCreateForm, setShowCreateForm] =
+        useState(false);
+
+    const [projectName, setProjectName] =
+        useState("");
+
+    const [projectDescription, setProjectDescription] =
+        useState("");
+
+    const [creating, setCreating] =
+        useState(false);
+
+
+    // =========================================
+    // JOIN PROJECT
+    // =========================================
+
+    const [showJoinForm, setShowJoinForm] =
+        useState(false);
+
+    const [joinCode, setJoinCode] =
+        useState("");
+
+    const [joining, setJoining] =
+        useState(false);
+
+
+    // =========================================
+    // COPY JOIN CODE
+    // =========================================
+
+    const [copiedProjectId, setCopiedProjectId] =
+        useState<number | null>(null);
+
+
+    // =========================================
+    // DELETE PROJECT
+    // =========================================
+
+    const [deletingProjectId, setDeletingProjectId] =
+        useState<number | null>(null);
+
+
+    // =========================================
+    // TOKEN
+    // =========================================
+
+    const token =
+        localStorage.getItem("token");
+
+
+    // =========================================
+    // LOAD PROJECTS
+    // =========================================
+
+    async function loadProjects() {
+
+        if (!token) {
+
+            setLoading(false);
+
+            return;
+        }
+
+
+        try {
+
+            setLoading(true);
+
+            setError("");
+
+
+            const data =
+                await getProjects(token);
+
+
+            // Debug - API response check
+            console.log(
+                "PROJECTS FROM API:",
+                data
+            );
+
+
+            setProjects(data);
+
+        } catch (err) {
+
+            console.error(
+                "Failed to load projects:",
+                err
+            );
+
+
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "Unable to load projects"
+            );
+
+        } finally {
+
+            setLoading(false);
+        }
+    }
+
+
+    // =========================================
+    // INITIAL LOAD
+    // =========================================
+
+    useEffect(() => {
+
+        loadProjects();
+
+    }, [token]);
+
+
+    // =========================================
+    // CREATE PROJECT
+    // =========================================
+
+    async function handleCreateProject(
+        event: React.FormEvent<HTMLFormElement>
+    ) {
+
+        event.preventDefault();
+
+
+        if (!token) {
+
+            setError(
+                "You are not authenticated."
+            );
+
+            return;
+        }
+
+
+        const name =
+            projectName.trim();
+
+
+        const description =
+            projectDescription.trim();
+
+
+        if (!name) {
+
+            setError(
+                "Project name is required."
+            );
+
+            return;
+        }
+
+
+        setCreating(true);
+
+        setError("");
+
+
+        try {
+
+            const project =
+                await createProject(
+                    name,
+                    description,
+                    token
+                );
+
+
+            console.log(
+                "CREATED PROJECT:",
+                project
+            );
+
+
+            setProjects(
+                currentProjects => [
+                    project,
+                    ...currentProjects,
+                ]
+            );
+
+
+            setProjectName("");
+
+            setProjectDescription("");
+
+            setShowCreateForm(false);
+
+        } catch (err) {
+
+            console.error(
+                "Failed to create project:",
+                err
+            );
+
+
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "Failed to create project"
+            );
+
+        } finally {
+
+            setCreating(false);
+        }
+    }
+
+
+    // =========================================
+    // JOIN PROJECT
+    // =========================================
+
+    async function handleJoinProject(
+        event: React.FormEvent<HTMLFormElement>
+    ) {
+
+        event.preventDefault();
+
+
+        if (!token) {
+
+            setError(
+                "You are not authenticated."
+            );
+
+            return;
+        }
+
+
+        const code =
+            joinCode
+                .trim()
+                .toUpperCase();
+
+
+        if (!code) {
+
+            setError(
+                "Join code is required."
+            );
+
+            return;
+        }
+
+
+        setJoining(true);
+
+        setError("");
+
+
+        try {
+
+            const response =
+                await fetch(
+                    "http://localhost:8088/api/projects/join",
+                    {
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json",
+
+                            Authorization:
+                                `Bearer ${token}`,
+                        },
+
+                        body: JSON.stringify({
+                            joinCode: code,
+                        }),
+                    }
+                );
+
+
+            if (!response.ok) {
+
+                let message =
+                    "Failed to join project";
+
+
+                try {
+
+                    const data =
+                        await response.json();
+
+
+                    if (data.message) {
+
+                        message =
+                            data.message;
+                    }
+
+
+                    if (data.error) {
+
+                        message =
+                            data.error;
+                    }
+
+                } catch {
+
+                    // Ignore JSON parsing error
+                }
+
+
+                throw new Error(message);
+            }
+
+
+            // =================================
+            // JOIN SUCCESS
+            // =================================
+
+            setJoinCode("");
+
+            setShowJoinForm(false);
+
+
+            // Reload project list
+            await loadProjects();
+
+        } catch (err) {
+
+            console.error(
+                "Failed to join project:",
+                err
+            );
+
+
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "Failed to join project"
+            );
+
+        } finally {
+
+            setJoining(false);
+        }
+    }
+
+
+    // =========================================
+    // COPY JOIN CODE
+    // =========================================
+
+    async function handleCopyCode(
+        event: React.MouseEvent<HTMLButtonElement>,
+        project: Project
+    ) {
+
+        // Prevent project card click
+        event.stopPropagation();
+
+
+        if (!project.joinCode) {
+
+            return;
+        }
+
+
+        try {
+
+            await navigator.clipboard.writeText(
+                project.joinCode
+            );
+
+
+            setCopiedProjectId(
+                project.id
+            );
+
+
+            // Reset after 2 seconds
+
+            setTimeout(() => {
+
+                setCopiedProjectId(
+                    currentId =>
+                        currentId === project.id
+                            ? null
+                            : currentId
+                );
+
+            }, 2000);
+
+        } catch (err) {
+
+            console.error(
+                "Failed to copy join code:",
+                err
+            );
+
+
+            setError(
+                "Failed to copy join code"
+            );
+        }
+    }
+
+
+    // =========================================
+    // DELETE PROJECT
+    // =========================================
+
+    async function handleDeleteProject(
+        event: React.MouseEvent<HTMLButtonElement>,
+        project: Project
+    ) {
+
+        // IMPORTANT:
+        // Prevent project card from opening
+        event.stopPropagation();
+
+
+        if (!token) {
+
+            setError(
+                "You are not authenticated."
+            );
+
+            return;
+        }
+
+
+        // =====================================
+        // OWNER CHECK
+        // =====================================
+
+        // Only owners receive joinCode from
+        // the backend, so only owner cards
+        // should have this button.
+        if (!project.joinCode) {
+
+            setError(
+                "Only the project owner can delete this project."
+            );
+
+            return;
+        }
+
+
+        // =====================================
+        // CONFIRM
+        // =====================================
+
+        const confirmed =
+            window.confirm(
+                `Are you sure you want to permanently delete "${project.name}"?\n\nThis will remove the project and all its members.`
+            );
+
+
+        if (!confirmed) {
+
+            return;
+        }
+
+
+        try {
+
+            setDeletingProjectId(
+                project.id
+            );
+
+            setError("");
+
+
+            // =================================
+            // DELETE FROM BACKEND
+            // =================================
+
+            await deleteProject(
+                project.id,
+                token
+            );
+
+
+            // =================================
+            // REMOVE FROM DASHBOARD
+            // =================================
+
+            setProjects(
+                currentProjects =>
+                    currentProjects.filter(
+                        currentProject =>
+                            currentProject.id !==
+                            project.id
+                    )
+            );
+
+
+            // Clear copied state if needed
+
+            setCopiedProjectId(
+                currentId =>
+                    currentId === project.id
+                        ? null
+                        : currentId
+            );
+
+
+        } catch (err) {
+
+            console.error(
+                "Failed to delete project:",
+                err
+            );
+
+
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "Failed to delete project"
+            );
+
+        } finally {
+
+            setDeletingProjectId(
+                null
+            );
+        }
+    }
+
+
+    // =========================================
+    // LOGOUT
+    // =========================================
+
+    function handleLogout() {
+
+        localStorage.removeItem("token");
+
+        window.location.reload();
+    }
+
+
+    // =========================================
+    // CLOSE CREATE FORM
+    // =========================================
+
+    function closeCreateForm() {
+
+        if (creating) {
+
+            return;
+        }
+
+
+        setShowCreateForm(false);
+
+        setProjectName("");
+
+        setProjectDescription("");
+
+        setError("");
+    }
+
+
+    // =========================================
+    // CLOSE JOIN FORM
+    // =========================================
+
+    function closeJoinForm() {
+
+        if (joining) {
+
+            return;
+        }
+
+
+        setShowJoinForm(false);
+
+        setJoinCode("");
+
+        setError("");
+    }
+
+
+    // =========================================
+    // UI
+    // =========================================
+
+    return (
+
+        <div className="dashboard">
+
+
+            {/* ================================= */}
+            {/* HEADER */}
+            {/* ================================= */}
+
+            <header className="dashboard-header">
+
+                <div className="logo">
+                    âš¡ Code Break
+                </div>
+
+
+                <button
+                    type="button"
+                    onClick={handleLogout}
+                >
+                    Logout
+                </button>
+
+            </header>
+
+
+            {/* ================================= */}
+            {/* CONTENT */}
+            {/* ================================= */}
+
+            <main className="dashboard-content">
+
+
+                {/* ================================= */}
+                {/* TITLE */}
+                {/* ================================= */}
+
+                <div className="projects-title">
+
+                    <div>
+
+                        <h1>
+                            My Projects
+                        </h1>
+
+
+                        <p className="dashboard-subtitle">
+                            Select a project to start
+                            coding.
+                        </p>
+
+                    </div>
+
+
+                    <div
+                        className="project-actions"
+                        style={{
+                            display: "flex",
+                            gap: "10px",
+                            flexWrap: "wrap",
+                        }}
+                    >
+
+                        {/* NEW PROJECT */}
+
+                        <button
+                            type="button"
+                            className="create-project-button"
+                            onClick={() => {
+
+                                setError("");
+
+                                setShowJoinForm(
+                                    false
+                                );
+
+                                setShowCreateForm(
+                                    true
+                                );
+
+                            }}
+                        >
+                            + New Project
+                        </button>
+
+
+                        {/* JOIN PROJECT */}
+
+                        <button
+                            type="button"
+                            className="create-project-button"
+                            onClick={() => {
+
+                                setError("");
+
+                                setShowCreateForm(
+                                    false
+                                );
+
+                                setShowJoinForm(
+                                    true
+                                );
+
+                            }}
+                        >
+                            ðŸ”— Join Project
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+                {/* ================================= */}
+                {/* ERROR */}
+                {/* ================================= */}
+
+                {error && (
+
+                    <div
+                        className="login-error"
+                        style={{
+                            display: "flex",
+                            justifyContent:
+                                "space-between",
+                            alignItems:
+                                "center",
+                            gap: "10px",
+                        }}
+                    >
+
+                        <span>
+                            {error}
+                        </span>
+
+
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setError("")
+                            }
+                        >
+                            Ã—
+                        </button>
+
+                    </div>
+
+                )}
+
+
+                {/* ================================= */}
+                {/* JOIN PROJECT FORM */}
+                {/* ================================= */}
+
+                {showJoinForm && (
+
+                    <div
+                        className="create-project-card"
+                    >
+
+                        <h2>
+                            ðŸ”— Join a Project
+                        </h2>
+
+
+                        <p>
+                            Enter the project join
+                            code provided by the
+                            project owner.
+                        </p>
+
+
+                        <form
+                            onSubmit={
+                                handleJoinProject
+                            }
+                        >
+
+                            <input
+                                type="text"
+                                placeholder="Enter join code"
+                                value={joinCode}
+                                onChange={event =>
+                                    setJoinCode(
+                                        event.target.value
+                                    )
+                                }
+                                disabled={joining}
+                                autoFocus
+                                maxLength={8}
+                                required
+                                style={{
+                                    textTransform:
+                                        "uppercase",
+
+                                    letterSpacing:
+                                        "2px",
+                                }}
+                            />
+
+
+                            <div
+                                className="create-project-actions"
+                            >
+
+                                <button
+                                    type="button"
+                                    onClick={
+                                        closeJoinForm
+                                    }
+                                    disabled={joining}
+                                >
+                                    Cancel
+                                </button>
+
+
+                                <button
+                                    type="submit"
+                                    disabled={
+                                        joining ||
+                                        !joinCode.trim()
+                                    }
+                                >
+                                    {joining
+                                        ? "Joining..."
+                                        : "Join Project"}
+                                </button>
+
+                            </div>
+
+                        </form>
+
+                    </div>
+
+                )}
+
+
+                {/* ================================= */}
+                {/* CREATE PROJECT FORM */}
+                {/* ================================= */}
+
+                {showCreateForm && (
+
+                    <div
+                        className="create-project-card"
+                    >
+
+                        <h2>
+                            Create Project
+                        </h2>
+
+
+                        <form
+                            onSubmit={
+                                handleCreateProject
+                            }
+                        >
+
+                            <input
+                                type="text"
+                                placeholder="Project name"
+                                value={projectName}
+                                onChange={event =>
+                                    setProjectName(
+                                        event.target.value
+                                    )
+                                }
+                                disabled={creating}
+                                autoFocus
+                                required
+                            />
+
+
+                            <textarea
+                                placeholder="Description"
+                                value={
+                                    projectDescription
+                                }
+                                onChange={event =>
+                                    setProjectDescription(
+                                        event.target.value
+                                    )
+                                }
+                                disabled={creating}
+                            />
+
+
+                            <div
+                                className="create-project-actions"
+                            >
+
+                                <button
+                                    type="button"
+                                    onClick={
+                                        closeCreateForm
+                                    }
+                                    disabled={creating}
+                                >
+                                    Cancel
+                                </button>
+
+
+                                <button
+                                    type="submit"
+                                    disabled={
+                                        creating ||
+                                        !projectName.trim()
+                                    }
+                                >
+                                    {creating
+                                        ? "Creating..."
+                                        : "Create Project"}
+                                </button>
+
+                            </div>
+
+                        </form>
+
+                    </div>
+
+                )}
+
+
+                {/* ================================= */}
+                {/* LOADING */}
+                {/* ================================= */}
+
+                {loading && (
+
+                    <div className="empty-projects">
+
+                        <p>
+                            Loading projects...
+                        </p>
+
+                    </div>
+
+                )}
+
+
+                {/* ================================= */}
+                {/* PROJECT GRID */}
+                {/* ================================= */}
+
+                {!loading &&
+                    projects.length > 0 && (
+
+                        <div className="project-grid">
+
+                            {projects.map(
+                                project => {
+
+                                    const isOwner =
+                                        !!project.joinCode;
+
+                                    const isDeleting =
+                                        deletingProjectId ===
+                                        project.id;
+
+
+                                    return (
+
+                                        <div
+                                            key={
+                                                project.id
+                                            }
+                                            className="project-card"
+
+                                            onClick={() => {
+
+                                                if (
+                                                    !isDeleting
+                                                ) {
+
+                                                    onOpenProject(
+                                                        project
+                                                    );
+
+                                                }
+
+                                            }}
+
+                                            role="button"
+
+                                            tabIndex={0}
+
+                                            onKeyDown={event => {
+
+                                                if (
+                                                    event.key ===
+                                                        "Enter" ||
+                                                    event.key ===
+                                                        " "
+                                                ) {
+
+                                                    event.preventDefault();
+
+
+                                                    if (
+                                                        !isDeleting
+                                                    ) {
+
+                                                        onOpenProject(
+                                                            project
+                                                        );
+
+                                                    }
+
+                                                }
+
+                                            }}
+                                        >
+
+
+                                            {/* PROJECT ICON */}
+
+                                            <div className="project-icon">
+                                                ðŸ“
+                                            </div>
+
+
+                                            {/* PROJECT NAME */}
+
+                                            <h2>
+                                                {
+                                                    project.name
+                                                }
+                                            </h2>
+
+
+                                            {/* DESCRIPTION */}
+
+                                            <p>
+                                                {
+                                                    project.description ||
+                                                    "No description"
+                                                }
+                                            </p>
+
+
+                                            {/* ================================= */}
+                                            {/* JOIN CODE */}
+                                            {/* ================================= */}
+
+                                            {project.joinCode && (
+
+                                                <div
+                                                    className="project-join-code"
+
+                                                    onClick={event =>
+                                                        event.stopPropagation()
+                                                    }
+                                                >
+
+                                                    <span
+                                                        className="join-code-label"
+                                                    >
+                                                        Share Join Code
+                                                    </span>
+
+
+                                                    <div
+                                                        className="join-code-row"
+                                                    >
+
+                                                        <strong>
+                                                            {
+                                                                project.joinCode
+                                                            }
+                                                        </strong>
+
+
+                                                        <button
+                                                            type="button"
+
+                                                            onClick={event =>
+                                                                handleCopyCode(
+                                                                    event,
+                                                                    project
+                                                                )
+                                                            }
+
+                                                            disabled={
+                                                                isDeleting
+                                                            }
+                                                        >
+                                                            {
+                                                                copiedProjectId ===
+                                                                project.id
+                                                                    ? "Copied!"
+                                                                    : "Copy"
+                                                            }
+                                                        </button>
+
+                                                    </div>
+
+                                                </div>
+
+                                            )}
+
+
+                                            {/* ================================= */}
+                                            {/* DELETE PROJECT */}
+                                            {/* ================================= */}
+
+                                            {isOwner && (
+
+                                                <div
+                                                    style={{
+                                                        marginTop:
+                                                            "16px",
+
+                                                        display:
+                                                            "flex",
+
+                                                        justifyContent:
+                                                            "flex-end",
+                                                    }}
+
+                                                    onClick={event =>
+                                                        event.stopPropagation()
+                                                    }
+                                                >
+
+                                                    <button
+                                                        type="button"
+
+                                                        onClick={event =>
+                                                            handleDeleteProject(
+                                                                event,
+                                                                project
+                                                            )
+                                                        }
+
+                                                        disabled={
+                                                            isDeleting
+                                                        }
+
+                                                        style={{
+                                                            padding:
+                                                                "7px 14px",
+
+                                                            border:
+                                                                "1px solid #7f1d1d",
+
+                                                            borderRadius:
+                                                                "6px",
+
+                                                            background:
+                                                                "#2a1111",
+
+                                                            color:
+                                                                "#fca5a5",
+
+                                                            cursor:
+                                                                isDeleting
+                                                                    ? "not-allowed"
+                                                                    : "pointer",
+
+                                                            opacity:
+                                                                isDeleting
+                                                                    ? 0.7
+                                                                    : 1,
+                                                        }}
+                                                    >
+                                                        {
+                                                            isDeleting
+                                                                ? "Deleting..."
+                                                                : "ðŸ—‘ Delete Project"
+                                                        }
+                                                    </button>
+
+                                                </div>
+
+                                            )}
+
+                                        </div>
+
+                                    );
+
+                                }
+                            )}
+
+                        </div>
+
+                    )}
+
+
+                {/* ================================= */}
+                {/* EMPTY */}
+                {/* ================================= */}
+
+                {!loading &&
+                    projects.length === 0 &&
+                    !showCreateForm &&
+                    !showJoinForm && (
+
+                        <div className="empty-projects">
+
+                            <p>
+                                You don't have any
+                                projects yet.
+                            </p>
+
+
+                            <div
+                                style={{
+                                    display:
+                                        "flex",
+
+                                    gap:
+                                        "10px",
+
+                                    justifyContent:
+                                        "center",
+
+                                    flexWrap:
+                                        "wrap",
+                                }}
+                            >
+
+                                <button
+                                    type="button"
+                                    className="create-project-button"
+                                    onClick={() =>
+                                        setShowCreateForm(
+                                            true
+                                        )
+                                    }
+                                >
+                                    + Create your first
+                                    project
+                                </button>
+
+
+                                <button
+                                    type="button"
+                                    className="create-project-button"
+                                    onClick={() =>
+                                        setShowJoinForm(
+                                            true
+                                        )
+                                    }
+                                >
+                                    ðŸ”— Join a Project
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                    )}
+
+            </main>
+
+        </div>
+    );
+}
+
+==================== C:\projects\code-break\frontend\src\pages\Login.tsx ====================
+
+import { type FormEvent, useState } from "react";
+import { login } from "../auth/authApi";
+
+interface LoginProps {
+    onLogin: () => void;
+}
+
+export default function Login({ onLogin }: LoginProps) {
+
+    const [username, setUsername] = useState("");
+    const [password, setPassword] = useState("");
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
+
+    async function handleSubmit(
+        event: FormEvent
+    ) {
+        event.preventDefault();
+
+        setError("");
+        setLoading(true);
+
+        try {
+
+            const result = await login(
+                username,
+                password
+            );
+
+            localStorage.setItem(
+    "token",
+    result.token
+);
+
+localStorage.setItem(
+    "username",
+    username
+);
+
+            onLogin();
+
+        } catch (error) {
+
+            setError(
+                error instanceof Error
+                    ? error.message
+                    : "Login failed"
+            );
+
+        } finally {
+
+            setLoading(false);
+
+        }
+    }
+
+    return (
+        <div className="login-page">
+
+            <div className="login-card">
+
+                <div className="login-logo">
+                    âš¡
+                </div>
+
+                <h1>Code Break</h1>
+
+                <p className="login-subtitle">
+                    Code together, in real time.
+                </p>
+
+                <form onSubmit={handleSubmit}>
+
+                    <input
+                        type="text"
+                        placeholder="Username"
+                        value={username}
+                        onChange={(event) =>
+                            setUsername(event.target.value)
+                        }
+                        required
+                    />
+
+                    <input
+                        type="password"
+                        placeholder="Password"
+                        value={password}
+                        onChange={(event) =>
+                            setPassword(event.target.value)
+                        }
+                        required
+                    />
+
+                    {error && (
+                        <div className="login-error">
+                            {error}
+                        </div>
+                    )}
+
+                    <button
+                        type="submit"
+                        disabled={loading}
+                    >
+                        {loading
+                            ? "Signing in..."
+                            : "Sign In"}
+                    </button>
+
+                </form>
+
+            </div>
+
+        </div>
+    );
+}
+
+==================== C:\projects\code-break\frontend\src\project\MembersPanel.tsx ====================
+
+import {
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+} from "react";
+
+import {
+    Client,
+    type IMessage,
+} from "@stomp/stompjs";
+
+import {
+    getProjectMembers,
+    changeMemberRole,
+} from "./projectApi";
+
+import type {
+    ProjectMember,
+    ProjectRole,
+} from "./projectApi";
+
+const WS_URL =
+    "ws://localhost:8088/ws";
+
+interface ProjectRoleChangedMessage {
+    projectId: number;
+    memberId: number;
+    userId: number;
+    username: string;
+    role: ProjectRole;
+}
+
+interface MembersPanelProps {
+    projectId: number;
+    currentUsername: string;
+
+    onCurrentRoleChange?: (
+        role: ProjectRole
+    ) => void;
+}
+
+export default function MembersPanel({
+    projectId,
+    currentUsername,
+    onCurrentRoleChange,
+}: MembersPanelProps) {
+
+    const [
+        members,
+        setMembers,
+    ] = useState<ProjectMember[]>([]);
+
+    const [
+        loading,
+        setLoading,
+    ] = useState(true);
+
+    const [
+        error,
+        setError,
+    ] = useState("");
+
+    const [
+        updatingMemberId,
+        setUpdatingMemberId,
+    ] = useState<number | null>(
+        null
+    );
+
+    const roleCallbackRef =
+        useRef(
+            onCurrentRoleChange
+        );
+
+    useEffect(() => {
+        roleCallbackRef.current =
+            onCurrentRoleChange;
+    }, [
+        onCurrentRoleChange,
+    ]);
+
+    const token =
+        localStorage.getItem(
+            "token"
+        );
+
+    const loadMembers =
+        useCallback(
+            async () => {
+
+                if (!token) {
+                    setError(
+                        "Authentication required."
+                    );
+
+                    setLoading(false);
+
+                    return;
+                }
+
+                try {
+
+                    setLoading(true);
+                    setError("");
+
+                    const data =
+                        await getProjectMembers(
+                            projectId,
+                            token
+                        );
+
+                    setMembers(
+                        data
+                    );
+
+                    const currentUser =
+                        data.find(
+                            member =>
+                                member.username ===
+                                currentUsername
+                        );
+
+                    if (
+                        currentUser
+                    ) {
+                        roleCallbackRef.current?.(
+                            currentUser.role
+                        );
+                    }
+
+                } catch (err) {
+
+                    setError(
+                        err instanceof Error
+                            ? err.message
+                            : "Failed to load members."
+                    );
+
+                } finally {
+
+                    setLoading(false);
+
+                }
+            },
+            [
+                projectId,
+                currentUsername,
+                token,
+            ]
+        );
+
+    useEffect(() => {
+        void loadMembers();
+    }, [
+        loadMembers,
+    ]);
+
+    useEffect(() => {
+
+        const wsToken =
+            localStorage.getItem(
+                "token"
+            );
+
+        if (!wsToken) {
+            return;
+        }
+
+        const client =
+            new Client({
+                brokerURL:
+                    WS_URL,
+
+                connectHeaders: {
+                    Authorization:
+                        `Bearer ${wsToken}`,
+                },
+
+                reconnectDelay:
+                    5000,
+
+                debug: () => {},
+
+                onConnect: () => {
+
+                    client.subscribe(
+                        `/topic/project/${projectId}/members`,
+                        (
+                            message: IMessage
+                        ) => {
+
+                            try {
+
+                                const data =
+                                    JSON.parse(
+                                        message.body
+                                    ) as ProjectRoleChangedMessage;
+
+                                if (
+                                    data.projectId !==
+                                    projectId
+                                ) {
+                                    return;
+                                }
+
+                                setMembers(
+                                    current =>
+                                        current.map(
+                                            member =>
+                                                member.id ===
+                                                data.memberId
+                                                    ? {
+                                                        ...member,
+                                                        role:
+                                                            data.role,
+                                                    }
+                                                    : member
+                                        )
+                                );
+
+                                if (
+                                    data.username ===
+                                    currentUsername
+                                ) {
+
+                                    roleCallbackRef.current?.(
+                                        data.role
+                                    );
+                                }
+
+                            } catch (error) {
+
+                                console.error(
+                                    "[ROLE WS] Invalid message:",
+                                    error
+                                );
+                            }
+                        }
+                    );
+                },
+
+                onWebSocketError:
+                    error => {
+                        console.error(
+                            "[ROLE WS] WebSocket error:",
+                            error
+                        );
+                    },
+
+                onStompError:
+                    frame => {
+                        console.error(
+                            "[ROLE WS] STOMP error:",
+                            frame
+                        );
+                    },
+            });
+
+        client.activate();
+
+        return () => {
+            void client.deactivate();
+        };
+
+    }, [
+        projectId,
+        currentUsername,
+    ]);
+
+    const currentMember =
+        members.find(
+            member =>
+                member.username ===
+                currentUsername
+        );
+
+    const isOwner =
+        currentMember?.role ===
+        "OWNER";
+
+    const handleRoleChange =
+        async (
+            member: ProjectMember,
+            newRole: ProjectRole
+        ) => {
+
+            if (!token) {
+                return;
+            }
+
+            if (
+                member.role ===
+                newRole
+            ) {
+                return;
+            }
+
+            try {
+
+                setUpdatingMemberId(
+                    member.id
+                );
+
+                setError("");
+
+                const updatedMember =
+                    await changeMemberRole(
+                        projectId,
+                        member.id,
+                        newRole,
+                        token
+                    );
+
+                setMembers(
+                    current =>
+                        current.map(
+                            currentMember =>
+                                currentMember.id ===
+                                updatedMember.id
+                                    ? updatedMember
+                                    : currentMember
+                        )
+                );
+
+            } catch (err) {
+
+                setError(
+                    err instanceof Error
+                        ? err.message
+                        : "Failed to change member role."
+                );
+
+            } finally {
+
+                setUpdatingMemberId(
+                    null
+                );
+            }
+        };
+
+    return (
+        <section className="members-panel">
+
+            <div className="members-panel-header">
+
+                <div>
+
+                    <h2>
+                        Members
+                    </h2>
+
+                    <span>
+                        {members.length}{" "}
+                        member
+                        {members.length !== 1
+                            ? "s"
+                            : ""}
+                    </span>
+
+                </div>
+
+            </div>
+
+            {error && (
+                <div className="members-error">
+                    {error}
+                </div>
+            )}
+
+            {loading ? (
+                <div className="members-loading">
+                    Loading members...
+                </div>
+            ) : (
+                <div className="members-list">
+
+                    {members.map(
+                        member => (
+                            <div
+                                key={
+                                    member.id
+                                }
+                                className="member-row"
+                            >
+
+                                <div className="member-info">
+
+                                    <div className="member-avatar">
+                                        {
+                                            member.role ===
+                                            "OWNER"
+                                                ? "ðŸ‘‘"
+                                                : "ðŸ‘¤"
+                                        }
+                                    </div>
+
+                                    <div>
+
+                                        <div className="member-username">
+
+                                            {
+                                                member.username
+                                            }
+
+                                            {member.username ===
+                                                currentUsername && (
+                                                <span className="you-label">
+                                                    You
+                                                </span>
+                                            )}
+
+                                        </div>
+
+                                        <div className="member-role-text">
+                                            {
+                                                member.role
+                                            }
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                                {member.role ===
+                                    "OWNER" && (
+                                    <span className="owner-badge">
+                                        OWNER
+                                    </span>
+                                )}
+
+                                {member.role !==
+                                    "OWNER" &&
+                                    isOwner && (
+                                    <select
+                                        value={
+                                            member.role
+                                        }
+                                        disabled={
+                                            updatingMemberId ===
+                                            member.id
+                                        }
+                                        onChange={
+                                            event =>
+                                                handleRoleChange(
+                                                    member,
+                                                    event
+                                                        .target
+                                                        .value as ProjectRole
+                                                )
+                                        }
+                                    >
+                                        <option value="VIEWER">
+                                            VIEWER
+                                        </option>
+
+                                        <option value="EDITOR">
+                                            EDITOR
+                                        </option>
+                                    </select>
+                                )}
+
+                                {member.role !==
+                                    "OWNER" &&
+                                    !isOwner && (
+                                    <span className="role-badge">
+                                        {
+                                            member.role
+                                        }
+                                    </span>
+                                )}
+
+                            </div>
+                        )
+                    )}
+
+                </div>
+            )}
+
+        </section>
+    );
+}
+
+==================== C:\projects\code-break\frontend\src\App.css ====================
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+:root {
+    font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: #e6edf3;
+    background: #080b10;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    overflow: hidden;
+    background: #080b10;
+}
+
+button,
+input {
+    font: inherit;
+}
+
+button {
+    border: 0;
+}
+
+.app {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    min-width: 960px;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 75% -20%, rgba(76, 120, 180, 0.12), transparent 32%),
+        #080b10;
+    color: #e6edf3;
+}
+
+/* TOP BAR */
+
+.topbar {
+    display: flex;
+    align-items: center;
+    height: 52px;
+    min-height: 52px;
+    padding: 0 12px;
+    gap: 10px;
+    border-bottom: 1px solid #202631;
+    background: rgba(12, 16, 22, 0.96);
+}
+
+.topbar-brand {
+    display: flex;
+    align-items: center;
+    min-width: 230px;
+    gap: 10px;
+}
+
+.brand-mark {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid #303b4b;
+    border-radius: 8px;
+    background: #121923;
+    color: #8ab4ff;
+}
+
+.brand-copy {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    font-size: 12px;
+}
+
+.brand-name {
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+.brand-divider {
+    color: #4d5868;
+}
+
+.brand-project {
+    max-width: 170px;
+    overflow: hidden;
+    color: #8d99a9;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.back-button,
+.topbar-icon-button,
+.logout-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #a8b2c0;
+    background: transparent;
+    transition: 150ms ease;
+}
+
+.back-button {
+    gap: 7px;
+    height: 32px;
+    padding: 0 9px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    font-size: 12px;
+}
+
+.back-button:hover,
+.topbar-icon-button:hover,
+.logout-button:hover {
+    color: #eef4fb;
+    background: #151b24;
+    border-color: #252e3b;
+}
+
+.topbar-spacer {
+    flex: 1;
+}
+
+.topbar-workspace {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.workspace-indicator,
+.connection-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 210px;
+    color: #8793a3;
+    font-size: 11px;
+}
+
+.workspace-indicator span,
+.connection-indicator span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.connection-indicator.connected {
+    color: #79c99b;
+}
+
+.is-syncing {
+    animation: spin 1.1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.topbar-divider {
+    width: 1px;
+    height: 22px;
+    background: #252c37;
+}
+
+.user {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 24px;
+    padding: 0 8px;
+    border: 1px solid #303844;
+    border-radius: 999px;
+    color: #aab5c3;
+    background: #10151c;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.role-owner {
+    color: #e8c77b;
+}
+
+.role-editor {
+    color: #8bbcff;
+}
+
+.role-viewer {
+    color: #a6b0bd;
+}
+
+.user-avatar {
+    display: grid;
+    place-items: center;
+    width: 27px;
+    height: 27px;
+    border-radius: 50%;
+    background: #1a2636;
+    color: #c8d7ec;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.user-name {
+    max-width: 110px;
+    overflow: hidden;
+    color: #b4becb;
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.topbar-icon-button,
+.logout-button {
+    width: 30px;
+    height: 30px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+}
+
+/* ERROR */
+
+.error-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 36px;
+    padding: 0 12px;
+    border-bottom: 1px solid #4b3035;
+    background: #1d1216;
+    color: #e6a7ae;
+    font-size: 11px;
+}
+
+.error-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.error-banner button {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    cursor: pointer;
+    border-radius: 6px;
+    color: inherit;
+    background: transparent;
+}
+
+.error-banner button:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+/* WORKSPACE */
+
+.workspace {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* ACTIVITY BAR */
+
+.activity-bar {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 48px;
+    min-width: 48px;
+    padding: 8px 6px;
+    border-right: 1px solid #202631;
+    background: #0b0f15;
+}
+
+.activity-bar-top,
+.activity-bar-bottom {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.activity-button {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 38px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    color: #697585;
+    background: transparent;
+    transition: 150ms ease;
+}
+
+.activity-button:hover {
+    color: #d5deea;
+    background: #151b23;
+}
+
+.activity-button-active {
+    color: #dce9fb;
+    background: #151c27;
+    border-color: #283446;
+}
+
+.activity-button-active::before {
+    position: absolute;
+    left: -7px;
+    width: 2px;
+    height: 21px;
+    border-radius: 0 2px 2px 0;
+    background: #7da8df;
+    content: "";
+}
+
+.activity-badge {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    color: #76c893;
+    font-size: 12px;
+    line-height: 1;
+}
+
+.activity-tooltip {
+    position: absolute;
+    z-index: 50;
+    left: 43px;
+    display: none;
+    padding: 6px 8px;
+    border: 1px solid #2a3340;
+    border-radius: 6px;
+    background: #111720;
+    color: #dce5ef;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+.activity-button:hover .activity-tooltip {
+    display: block;
+}
+
+/* SIDE PANELS */
+
+.workspace-panel {
+    flex: 0 0 280px;
+    min-width: 0;
+    overflow: hidden;
+    border-right: 1px solid #202631;
+    background: #0c1118;
+}
+
+.explorer-panel-hidden,
+.collaboration-panel-hidden {
+    display: none !important;
+}
+
+.explorer-panel-visible {
+    display: flex;
+}
+
+.explorer-panel-visible > .file-explorer {
+    width: 100%;
+    min-width: 0;
+    border-right: 0;
+}
+
+/* EDITOR */
+
+.editor-container {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    background: #090d12;
+}
+
+.editor-tab {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 38px;
+    min-height: 38px;
+    padding: 0 12px;
+    border-bottom: 1px solid #202631;
+    background: #0d1219;
+}
+
+.editor-tab-left,
+.editor-tab-right {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    gap: 8px;
+}
+
+.editor-tab-icon {
+    color: #8ca9cc;
+}
+
+.editor-tab-name {
+    max-width: 180px;
+    overflow: hidden;
+    color: #c8d1dd;
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.editor-tab-path {
+    max-width: 260px;
+    overflow: hidden;
+    color: #586575;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.editor-save-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #6fa984;
+    font-size: 10px;
+}
+
+.editor {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.empty-editor {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    color: #718093;
+    text-align: center;
+}
+
+.empty-editor-logo {
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    margin-bottom: 18px;
+    border: 1px solid #273141;
+    border-radius: 16px;
+    background: #101721;
+    color: #7898c1;
+}
+
+.empty-editor h2 {
+    margin: 0 0 7px;
+    color: #d9e1eb;
+    font-size: 18px;
+}
+
+.empty-editor p {
+    margin: 0;
+    font-size: 11px;
+}
+
+.empty-editor-hint {
+    display: flex;
+    gap: 18px;
+    margin-top: 20px;
+}
+
+.empty-editor-hint span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #657386;
+    font-size: 10px;
+}
+
+/* COLLABORATION */
+
+.collaboration-panel {
+    display: flex;
+    flex: 0 0 330px;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    border-left: 1px solid #202631;
+    background: #0c1118;
+}
+
+.collaboration-panel-visible {
+    display: flex;
+}
+
+.collaboration-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 60px;
+    padding: 0 13px;
+    border-bottom: 1px solid #202631;
+}
+
+.collaboration-heading-title,
+.chat-title {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.collaboration-heading-icon,
+.chat-icon {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid #293341;
+    border-radius: 7px;
+    background: #121923;
+    color: #8da9cb;
+}
+
+.collaboration-heading h2,
+.chat-header h3 {
+    margin: 0;
+    color: #d8e0e9;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.collaboration-heading span,
+.chat-header span {
+    display: block;
+    margin-top: 2px;
+    color: #667487;
+    font-size: 9px;
+}
+
+.collaboration-live,
+.chat-online {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: #70b986;
+    font-size: 9px;
+}
+
+.live-dot,
+.status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.members-panel-wrapper {
+    max-height: 42%;
+    overflow: auto;
+    border-bottom: 1px solid #202631;
+}
+
+.chat-panel {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 52px;
+    padding: 0 12px;
+    border-bottom: 1px solid #202631;
+}
+
+.chat-messages {
+    flex: 1;
+    min-height: 0;
+    padding: 12px;
+    overflow-y: auto;
+}
+
+.chat-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    height: 100%;
+    text-align: center;
+}
+
+.chat-empty-icon {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    margin-bottom: 10px;
+    border: 1px solid #293341;
+    border-radius: 11px;
+    background: #111720;
+    color: #667b95;
+}
+
+.chat-empty p {
+    margin: 0 0 4px;
+    color: #aab5c2;
+    font-size: 11px;
+}
+
+.chat-empty span {
+    max-width: 180px;
+    color: #596777;
+    font-size: 9px;
+    line-height: 1.5;
+}
+
+.chat-message {
+    margin-bottom: 10px;
+}
+
+.chat-message.own {
+    text-align: right;
+}
+
+.chat-message-top {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.chat-message.own .chat-message-top {
+    justify-content: flex-end;
+}
+
+.chat-username {
+    color: #8d9bad;
+    font-size: 9px;
+    font-weight: 600;
+}
+
+.chat-you {
+    color: #617b9d;
+    font-size: 8px;
+}
+
+.chat-content {
+    display: inline-block;
+    max-width: 90%;
+    padding: 7px 9px;
+    border: 1px solid #252e3a;
+    border-radius: 8px;
+    background: #111720;
+    color: #c2cbd6;
+    font-size: 10px;
+    line-height: 1.45;
+    text-align: left;
+    overflow-wrap: anywhere;
+}
+
+.chat-message.own .chat-content {
+    border-color: #2c4058;
+    background: #142033;
+}
+
+.chat-input-container {
+    display: flex;
+    gap: 7px;
+    padding: 9px;
+    border-top: 1px solid #202631;
+}
+
+.chat-input-container input {
+    flex: 1;
+    min-width: 0;
+    height: 32px;
+    padding: 0 9px;
+    outline: none;
+    border: 1px solid #28313e;
+    border-radius: 7px;
+    background: #0b1016;
+    color: #d9e1eb;
+    font-size: 10px;
+}
+
+.chat-input-container input::placeholder {
+    color: #566273;
+}
+
+.chat-input-container input:focus {
+    border-color: #40536d;
+}
+
+.chat-send-button {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    border: 1px solid #30445d;
+    border-radius: 7px;
+    background: #152235;
+    color: #9eb9db;
+}
+
+.chat-send-button:hover {
+    background: #1b2c45;
+    color: #c7dcf5;
+}
+
+/* FILE EXPLORER COMPATIBILITY */
+
+.file-explorer {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    background: #0c1118;
+}
+
+.file-explorer button {
+    font-family: inherit;
+}
+
+/* STATUS BAR */
+
+.statusbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 25px;
+    padding: 0 10px;
+    border-top: 1px solid #202631;
+    background: #0c1118;
+    color: #647183;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 9px;
+}
+
+.status-left,
+.status-right {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    gap: 13px;
+}
+
+.status-left span,
+.status-right span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.status-connection {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: #75a785;
+}
+
+.status-brand {
+    color: #77869a;
+}
+
+==================== C:\projects\code-break\frontend\src\App.tsx ====================
+
+import {
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+} from "react";
+
+import {
+    ArrowLeft,
+    Check,
+    Circle,
+    Cloud,
+    CloudOff,
+    Code2,
+    FileCode2,
+    FolderOpen,
+    LogOut,
+    MessageSquare,
+    Send,
+    Settings2,
+    Users,
+    Wifi,
+    WifiOff,
+    X,
+    Zap,
+} from "lucide-react";
+
+import ActivityBar from "./components/ActivityBar";
+
+import CodeEditor from "./editor/CodeEditor";
+
+import FileExplorer, {
+    type ExplorerFile,
+} from "./explorer/FileExplorer";
+
+import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
+
+import MembersPanel from "./project/MembersPanel";
+
+import type {
+    Project,
+    ProjectRole,
+} from "./project/projectApi";
+
+import {
+    getProjectMembers,
+} from "./project/projectApi";
+
+import {
+    useChat,
+} from "./collaboration/useChat";
+
+import type {
+    ChatMessage,
+} from "./collaboration/useChat";
+
+import {
+    useCollaboration,
+} from "./collaboration/useCollaboration";
+
+import type {
+    CollaborationMessage,
+    WorkspaceMessage,
+    WorkspaceSnapshot,
+    RoleChangedMessage,
+} from "./collaboration/useCollaboration";
+
+import {
+    importWorkspace,
+    getWorkspace,
+    getWorkspaceFileContent,
+} from "./workspace/workspaceApi";
+
+import {
+    openLocalFolder,
+    loadWorkspace,
+    getWorkspaceName,
+    clearWorkspace,
+    createWorkspaceFile,
+    createWorkspaceFolder,
+    deleteWorkspaceFile,
+    deleteWorkspaceFolder,
+    normalizeWorkspacePath,
+} from "./workspace/localWorkspace";
+
+import "./App.css";
+
+
+// =====================================================
+// HELPERS
+// =====================================================
+
+function makeExplorerFile(
+    path: string,
+    content: string
+): ExplorerFile {
+
+    const normalized =
+        normalizeWorkspacePath(path);
+
+    const parts =
+        normalized
+            .split("/")
+            .filter(Boolean);
+
+    return {
+        path: normalized,
+
+        name:
+            parts[parts.length - 1] ??
+            normalized,
+
+        content:
+            content ?? "",
+    };
+}
+
+
+// =====================================================
+// BUILD FILES
+// =====================================================
+
+function buildExplorerFiles(
+    sourceFiles:
+        {
+            path: string;
+            content?: string;
+            name?: string;
+        }[]
+): ExplorerFile[] {
+
+    return (
+        sourceFiles ?? []
+    )
+        .filter(
+            file =>
+                Boolean(
+                    normalizeWorkspacePath(
+                        file.path
+                    )
+                )
+        )
+        .map(
+            file =>
+                makeExplorerFile(
+                    file.path,
+                    file.content ?? ""
+                )
+        )
+        .sort(
+            (a, b) =>
+                a.path.localeCompare(
+                    b.path
+                )
+        );
+}
+
+
+// =====================================================
+// BUILD FOLDERS
+// =====================================================
+
+function buildExplorerFolders(
+    sourceFolders:
+        (
+            string |
+            {
+                path: string;
+            }
+        )[]
+): string[] {
+
+    const result =
+        new Set<string>();
+
+    for (
+        const folder
+        of sourceFolders ?? []
+    ) {
+
+        const rawPath =
+            typeof folder === "string"
+                ? folder
+                : folder.path;
+
+        const normalized =
+            normalizeWorkspacePath(
+                rawPath
+            );
+
+        if (!normalized) {
+            continue;
+        }
+
+        const parts =
+            normalized
+                .split("/")
+                .filter(Boolean);
+
+        let current = "";
+
+        for (
+            const part
+            of parts
+        ) {
+
+            current =
+                current
+                    ? `${current}/${part}`
+                    : part;
+
+            result.add(
+                current
+            );
+        }
+    }
+
+    return Array.from(result).sort(
+        (a, b) =>
+            a.localeCompare(b)
+    );
+}
+
+
+// =====================================================
+// PARENT FOLDERS
+// =====================================================
+
+function getParentFolders(
+    path: string
+): string[] {
+
+    const normalized =
+        normalizeWorkspacePath(path);
+
+    if (!normalized) {
+        return [];
+    }
+
+    const parts =
+        normalized
+            .split("/")
+            .filter(Boolean);
+
+    parts.pop();
+
+    const result: string[] = [];
+
+    let current = "";
+
+    for (
+        const part
+        of parts
+    ) {
+
+        current =
+            current
+                ? `${current}/${part}`
+                : part;
+
+        result.push(
+            current
+        );
+    }
+
+    return result;
+}
+
+
+// =====================================================
+// ROLE LABEL
+// =====================================================
+
+function getRoleLabel(
+    role: ProjectRole | null
+) {
+
+    if (!role) {
+        return "Loading";
+    }
+
+    return (
+        role.charAt(0) +
+        role.slice(1).toLowerCase()
+    );
+}
+
+
+// =====================================================
+// APP
+// =====================================================
+
+function App() {
+
+    // =================================================
+    // AUTH
+    // =================================================
+
+    const [
+        authenticated,
+        setAuthenticated,
+    ] = useState<boolean>(
+        Boolean(
+            localStorage.getItem("token")
+        )
+    );
+
+
+    // =================================================
+    // PROJECT
+    // =================================================
+
+    const [
+        selectedProject,
+        setSelectedProject,
+    ] = useState<Project | null>(
+        null
+    );
+
+
+    // =================================================
+    // FILES
+    // =================================================
+
+    const [
+        files,
+        setFiles,
+    ] = useState<ExplorerFile[]>(
+        []
+    );
+
+    const filesRef =
+        useRef<ExplorerFile[]>(
+            []
+        );
+
+
+    // =================================================
+    // FOLDERS
+    // =================================================
+
+    const [
+        folders,
+        setFolders,
+    ] = useState<string[]>(
+        []
+    );
+
+    const foldersRef =
+        useRef<string[]>(
+            []
+        );
+
+
+    // =================================================
+    // SELECTED FILE
+    // =================================================
+
+    const [
+        selectedFile,
+        setSelectedFile,
+    ] = useState<ExplorerFile | null>(
+        null
+    );
+
+
+    // =================================================
+    // MEMBERS
+    // =================================================
+
+    const [
+        ,
+        setMembers,
+    ] = useState<
+        {
+            id: number;
+            userId: number;
+            username: string;
+            role: ProjectRole;
+        }[]
+    >([]);
+
+
+    // =================================================
+    // ROLE
+    // =================================================
+
+    const [
+        currentRole,
+        setCurrentRole,
+    ] = useState<ProjectRole | null>(
+        null
+    );
+
+
+    // =================================================
+    // ACTIVITY PANEL
+    // =================================================
+
+    const [
+        activePanel,
+        setActivePanel,
+    ] = useState<
+        "explorer" | "collaboration"
+    >("explorer");
+
+
+    // =================================================
+    // CHAT
+    // =================================================
+
+    const [
+        chatMessages,
+        setChatMessages,
+    ] = useState<ChatMessage[]>(
+        []
+    );
+
+
+    // =================================================
+    // WORKSPACE
+    // =================================================
+
+    const [
+        workspaceName,
+        setWorkspaceName,
+    ] = useState<string | null>(
+        getWorkspaceName()
+    );
+
+    const [
+        workspaceSyncing,
+        setWorkspaceSyncing,
+    ] = useState(false);
+
+
+    // =================================================
+    // ERROR
+    // =================================================
+
+    const [
+        error,
+        setError,
+    ] = useState("");
+
+
+    // =================================================
+    // LOCAL WORKSPACE ACTIVE
+    // =================================================
+
+    const localWorkspaceActiveRef =
+        useRef(false);
+
+
+    // =================================================
+    // OWNER IMPORT TRACKING
+    // =================================================
+
+    const ownerImportedProjectRef =
+        useRef<number | null>(
+            null
+        );
+
+
+    // =================================================
+    // CONTENT REQUEST TRACKING
+    // =================================================
+
+    const contentRequestIdRef =
+        useRef(0);
+
+
+    // =================================================
+    // AUTH DATA
+    // =================================================
+
+    const token =
+        localStorage.getItem(
+            "token"
+        );
+
+    const username =
+        localStorage.getItem(
+            "username"
+        ) ?? "anonymous";
+
+
+    // =================================================
+    // CHAT MESSAGE
+    // =================================================
+
+    const handleChatMessage =
+        useCallback(
+            (
+                message:
+                    ChatMessage
+            ) => {
+
+                if (!selectedProject) {
+                    return;
+                }
+
+                if (
+                    message.projectId !==
+                    selectedProject.id
+                ) {
+                    return;
+                }
+
+                setChatMessages(
+                    current =>
+                        [
+                            ...current,
+                            message,
+                        ].slice(-100)
+                );
+            },
+            [
+                selectedProject,
+            ]
+        );
+
+
+    // =================================================
+    // REMOTE CODE
+    // =================================================
+
+    const handleRemoteChange =
+        useCallback(
+            (
+                message:
+                    CollaborationMessage
+            ) => {
+
+                if (!selectedProject) {
+                    return;
+                }
+
+                if (
+                    message.projectId !==
+                    selectedProject.id
+                ) {
+                    return;
+                }
+
+                if (
+                    !message.filePath
+                ) {
+                    return;
+                }
+
+                const path =
+                    normalizeWorkspacePath(
+                        message.filePath
+                    );
+
+                if (!path) {
+                    return;
+                }
+
+                const updated =
+                    filesRef.current.map(
+                        file =>
+                            file.path === path
+                                ? {
+                                    ...file,
+                                    content:
+                                        message.content ??
+                                        "",
+                                }
+                                : file
+                    );
+
+                filesRef.current =
+                    updated;
+
+                setFiles(
+                    updated
+                );
+
+                setSelectedFile(
+                    current =>
+                        current &&
+                        current.path === path
+                            ? {
+                                ...current,
+                                content:
+                                    message.content ??
+                                    "",
+                            }
+                            : current
+                );
+            },
+            [
+                selectedProject,
+            ]
+        );
+
+
+    // =================================================
+    // REMOTE WORKSPACE MESSAGE
+    // =================================================
+
+    const handleWorkspaceMessage =
+        useCallback(
+            (
+                message:
+                    WorkspaceMessage
+            ) => {
+
+                if (!selectedProject) {
+                    return;
+                }
+
+                if (
+                    message.projectId !==
+                    selectedProject.id
+                ) {
+                    return;
+                }
+
+                if (
+                    !message.filePath
+                ) {
+                    return;
+                }
+
+                const path =
+                    normalizeWorkspacePath(
+                        message.filePath
+                    );
+
+                if (!path) {
+                    return;
+                }
+
+
+                if (
+                    message.type ===
+                    "WORKSPACE_FILE"
+                ) {
+
+                    const updatedFile =
+                        makeExplorerFile(
+                            path,
+                            message.content ?? ""
+                        );
+
+                    const exists =
+                        filesRef.current.some(
+                            file =>
+                                file.path === path
+                        );
+
+                    const updated =
+                        exists
+                            ? filesRef.current.map(
+                                file =>
+                                    file.path === path
+                                        ? updatedFile
+                                        : file
+                            )
+                            : [
+                                ...filesRef.current,
+                                updatedFile,
+                            ];
+
+                    updated.sort(
+                        (a, b) =>
+                            a.path.localeCompare(
+                                b.path
+                            )
+                    );
+
+                    filesRef.current =
+                        updated;
+
+                    setFiles(
+                        updated
+                    );
+
+
+                    const parents =
+                        getParentFolders(
+                            path
+                        );
+
+                    if (
+                        parents.length > 0
+                    ) {
+
+                        const updatedFolders =
+                            buildExplorerFolders([
+                                ...foldersRef.current,
+                                ...parents,
+                            ]);
+
+                        foldersRef.current =
+                            updatedFolders;
+
+                        setFolders(
+                            updatedFolders
+                        );
+                    }
+
+                    return;
+                }
+
+
+                if (
+                    message.type ===
+                    "WORKSPACE_FOLDER"
+                ) {
+
+                    const updatedFolders =
+                        buildExplorerFolders([
+                            ...foldersRef.current,
+                            path,
+                        ]);
+
+                    foldersRef.current =
+                        updatedFolders;
+
+                    setFolders(
+                        updatedFolders
+                    );
+
+                    return;
+                }
+
+
+                if (
+                    message.type ===
+                    "WORKSPACE_DELETE"
+                ) {
+
+                    const updated =
+                        filesRef.current.filter(
+                            file =>
+                                file.path !== path
+                        );
+
+                    filesRef.current =
+                        updated;
+
+                    setFiles(
+                        updated
+                    );
+
+                    setSelectedFile(
+                        current =>
+                            current?.path === path
+                                ? updated[0] ?? null
+                                : current
+                    );
+
+                    return;
+                }
+
+
+                if (
+                    message.type ===
+                    "WORKSPACE_FOLDER_DELETE"
+                ) {
+
+                    const prefix =
+                        `${path}/`;
+
+
+                    const updatedFiles =
+                        filesRef.current.filter(
+                            file =>
+                                file.path !== path &&
+                                !file.path.startsWith(
+                                    prefix
+                                )
+                        );
+
+
+                    const updatedFolders =
+                        foldersRef.current.filter(
+                            folder =>
+                                folder !== path &&
+                                !folder.startsWith(
+                                    prefix
+                                )
+                        );
+
+
+                    filesRef.current =
+                        updatedFiles;
+
+                    foldersRef.current =
+                        updatedFolders;
+
+
+                    setFiles(
+                        updatedFiles
+                    );
+
+                    setFolders(
+                        updatedFolders
+                    );
+
+
+                    setSelectedFile(
+                        current =>
+                            current &&
+                            (
+                                current.path === path ||
+                                current.path.startsWith(
+                                    prefix
+                                )
+                            )
+                                ? updatedFiles[0] ?? null
+                                : current
+                    );
+                }
+            },
+            [
+                selectedProject,
+            ]
+        );
+
+
+    // =================================================
+    // SNAPSHOT
+    // =================================================
+
+    const handleWorkspaceSnapshot =
+        useCallback(
+            (
+                snapshot:
+                    WorkspaceSnapshot
+            ) => {
+
+                if (!selectedProject) {
+                    return;
+                }
+
+                if (
+                    snapshot.projectId !==
+                    selectedProject.id
+                ) {
+                    return;
+                }
+
+
+                if (
+                    currentRole === "OWNER" &&
+                    localWorkspaceActiveRef.current
+                ) {
+
+                    setWorkspaceSyncing(
+                        false
+                    );
+
+                    return;
+                }
+
+
+                const snapshotFiles =
+                    buildExplorerFiles(
+                        snapshot.files ?? []
+                    );
+
+                const snapshotFolders =
+                    buildExplorerFolders(
+                        snapshot.folders ?? []
+                    );
+
+
+                filesRef.current =
+                    snapshotFiles;
+
+                foldersRef.current =
+                    snapshotFolders;
+
+
+                setFiles(
+                    snapshotFiles
+                );
+
+                setFolders(
+                    snapshotFolders
+                );
+
+
+                if (
+                    !localWorkspaceActiveRef.current
+                ) {
+
+                    setWorkspaceName(
+                        current =>
+                            current ??
+                            "Shared Workspace"
+                    );
+                }
+
+
+                setSelectedFile(
+                    current => {
+
+                        if (current) {
+
+                            const same =
+                                snapshotFiles.find(
+                                    file =>
+                                        file.path ===
+                                        current.path
+                                );
+
+                            if (same) {
+                                return same;
+                            }
+                        }
+
+                        return (
+                            snapshotFiles[0] ??
+                            null
+                        );
+                    }
+                );
+
+
+                setWorkspaceSyncing(
+                    false
+                );
+
+                setError("");
+            },
+            [
+                selectedProject,
+                currentRole,
+            ]
+        );
+
+
+    // =================================================
+    // ROLE CHANGE
+    // =================================================
+
+    const handleRoleChange =
+        useCallback(
+            (
+                message:
+                    RoleChangedMessage
+            ) => {
+
+                if (!selectedProject) {
+                    return;
+                }
+
+                if (
+                    message.projectId !==
+                    selectedProject.id
+                ) {
+                    return;
+                }
+
+
+                const role =
+                    message.role as ProjectRole;
+
+
+                setMembers(
+                    current =>
+                        current.map(
+                            member =>
+                                member.id ===
+                                message.memberId
+                                    ? {
+                                        ...member,
+                                        role,
+                                    }
+                                    : member
+                        )
+                );
+
+
+                if (
+                    message.username ===
+                    username
+                ) {
+
+                    setCurrentRole(
+                        role
+                    );
+
+
+                    if (
+                        role ===
+                        "OWNER"
+                    ) {
+
+                        ownerImportedProjectRef.current =
+                            null;
+                    }
+                }
+            },
+            [
+                selectedProject,
+                username,
+            ]
+        );
+
+
+    // =================================================
+    // COLLABORATION
+    // =================================================
+
+    const {
+        sendChange,
+        sendWorkspaceFile,
+        sendWorkspaceFolder,
+        sendWorkspaceDelete,
+        sendWorkspaceFolderDelete,
+        requestWorkspaceSnapshot,
+        isConnected,
+    } =
+        useCollaboration({
+            projectId:
+                selectedProject?.id ??
+                null,
+
+            filePath:
+                selectedFile?.path ??
+                null,
+
+            onRemoteChange:
+                handleRemoteChange,
+
+            onWorkspaceFile:
+                handleWorkspaceMessage,
+
+            onWorkspaceSnapshot:
+                handleWorkspaceSnapshot,
+
+            onRoleChange:
+                handleRoleChange,
+        });
+
+
+    // =================================================
+    // CHAT
+    // =================================================
+
+    const {
+        sendMessage,
+    } =
+        useChat({
+            projectId:
+                selectedProject?.id ??
+                null,
+
+            onMessage:
+                handleChatMessage,
+        });
+
+
+    // =================================================
+    // LOAD MEMBERS
+    // =================================================
+
+    useEffect(
+        () => {
+
+            if (
+                !selectedProject ||
+                !token
+            ) {
+
+                setMembers([]);
+
+                setCurrentRole(
+                    null
+                );
+
+                return;
+            }
+
+
+            let cancelled =
+                false;
+
+
+            getProjectMembers(
+                selectedProject.id,
+                token
+            )
+                .then(data => {
+
+                    if (
+                        cancelled
+                    ) {
+                        return;
+                    }
+
+
+                    setMembers(
+                        data
+                    );
+
+
+                    const currentMember =
+                        data.find(
+                            member =>
+                                member.username ===
+                                username
+                        );
+
+
+                    setCurrentRole(
+                        currentMember?.role ??
+                        null
+                    );
+
+                })
+                .catch(err => {
+
+                    if (
+                        cancelled
+                    ) {
+                        return;
+                    }
+
+
+                    console.error(
+                        "[APP] Failed to load members:",
+                        err
+                    );
+
+
+                    setError(
+                        err instanceof Error
+                            ? err.message
+                            : "Failed to load project members."
+                    );
+                });
+
+
+            return () => {
+                cancelled = true;
+            };
+
+        },
+        [
+            selectedProject?.id,
+            token,
+            username,
+        ]
+    );
+
+
+    // =================================================
+    // PROJECT RESET
+    // =================================================
+
+    useEffect(
+        () => {
+
+            contentRequestIdRef.current += 1;
+
+            setFiles([]);
+
+            setFolders([]);
+
+            setSelectedFile(
+                null
+            );
+
+            setMembers([]);
+
+            setCurrentRole(
+                null
+            );
+
+            setChatMessages([]);
+
+            setWorkspaceSyncing(
+                false
+            );
+
+            setWorkspaceName(
+                getWorkspaceName()
+            );
+
+            setActivePanel(
+                "explorer"
+            );
+
+
+            filesRef.current =
+                [];
+
+            foldersRef.current =
+                [];
+
+
+            localWorkspaceActiveRef.current =
+                false;
+
+
+            ownerImportedProjectRef.current =
+                null;
+
+
+            setError("");
+
+        },
+        [
+            selectedProject?.id,
+        ]
+    );
+
+
+    // =================================================
+    // INITIAL REST WORKSPACE LOAD
+    // =================================================
+
+    useEffect(
+        () => {
+
+            if (
+                !selectedProject ||
+                !token
+            ) {
+                return;
+            }
+
+
+            if (
+                currentRole ===
+                "OWNER"
+            ) {
+                return;
+            }
+
+
+            if (
+                localWorkspaceActiveRef.current
+            ) {
+                return;
+            }
+
+
+            let cancelled =
+                false;
+
+
+            setWorkspaceSyncing(
+                true
+            );
+
+
+            getWorkspace(
+                selectedProject.id,
+                token
+            )
+                .then(
+                    snapshot => {
+
+                        if (
+                            cancelled
+                        ) {
+                            return;
+                        }
+
+
+                        handleWorkspaceSnapshot(
+                            snapshot
+                        );
+                    }
+                )
+                .catch(
+                    err => {
+
+                        if (
+                            cancelled
+                        ) {
+                            return;
+                        }
+
+
+                        console.error(
+                            "[APP] Failed to load workspace:",
+                            err
+                        );
+
+
+                        setWorkspaceSyncing(
+                            false
+                        );
+
+
+                        setError(
+                            err instanceof Error
+                                ? err.message
+                                : "Failed to load workspace."
+                        );
+                    }
+                );
+
+
+            return () => {
+                cancelled = true;
+            };
+
+        },
+        [
+            selectedProject?.id,
+            currentRole,
+            token,
+            handleWorkspaceSnapshot,
+        ]
+    );
+
+
+    // =================================================
+    // OWNER COMPLETE REST IMPORT
+    // =================================================
+
+    const importOwnerWorkspace =
+        useCallback(
+            async () => {
+
+                if (!selectedProject) {
+                    return;
+                }
+
+
+                if (
+                    currentRole !==
+                    "OWNER"
+                ) {
+                    return;
+                }
+
+
+                if (
+                    !localWorkspaceActiveRef.current
+                ) {
+                    return;
+                }
+
+
+                if (!token) {
+
+                    setError(
+                        "Authentication token is missing."
+                    );
+
+                    return;
+                }
+
+
+                if (
+                    ownerImportedProjectRef.current ===
+                    selectedProject.id
+                ) {
+                    return;
+                }
+
+
+                const workspaceFiles =
+                    filesRef.current;
+
+
+                const workspaceFolders =
+                    foldersRef.current;
+
+
+                setWorkspaceSyncing(
+                    true
+                );
+
+
+                try {
+
+                    const response =
+                        await importWorkspace(
+                            selectedProject.id,
+
+                            {
+                                files:
+                                    workspaceFiles.map(
+                                        file => ({
+                                            path:
+                                                normalizeWorkspacePath(
+                                                    file.path
+                                                ),
+
+                                            name:
+                                                file.name,
+
+                                            content:
+                                                file.content ??
+                                                "",
+                                        })
+                                    ),
+
+                                folders:
+                                    workspaceFolders.map(
+                                        folder =>
+                                            normalizeWorkspacePath(
+                                                folder
+                                            )
+                                    ),
+                            },
+
+                            token
+                        );
+
+
+                    ownerImportedProjectRef.current =
+                        selectedProject.id;
+
+
+                    setWorkspaceSyncing(
+                        false
+                    );
+
+                    setError("");
+
+                    console.log(
+                        "[APP] Owner import complete:",
+                        {
+                            projectId:
+                                response.projectId,
+                            files:
+                                response.files?.length ??
+                                0,
+                            folders:
+                                response.folders?.length ??
+                                0,
+                        }
+                    );
+
+                } catch (err) {
+
+                    ownerImportedProjectRef.current =
+                        null;
+
+
+                    setWorkspaceSyncing(
+                        false
+                    );
+
+
+                    setError(
+                        err instanceof Error
+                            ? err.message
+                            : "Failed to import workspace."
+                    );
+                }
+
+            },
+            [
+                selectedProject,
+                currentRole,
+                token,
+            ]
+        );
+
+
+    // =================================================
+    // OWNER AUTO IMPORT
+    // =================================================
+
+    useEffect(
+        () => {
+
+            if (!selectedProject) {
+                return;
+            }
+
+
+            if (
+                currentRole !==
+                "OWNER"
+            ) {
+                return;
+            }
+
+
+            if (
+                !localWorkspaceActiveRef.current
+            ) {
+                return;
+            }
+
+
+            void importOwnerWorkspace();
+
+        },
+        [
+            selectedProject?.id,
+            currentRole,
+            importOwnerWorkspace,
+        ]
+    );
+
+
+    // =================================================
+    // NON OWNER SNAPSHOT REQUEST
+    // =================================================
+
+    useEffect(
+        () => {
+
+            if (!selectedProject) {
+                return;
+            }
+
+
+            if (
+                currentRole ===
+                "OWNER"
+            ) {
+                return;
+            }
+
+
+            if (!isConnected) {
+                return;
+            }
+
+
+            setWorkspaceSyncing(
+                true
+            );
+
+
+            requestWorkspaceSnapshot();
+
+        },
+        [
+            selectedProject?.id,
+            currentRole,
+            isConnected,
+            requestWorkspaceSnapshot,
+        ]
+    );
+
+
+    // =================================================
+    // LOAD SELECTED FILE CONTENT
+    // =================================================
+
+    useEffect(
+        () => {
+
+            if (
+                !selectedProject ||
+                !selectedFile ||
+                !token
+            ) {
+                return;
+            }
+
+
+            if (
+                localWorkspaceActiveRef.current
+            ) {
+                return;
+            }
+
+
+            const path =
+                normalizeWorkspacePath(
+                    selectedFile.path
+                );
+
+
+            if (!path) {
+                return;
+            }
+
+
+            const requestId =
+                ++contentRequestIdRef.current;
+
+
+            let cancelled =
+                false;
+
+
+            setWorkspaceSyncing(
+                true
+            );
+
+
+            getWorkspaceFileContent(
+                selectedProject.id,
+                path,
+                token
+            )
+                .then(
+                    content => {
+
+                        if (
+                            cancelled ||
+                            requestId !==
+                            contentRequestIdRef.current
+                        ) {
+                            return;
+                        }
+
+
+                        const updatedFile =
+                            makeExplorerFile(
+                                path,
+                                content
+                            );
+
+
+                        const exists =
+                            filesRef.current.some(
+                                file =>
+                                    file.path === path
+                            );
+
+
+                        const updated =
+                            exists
+                                ? filesRef.current.map(
+                                    file =>
+                                        file.path === path
+                                            ? updatedFile
+                                            : file
+                                )
+                                : [
+                                    ...filesRef.current,
+                                    updatedFile,
+                                ];
+
+
+                        updated.sort(
+                            (a, b) =>
+                                a.path.localeCompare(
+                                    b.path
+                                )
+                        );
+
+
+                        filesRef.current =
+                            updated;
+
+
+                        setFiles(
+                            updated
+                        );
+
+
+                        setSelectedFile(
+                            current =>
+                                current &&
+                                current.path === path
+                                    ? updatedFile
+                                    : current
+                        );
+
+
+                        setError("");
+                    }
+                )
+                .catch(
+                    err => {
+
+                        if (
+                            cancelled ||
+                            requestId !== contentRequestIdRef.current
+                        ) {
+                            return;
+                        }
+
+
+                        setError(
+                            err instanceof Error
+                                ? err.message
+                                : `Failed to load "${path}".`
+                        );
+                    }
+                )
+                .finally(
+                    () => {
+
+                        if (
+                            cancelled ||
+                            requestId !== contentRequestIdRef.current
+                        ) {
+                            return;
+                        }
+
+
+                        setWorkspaceSyncing(
+                            false
+                        );
+                    }
+                );
+
+
+            return () => {
+
+                cancelled =
+                    true;
+            };
+
+        },
+        [
+            selectedProject?.id,
+            selectedFile?.path,
+            token,
+        ]
+    );
+
+
+    // =================================================
+    // OPEN LOCAL FOLDER
+    // =================================================
+
+    const handleOpenFolder =
+        async () => {
+
+            if (
+                currentRole ===
+                "VIEWER"
+            ) {
+
+                setError(
+                    "Viewers cannot open a workspace."
+                );
+
+                return;
+            }
+
+
+            try {
+
+                setError("");
+
+
+                const mode =
+                    currentRole === "OWNER"
+                        ? "OWNER"
+                        : "COLLABORATOR";
+
+
+                const name =
+                    await openLocalFolder(
+                        mode
+                    );
+
+
+                localWorkspaceActiveRef.current =
+                    currentRole === "OWNER";
+
+
+                setWorkspaceName(
+                    name
+                );
+
+
+                const localWorkspace =
+                    await loadWorkspace();
+
+
+                const explorerFiles =
+                    buildExplorerFiles(
+                        localWorkspace.files ?? []
+                    );
+
+
+                const explorerFolders =
+                    buildExplorerFolders(
+                        localWorkspace.folders ?? []
+                    );
+
+
+                if (
+                    currentRole ===
+                    "OWNER"
+                ) {
+
+                    filesRef.current =
+                        explorerFiles;
+
+                    foldersRef.current =
+                        explorerFolders;
+
+
+                    setFiles(
+                        explorerFiles
+                    );
+
+                    setFolders(
+                        explorerFolders
+                    );
+
+                    setSelectedFile(
+                        explorerFiles[0] ??
+                        null
+                    );
+
+
+                    ownerImportedProjectRef.current =
+                        null;
+
+
+                    if (
+                        selectedProject &&
+                        token
+                    ) {
+
+                        setWorkspaceSyncing(
+                            true
+                        );
+
+
+                        try {
+
+                            const response =
+                                await importWorkspace(
+                                    selectedProject.id,
+
+                                    {
+                                        files:
+                                            explorerFiles.map(
+                                                file => ({
+                                                    path:
+                                                        normalizeWorkspacePath(
+                                                            file.path
+                                                        ),
+
+                                                    name:
+                                                        file.name,
+
+                                                    content:
+                                                        file.content ??
+                                                        "",
+                                                })
+                                            ),
+
+                                        folders:
+                                            explorerFolders.map(
+                                                folder =>
+                                                    normalizeWorkspacePath(
+                                                        folder
+                                                    )
+                                            ),
+                                    },
+
+                                    token
+                                );
+
+
+                            ownerImportedProjectRef.current =
+                                selectedProject.id;
+
+
+                            setWorkspaceSyncing(
+                                false
+                            );
+
+                            setError("");
+
+                            console.log(
+                                "[APP] Owner initial import complete:",
+                                response
+                            );
+
+                        } catch (err) {
+
+                            ownerImportedProjectRef.current =
+                                null;
+
+
+                            setWorkspaceSyncing(
+                                false
+                            );
+
+
+                            setError(
+                                err instanceof Error
+                                    ? err.message
+                                    : "Failed to import workspace."
+                            );
+                        }
+                    }
+
+                } else {
+
+                    if (
+                        selectedProject &&
+                        token
+                    ) {
+
+                        setWorkspaceSyncing(
+                            true
+                        );
+
+
+                        try {
+
+                            const snapshot =
+                                await getWorkspace(
+                                    selectedProject.id,
+                                    token
+                                );
+
+
+                            handleWorkspaceSnapshot(
+                                snapshot
+                            );
+
+                        } catch (err) {
+
+                            setWorkspaceSyncing(
+                                false
+                            );
+
+
+                            setError(
+                                err instanceof Error
+                                    ? err.message
+                                    : "Failed to load shared workspace."
+                            );
+                        }
+                    }
+                }
+
+            } catch (err) {
+
+                if (
+                    err instanceof DOMException &&
+                    err.name ===
+                        "AbortError"
+                ) {
+                    return;
+                }
+
+
+                setError(
+                    err instanceof Error
+                        ? err.message
+                        : "Failed to open folder."
+                );
+            }
+        };
+
+
+    // =================================================
+    // CREATE FILE
+    // =================================================
+
+    const handleCreateFile =
+        async () => {
+
+            if (
+                currentRole ===
+                "VIEWER"
+            ) {
+                return;
+            }
+
+
+            if (
+                !localWorkspaceActiveRef.current
+            ) {
+
+                setError(
+                    "Open a local folder first."
+                );
+
+                return;
+            }
+
+
+            const input =
+                window.prompt(
+                    "Enter file path",
+                    "src/new-file.txt"
+                );
+
+
+            if (
+                input === null
+            ) {
+                return;
+            }
+
+
+            const path =
+                normalizeWorkspacePath(
+                    input.trim()
+                );
+
+
+            if (!path) {
+
+                setError(
+                    "File path is required."
+                );
+
+                return;
+            }
+
+
+            try {
+
+                await createWorkspaceFile(
+                    path,
+                    ""
+                );
+
+
+                const newFile =
+                    makeExplorerFile(
+                        path,
+                        ""
+                    );
+
+
+                const updated =
+                    filesRef.current.some(
+                        file =>
+                            file.path === path
+                    )
+                        ? filesRef.current
+                        : [
+                            ...filesRef.current,
+                            newFile,
+                        ];
+
+
+                updated.sort(
+                    (a, b) =>
+                        a.path.localeCompare(
+                            b.path
+                        )
+                );
+
+
+                filesRef.current =
+                    updated;
+
+
+                setFiles(
+                    updated
+                );
+
+                setSelectedFile(
+                    newFile
+                );
+
+
+                const updatedFolders =
+                    buildExplorerFolders([
+                        ...foldersRef.current,
+                        ...getParentFolders(
+                            path
+                        ),
+                    ]);
+
+
+                foldersRef.current =
+                    updatedFolders;
+
+                setFolders(
+                    updatedFolders
+                );
+
+
+                sendWorkspaceFile(
+                    path,
+                    ""
+                );
+
+            } catch (err) {
+
+                setError(
+                    err instanceof Error
+                        ? err.message
+                        : "Failed to create file."
+                );
+            }
+        };
+
+
+    // =================================================
+    // CREATE FOLDER
+    // =================================================
+
+    const handleCreateFolder =
+        async () => {
+
+            if (
+                currentRole ===
+                "VIEWER"
+            ) {
+                return;
+            }
+
+
+            if (
+                !localWorkspaceActiveRef.current
+            ) {
+
+                setError(
+                    "Open a local folder first."
+                );
+
+                return;
+            }
+
+
+            const input =
+                window.prompt(
+                    "Enter folder path",
+                    "src/components"
+                );
+
+
+            if (
+                input === null
+            ) {
+                return;
+            }
+
+
+            const path =
+                normalizeWorkspacePath(
+                    input.trim()
+                );
+
+
+            if (!path) {
+
+                setError(
+                    "Folder path is required."
+                );
+
+                return;
+            }
+
+
+            try {
+
+                await createWorkspaceFolder(
+                    path
+                );
+
+
+                const updatedFolders =
+                    buildExplorerFolders([
+                        ...foldersRef.current,
+                        path,
+                    ]);
+
+
+                foldersRef.current =
+                    updatedFolders;
+
+                setFolders(
+                    updatedFolders
+                );
+
+
+                sendWorkspaceFolder(
+                    path
+                );
+
+            } catch (err) {
+
+                setError(
+                    err instanceof Error
+                        ? err.message
+                        : "Failed to create folder."
+                );
+            }
+        };
+
+
+    // =================================================
+    // CODE CHANGE
+    // =================================================
+
+    const handleCodeChange =
+        (
+            value: string
+        ) => {
+
+            if (
+                currentRole ===
+                "VIEWER"
+            ) {
+                return;
+            }
+
+
+            if (!selectedFile) {
+                return;
+            }
+
+
+            const path =
+                selectedFile.path;
+
+
+            const updatedFile =
+                makeExplorerFile(
+                    path,
+                    value
+                );
+
+
+            const updated =
+                filesRef.current.map(
+                    file =>
+                        file.path === path
+                            ? updatedFile
+                            : file
+                );
+
+
+            filesRef.current =
+                updated;
+
+            setFiles(
+                updated
+            );
+
+            setSelectedFile(
+                updatedFile
+            );
+
+
+            sendChange(
+                value
+            );
+        };
+
+
+    // =================================================
+    // DELETE FILE
+    // =================================================
+
+    const handleDeleteFile =
+        async (
+            file: ExplorerFile
+        ) => {
+
+            if (
+                currentRole ===
+                "VIEWER"
+            ) {
+                return;
+            }
+
+
+            if (
+                !localWorkspaceActiveRef.current
+            ) {
+
+                setError(
+                    "Open a local folder first."
+                );
+
+                return;
+            }
+
+
+            if (
+                !window.confirm(
+                    `Delete "${file.path}"?`
+                )
+            ) {
+                return;
+            }
+
+
+            try {
+
+                await deleteWorkspaceFile(
+                    file.path
+                );
+
+
+                const updated =
+                    filesRef.current.filter(
+                        current =>
+                            current.path !==
+                            file.path
+                    );
+
+
+                filesRef.current =
+                    updated;
+
+                setFiles(
+                    updated
+                );
+
+
+                setSelectedFile(
+                    current =>
+                        current?.path ===
+                        file.path
+                            ? updated[0] ?? null
+                            : current
+                );
+
+
+                sendWorkspaceDelete(
+                    file.path
+                );
+
+            } catch (err) {
+
+                setError(
+                    err instanceof Error
+                        ? err.message
+                        : "Failed to delete file."
+                );
+            }
+        };
+
+
+    // =================================================
+    // DELETE FOLDER
+    // =================================================
+
+    const handleDeleteFolder =
+        async (
+            path: string
+        ) => {
+
+            if (
+                currentRole ===
+                "VIEWER"
+            ) {
+                return;
+            }
+
+
+            if (
+                !localWorkspaceActiveRef.current
+            ) {
+
+                setError(
+                    "Open a local folder first."
+                );
+
+                return;
+            }
+
+
+            if (
+                !window.confirm(
+                    `Delete folder "${path}" and everything inside it?`
+                )
+            ) {
+                return;
+            }
+
+
+            try {
+
+                await deleteWorkspaceFolder(
+                    path
+                );
+
+
+                const prefix =
+                    `${path}/`;
+
+
+                const updatedFiles =
+                    filesRef.current.filter(
+                        file =>
+                            file.path !== path &&
+                            !file.path.startsWith(
+                                prefix
+                            )
+                    );
+
+
+                const updatedFolders =
+                    foldersRef.current.filter(
+                        folder =>
+                            folder !== path &&
+                            !folder.startsWith(
+                                prefix
+                            )
+                    );
+
+
+                filesRef.current =
+                    updatedFiles;
+
+                foldersRef.current =
+                    updatedFolders;
+
+
+                setFiles(
+                    updatedFiles
+                );
+
+                setFolders(
+                    updatedFolders
+                );
+
+
+                setSelectedFile(
+                    current =>
+                        current &&
+                        (
+                            current.path === path ||
+                            current.path.startsWith(
+                                prefix
+                            )
+                        )
+                            ? updatedFiles[0] ?? null
+                            : current
+                );
+
+
+                sendWorkspaceFolderDelete(
+                    path
+                );
+
+            } catch (err) {
+
+                setError(
+                    err instanceof Error
+                        ? err.message
+                        : "Failed to delete folder."
+                );
+            }
+        };
+
+
+    // =================================================
+    // CHAT SEND
+    // =================================================
+
+    const handleSendChat =
+        (
+            content: string
+        ) => {
+
+            const clean =
+                content.trim();
+
+
+            if (!clean) {
+                return;
+            }
+
+
+            sendMessage(
+                clean
+            );
+        };
+
+
+    // =================================================
+    // LOGOUT
+    // =================================================
+
+    const handleLogout =
+        () => {
+
+            contentRequestIdRef.current += 1;
+
+            clearWorkspace();
+
+
+            localWorkspaceActiveRef.current =
+                false;
+
+
+            ownerImportedProjectRef.current =
+                null;
+
+
+            localStorage.removeItem(
+                "token"
+            );
+
+            localStorage.removeItem(
+                "username"
+            );
+
+
+            setAuthenticated(
+                false
+            );
+
+            setSelectedProject(
+                null
+            );
+
+            setFiles([]);
+
+            setFolders([]);
+
+            setSelectedFile(
+                null
+            );
+
+            setMembers([]);
+
+            setCurrentRole(
+                null
+            );
+
+            setChatMessages([]);
+
+            setWorkspaceName(
+                null
+            );
+
+            setError("");
+        };
+
+
+    // =================================================
+    // BACK
+    // =================================================
+
+    const handleBack =
+        () => {
+
+            contentRequestIdRef.current += 1;
+
+            clearWorkspace();
+
+
+            localWorkspaceActiveRef.current =
+                false;
+
+
+            ownerImportedProjectRef.current =
+                null;
+
+
+            setSelectedProject(
+                null
+            );
+
+            setFiles([]);
+
+            setFolders([]);
+
+            setSelectedFile(
+                null
+            );
+
+            setMembers([]);
+
+            setCurrentRole(
+                null
+            );
+
+            setChatMessages([]);
+
+            setWorkspaceName(
+                null
+            );
+
+            setError("");
+        };
+
+
+    // =================================================
+    // LOGIN
+    // =================================================
+
+    if (!authenticated) {
+
+        return (
+            <Login
+                onLogin={() =>
+                    setAuthenticated(
+                        true
+                    )
+                }
+            />
+        );
+    }
+
+
+    // =================================================
+    // DASHBOARD
+    // =================================================
+
+    if (!selectedProject) {
+
+        return (
+            <Dashboard
+                onOpenProject={
+                    project =>
+                        setSelectedProject(
+                            project
+                        )
+                }
+            />
+        );
+    }
+
+
+    // =================================================
+    // SELECT FILE
+    // =================================================
+
+    const handleSelectFile =
+        (
+            file:
+                ExplorerFile
+        ) => {
+
+            setError("");
+
+            setSelectedFile(
+                file
+            );
+        };
+
+
+    // =================================================
+    // UI
+    // =================================================
+
+    return (
+        <div className="app">
+
+            {/* =================================================
+                TOPBAR
+            ================================================= */}
+
+            <header className="topbar">
+
+                <div className="topbar-brand">
+
+                    <div className="brand-mark">
+                        <Code2
+                            size={15}
+                            strokeWidth={2.4}
+                        />
+                    </div>
+
+                    <div className="brand-copy">
+
+                        <span className="brand-name">
+                            Code Break
+                        </span>
+
+                        <span className="brand-divider">
+                            /
+                        </span>
+
+                        <span className="brand-project">
+                            {selectedProject.name}
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <button
+                    type="button"
+                    className="back-button"
+                    onClick={
+                        handleBack
+                    }
+                    title="Back to projects"
+                >
+                    <ArrowLeft
+                        size={15}
+                    />
+
+                    <span>
+                        Projects
+                    </span>
+                </button>
+
+
+                <div className="topbar-spacer" />
+
+
+                <div className="topbar-workspace">
+
+                    <div className="workspace-indicator">
+
+                        {workspaceSyncing ? (
+                            <Cloud
+                                size={14}
+                                className="is-syncing"
+                            />
+                        ) : workspaceName ? (
+                            <Cloud
+                                size={14}
+                            />
+                        ) : (
+                            <CloudOff
+                                size={14}
+                            />
+                        )}
+
+                        <span>
+                            {workspaceName ??
+                                "No workspace"}
+                        </span>
+
+                    </div>
+
+
+                    <div
+                        className={
+                            isConnected
+                                ? "connection-indicator connected"
+                                : "connection-indicator"
+                        }
+                    >
+
+                        {isConnected ? (
+                            <Wifi
+                                size={13}
+                            />
+                        ) : (
+                            <WifiOff
+                                size={13}
+                            />
+                        )}
+
+                        <span>
+                            {
+                                isConnected
+                                    ? "Live"
+                                    : "Connecting"
+                            }
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <div className="topbar-divider" />
+
+
+                <div className="user">
+
+                    <div
+                        className={
+                            `role-badge role-${(
+                                currentRole ??
+                                "viewer"
+                            ).toLowerCase()}`
+                        }
+                    >
+
+                        <Circle
+                            size={7}
+                            fill="currentColor"
+                        />
+
+                        <span>
+                            {
+                                getRoleLabel(
+                                    currentRole
+                                )
+                            }
+                        </span>
+
+                    </div>
+
+
+                    <div className="user-avatar">
+                        {
+                            username
+                                .charAt(0)
+                                .toUpperCase()
+                        }
+                    </div>
+
+
+                    <span className="user-name">
+                        {username}
+                    </span>
+
+                </div>
+
+
+                <button
+                    type="button"
+                    className="topbar-icon-button"
+                    title="Settings"
+                    aria-label="Settings"
+                >
+                    <Settings2
+                        size={16}
+                    />
+                </button>
+
+
+                <button
+                    type="button"
+                    className="logout-button"
+                    onClick={
+                        handleLogout
+                    }
+                    title="Logout"
+                >
+                    <LogOut
+                        size={15}
+                    />
+                </button>
+
+            </header>
+
+
+            {/* =================================================
+                ERROR
+            ================================================= */}
+
+            {error && (
+                <div className="error-banner">
+
+                    <div className="error-content">
+
+                        <X
+                            size={15}
+                        />
+
+                        <span>
+                            {error}
+                        </span>
+
+                    </div>
+
+
+                    <button
+                        type="button"
+                        onClick={() =>
+                            setError("")
+                        }
+                        title="Dismiss"
+                        aria-label="Dismiss error"
+                    >
+                        <X
+                            size={15}
+                        />
+                    </button>
+
+                </div>
+            )}
+
+
+            {/* =================================================
+                MAIN WORKSPACE
+            ================================================= */}
+
+            <main className="workspace">
+
+                {/* =============================================
+                    ACTIVITY BAR
+                ============================================= */}
+
+                <ActivityBar
+                    activePanel={
+                        activePanel
+                    }
+
+                    onPanelChange={
+                        setActivePanel
+                    }
+                />
+
+
+                {/* =============================================
+                    EXPLORER
+                ============================================= */}
+
+                <div className="workspace-panel explorer-panel-visible">
+
+                    <FileExplorer
+                        files={
+                            files
+                        }
+
+                        folders={
+                            folders
+                        }
+
+                        selectedFile={
+                            selectedFile?.path ??
+                            ""
+                        }
+
+                        workspaceName={
+                            workspaceName
+                        }
+
+                        onSelectFile={
+                            handleSelectFile
+                        }
+
+                        onOpenFolder={
+                            handleOpenFolder
+                        }
+
+                        onCreateFile={
+                            handleCreateFile
+                        }
+
+                        onCreateFolder={
+                            handleCreateFolder
+                        }
+
+                        onDeleteFile={
+                            handleDeleteFile
+                        }
+
+                        onDeleteFolder={
+                            handleDeleteFolder
+                        }
+
+                        readOnly={
+                            currentRole ===
+                            "VIEWER"
+                        }
+                    />
+
+                </div>
+
+
+                {/* =============================================
+                    EDITOR
+                ============================================= */}
+
+                <section className="editor-container">
+
+                    <div className="editor-tab">
+
+                        <div className="editor-tab-left">
+
+                            {selectedFile ? (
+                                <FileCode2
+                                    size={14}
+                                    className="editor-tab-icon"
+                                />
+                            ) : (
+                                <Code2
+                                    size={14}
+                                    className="editor-tab-icon"
+                                />
+                            )}
+
+
+                            <span className="editor-tab-name">
+                                {
+                                    selectedFile?.name ??
+                                    "Welcome"
+                                }
+                            </span>
+
+
+                            {selectedFile && (
+                                <span className="editor-tab-path">
+                                    {
+                                        selectedFile.path
+                                    }
+                                </span>
+                            )}
+
+                        </div>
+
+
+                        {selectedFile && (
+                            <div className="editor-tab-right">
+
+                                <span className="editor-save-state">
+
+                                    <Check
+                                        size={12}
+                                    />
+
+                                    Saved
+
+                                </span>
+
+                            </div>
+                        )}
+
+                    </div>
+
+
+                    <div className="editor">
+
+                        {selectedFile ? (
+
+                            <CodeEditor
+                                value={
+                                    selectedFile.content
+                                }
+
+                                onChange={
+                                    handleCodeChange
+                                }
+
+                                readOnly={
+                                    currentRole ===
+                                    "VIEWER"
+                                }
+                            />
+
+                        ) : (
+
+                            <div className="empty-editor">
+
+                                <div className="empty-editor-logo">
+
+                                    <Zap
+                                        size={30}
+                                        strokeWidth={1.6}
+                                    />
+
+                                </div>
+
+
+                                <h2>
+                                    Code Break
+                                </h2>
+
+
+                                <p>
+                                    Select a file from the
+                                    explorer to start coding.
+                                </p>
+
+
+                                <div className="empty-editor-hint">
+
+                                    <span>
+                                        <FolderOpen
+                                            size={13}
+                                        />
+
+                                        Open a workspace
+                                    </span>
+
+                                    <span>
+                                        <Code2
+                                            size={13}
+                                        />
+
+                                        Start building
+                                    </span>
+
+                                </div>
+
+                            </div>
+                        )}
+
+                    </div>
+
+                </section>
+
+
+                {/* =============================================
+                    COLLABORATION
+                ============================================= */}
+
+                <aside className="collaboration-panel collaboration-panel-visible">
+
+                    <div className="collaboration-heading">
+
+                        <div className="collaboration-heading-title">
+
+                            <div className="collaboration-heading-icon">
+                                <Users
+                                    size={15}
+                                />
+                            </div>
+
+                            <div>
+
+                                <h2>
+                                    Collaboration
+                                </h2>
+
+                                <span>
+                                    Team workspace
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                        <div className="collaboration-live">
+
+                            <span className="live-dot" />
+
+                            Live
+
+                        </div>
+
+                    </div>
+
+
+                    <div className="members-panel-wrapper">
+
+                        <MembersPanel
+                            projectId={
+                                selectedProject.id
+                            }
+
+                            currentUsername={
+                                username
+                            }
+
+                            onCurrentRoleChange={
+                                setCurrentRole
+                            }
+                        />
+
+                    </div>
+
+
+                    <section className="chat-panel">
+
+                        <div className="chat-header">
+
+                            <div className="chat-title">
+
+                                <div className="chat-icon">
+                                    <MessageSquare
+                                        size={15}
+                                    />
+                                </div>
+
+
+                                <div>
+
+                                    <h3>
+                                        Team Chat
+                                    </h3>
+
+                                    <span>
+                                        Real-time conversation
+                                    </span>
+
+                                </div>
+
+                            </div>
+
+
+                            <div className="chat-online">
+                                <span className="live-dot" />
+                                Online
+                            </div>
+
+                        </div>
+
+
+                        <div className="chat-messages">
+
+                            {chatMessages.length === 0 ? (
+
+                                <div className="chat-empty">
+
+                                    <div className="chat-empty-icon">
+                                        <MessageSquare
+                                            size={21}
+                                        />
+                                    </div>
+
+
+                                    <p>
+                                        No messages yet
+                                    </p>
+
+
+                                    <span>
+                                        Start a conversation
+                                        with your team.
+                                    </span>
+
+                                </div>
+
+                            ) : (
+
+                                chatMessages.map(
+                                    (
+                                        message,
+                                        index
+                                    ) => (
+
+                                        <div
+                                            key={
+                                                `${message.username}-${index}`
+                                            }
+                                            className={
+                                                message.username ===
+                                                username
+                                                    ? "chat-message own"
+                                                    : "chat-message"
+                                            }
+                                        >
+
+                                            <div className="chat-message-top">
+
+                                                <span className="chat-username">
+                                                    {
+                                                        message.username
+                                                    }
+                                                </span>
+
+
+                                                {
+                                                    message.username ===
+                                                    username && (
+                                                        <span className="chat-you">
+                                                            You
+                                                        </span>
+                                                    )
+                                                }
+
+                                            </div>
+
+
+                                            <div className="chat-content">
+
+                                                {
+                                                    message.content
+                                                }
+
+                                            </div>
+
+                                        </div>
+                                    )
+                                )
+                            )}
+
+                        </div>
+
+
+                        <form
+                            className="chat-input-container"
+                            onSubmit={
+                                event => {
+
+                                    event.preventDefault();
+
+
+                                    const form =
+                                        event.currentTarget;
+
+
+                                    const input =
+                                        form.elements.namedItem(
+                                            "message"
+                                        ) as HTMLInputElement;
+
+
+                                    handleSendChat(
+                                        input.value
+                                    );
+
+
+                                    input.value =
+                                        "";
+                                }
+                            }
+                        >
+
+                            <input
+                                name="message"
+                                type="text"
+                                placeholder="Message your team..."
+                                autoComplete="off"
+                            />
+
+
+                            <button
+                                type="submit"
+                                className="chat-send-button"
+                                title="Send message"
+                                aria-label="Send message"
+                            >
+                                <Send
+                                    size={14}
+                                />
+                            </button>
+
+                        </form>
+
+                    </section>
+
+                </aside>
+
+            </main>
+
+
+            {/* =================================================
+                STATUS BAR
+            ================================================= */}
+
+            <footer className="statusbar">
+
+                <div className="status-left">
+
+                    <span className="status-connection">
+
+                        <span className="status-dot" />
+
+                        {
+                            isConnected
+                                ? "Connected"
+                                : "Connecting..."
+                        }
+
+                    </span>
+
+
+                    <span>
+                        {selectedProject.name}
+                    </span>
+
+
+                    {selectedFile && (
+                        <span>
+                            {selectedFile.path}
+                        </span>
+                    )}
+
+                </div>
+
+
+                <div className="status-right">
+
+                    <span>
+                        {files.length} files
+                    </span>
+
+
+                    <span>
+                        {folders.length} folders
+                    </span>
+
+
+                    <span>
+                        {getRoleLabel(
+                            currentRole
+                        )}
+                    </span>
+
+
+                    <span className="status-brand">
+                        Code Break
+                    </span>
+
+                </div>
+
+            </footer>
+
+        </div>
+    );
+}
+
+
+export default App;
+
+==================== C:\projects\code-break\frontend\src\index.css ====================
+
+@import "tailwindcss";
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: #090d12;
+}
+
+body {
+  margin: 0;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+
+  background: #090d12;
+  color: #e6edf3;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #30363d transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #30363d;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #484f58;
+}
+/* =====================================================
+   PREMIUM APP UI
+===================================================== */
+
+.topbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+}
+
+.brand-mark {
+    width: 28px;
+    height: 28px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 7px;
+
+    background: linear-gradient(
+        135deg,
+        #1f6feb,
+        #388bfd
+    );
+
+    color: #fff;
+
+    box-shadow:
+        0 0 18px
+        rgba(31, 111, 235, 0.25);
+}
+
+.brand-copy {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+
+    min-width: 0;
+}
+
+.brand-name {
+    color: #f0f6fc;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.brand-divider {
+    color: #39424e;
+}
+
+.brand-project {
+    max-width: 150px;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    color: #7d8794;
+    font-size: 12px;
+}
+
+.topbar-spacer {
+    flex: 1;
+}
+
+.topbar-workspace {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.workspace-indicator,
+.connection-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    color: #7d8794;
+
+    font-size: 10px;
+}
+
+.connection-indicator.connected {
+    color: #3fb950;
+}
+
+.is-syncing {
+    animation: workspace-spin 1s linear infinite;
+}
+
+@keyframes workspace-spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.topbar-divider {
+    width: 1px;
+    height: 22px;
+
+    background: #252c35;
+}
+
+.role-badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+
+    padding: 5px 8px;
+
+    border: 1px solid #303945;
+    border-radius: 999px;
+
+    background: #151b23;
+
+    font-size: 9px;
+    font-weight: 800;
+}
+
+.role-owner {
+    color: #e3b341;
+}
+
+.role-editor {
+    color: #58a6ff;
+}
+
+.role-viewer {
+    color: #8b949e;
+}
+
+.user-avatar {
+    width: 26px;
+    height: 26px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+
+    background:
+        linear-gradient(
+            135deg,
+            #30363d,
+            #21262d
+        );
+
+    border: 1px solid #3a424d;
+
+    color: #c9d1d9;
+
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.user-name {
+    max-width: 100px;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    color: #aab4c0;
+    font-size: 11px;
+}
+
+.topbar-icon-button,
+.logout-button {
+    width: 29px;
+    height: 29px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border: 1px solid transparent;
+    border-radius: 7px;
+
+    background: transparent;
+    color: #707b88;
+
+    padding: 0;
+}
+
+.topbar-icon-button:hover,
+.logout-button:hover {
+    background: #1a212b;
+    border-color: #30363d;
+    color: #e6edf3;
+}
+
+.error-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.collaboration-heading {
+    min-height: 59px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 10px 13px;
+
+    border-bottom: 1px solid #242b35;
+}
+
+.collaboration-heading-title {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.collaboration-heading-icon {
+    width: 29px;
+    height: 29px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 8px;
+
+    background:
+        rgba(88, 166, 255, 0.08);
+
+    color: #58a6ff;
+}
+
+.collaboration-heading h2 {
+    margin: 0;
+
+    color: #d7dee7;
+
+    font-size: 12px;
+    font-weight: 750;
+}
+
+.collaboration-heading span {
+    display: block;
+
+    margin-top: 2px;
+
+    color: #596575;
+
+    font-size: 9px;
+}
+
+.collaboration-live {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+
+    color: #3fb950;
+
+    font-size: 9px;
+    font-weight: 800;
+}
+
+.live-dot,
+.status-dot {
+    width: 6px;
+    height: 6px;
+
+    display: inline-block;
+
+    border-radius: 50%;
+
+    background: #3fb950;
+
+    box-shadow:
+        0 0 7px
+        rgba(63, 185, 80, 0.55);
+}
+
+.members-panel-wrapper {
+    max-height: 38%;
+    overflow: auto;
+
+    border-bottom: 1px solid #242b35;
+}
+
+.editor-tab-left {
+    min-width: 0;
+
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.editor-tab-name {
+    color: #d7dee7;
+    font-weight: 600;
+}
+
+.editor-tab-path {
+    max-width: 280px;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    color: #596575;
+    font-size: 10px;
+}
+
+.editor-tab-icon {
+    color: #58a6ff;
+    flex-shrink: 0;
+}
+
+.editor-tab-right {
+    margin-left: auto;
+
+    display: flex;
+    align-items: center;
+}
+
+.editor-save-state {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    color: #596575;
+
+    font-size: 9px;
+}
+
+.empty-editor-logo {
+    width: 72px;
+    height: 72px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    margin-bottom: 15px;
+
+    border: 1px solid #30363d;
+    border-radius: 19px;
+
+    background:
+        radial-gradient(
+            circle at 35% 25%,
+            rgba(88, 166, 255, 0.12),
+            transparent 65%
+        );
+
+    color: #58a6ff;
+
+    box-shadow:
+        0 10px 40px
+        rgba(0, 0, 0, 0.25);
+}
+
+.empty-editor h2 {
+    margin: 0 0 7px;
+
+    color: #c9d1d9;
+
+    font-size: 16px;
+    font-weight: 750;
+}
+
+.empty-editor p {
+    margin: 0;
+
+    color: #667180;
+
+    font-size: 11px;
+}
+
+.empty-editor-hint {
+    display: flex;
+    gap: 8px;
+
+    margin-top: 18px;
+}
+
+.empty-editor-hint span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    padding: 6px 9px;
+
+    border: 1px solid #252c35;
+    border-radius: 7px;
+
+    background: #11161d;
+
+    color: #687381;
+
+    font-size: 9px;
+}
+
+.chat-message-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.chat-message-header span {
+    color: #3fb950;
+    font-size: 8px;
+}
+
+.status-left,
+.status-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+
+    min-width: 0;
+}
+
+.status-left {
+    flex: 1;
+
+    overflow: hidden;
+}
+
+.status-left > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.status-right {
+    flex-shrink: 0;
+}
+
+.status-connection {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.status-brand {
+    color: #596575 !important;
+    font-weight: 700;
+}
+
+@media (max-width: 900px) {
+    .user-name {
+        display: none;
+    }
+
+    .workspace-indicator span {
+        display: none;
+    }
+
+    .editor-tab-path {
+        display: none;
+    }
+
+    .status-right span:nth-child(1),
+    .status-right span:nth-child(2) {
+        display: none;
+    }
+}
+
+@media (max-width: 650px) {
+    .brand-project,
+    .connection-indicator span,
+    .role-badge span {
+        display: none;
+    }
+
+    .topbar-workspace {
+        gap: 6px;
+    }
+
+    .topbar-divider {
+        display: none;
+    }
+
+    .back-button span {
+        display: none;
+    }
+
+    .back-button {
+        width: 30px;
+        height: 30px;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        padding: 0;
+    }
+
+    .status-right {
+        display: none;
+    }
+}
+.code-editor-shell {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    background: #11151c;
+}
+
+.code-editor-shell .monaco-editor,
+.code-editor-shell .monaco-editor-background,
+.code-editor-shell .monaco-editor .margin {
+    background: #11151c !important;
+}
+
+.code-editor-shell .monaco-editor .scroll-decoration {
+    box-shadow: none !important;
+}
+
+.code-break-active-line {
+    background: rgba(125, 211, 252, 0.035);
+}
+
+.editor-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    height: 100%;
+    background: #11151c;
+    color: #778397;
+    font-size: 12px;
+    font-family:
+        Inter,
+        system-ui,
+        sans-serif;
+}
+
+.editor-loading-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid #293241;
+    border-top-color: #7dd3fc;
+    border-radius: 50%;
+    animation: code-break-spin 0.8s linear infinite;
+}
+
+.editor-readonly-badge {
+    position: absolute;
+    right: 16px;
+    bottom: 14px;
+
+    display: flex;
+    align-items: center;
+    gap: 7px;
+
+    padding: 5px 9px;
+
+    border: 1px solid #293241;
+    border-radius: 6px;
+
+    background: rgba(17, 21, 28, 0.92);
+
+    color: #7f8a9d;
+
+    font-size: 11px;
+    font-weight: 500;
+
+    pointer-events: none;
+    backdrop-filter: blur(8px);
+}
+
+.editor-readonly-dot {
+    width: 5px;
+    height: 5px;
+
+    border-radius: 50%;
+
+    background: #f6c177;
+}
+
+@keyframes code-break-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+==================== C:\projects\code-break\frontend\src\main.tsx ====================
+
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App";
+
+console.log("CODE BREAK: main.tsx loaded");
+
+const rootElement = document.getElementById("root");
+
+if (!rootElement) {
+    throw new Error("CODE BREAK: #root element not found");
+}
+
+ReactDOM.createRoot(rootElement).render(
+    <React.StrictMode>
+        <App />
+    </React.StrictMode>
+);

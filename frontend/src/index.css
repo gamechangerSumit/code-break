@@ -1,0 +1,857 @@
+@import "tailwindcss";
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: #090d12;
+}
+
+body {
+  margin: 0;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+
+  background: #090d12;
+  color: #e6edf3;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #30363d transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #30363d;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #484f58;
+}
+/* =====================================================
+   PREMIUM APP UI
+===================================================== */
+
+.topbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+}
+
+.brand-mark {
+    width: 28px;
+    height: 28px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 7px;
+
+    background: linear-gradient(
+        135deg,
+        #1f6feb,
+        #388bfd
+    );
+
+    color: #fff;
+
+    box-shadow:
+        0 0 18px
+        rgba(31, 111, 235, 0.25);
+}
+
+.brand-copy {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+
+    min-width: 0;
+}
+
+.brand-name {
+    color: #f0f6fc;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.brand-divider {
+    color: #39424e;
+}
+
+.brand-project {
+    max-width: 150px;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    color: #7d8794;
+    font-size: 12px;
+}
+
+.topbar-spacer {
+    flex: 1;
+}
+
+.topbar-workspace {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.workspace-indicator,
+.connection-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    color: #7d8794;
+
+    font-size: 10px;
+}
+
+.connection-indicator.connected {
+    color: #3fb950;
+}
+
+.is-syncing {
+    animation: workspace-spin 1s linear infinite;
+}
+
+@keyframes workspace-spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.topbar-divider {
+    width: 1px;
+    height: 22px;
+
+    background: #252c35;
+}
+
+.role-badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+
+    padding: 5px 8px;
+
+    border: 1px solid #303945;
+    border-radius: 999px;
+
+    background: #151b23;
+
+    font-size: 9px;
+    font-weight: 800;
+}
+
+.role-owner {
+    color: #e3b341;
+}
+
+.role-editor {
+    color: #58a6ff;
+}
+
+.role-viewer {
+    color: #8b949e;
+}
+
+.user-avatar {
+    width: 26px;
+    height: 26px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+
+    background:
+        linear-gradient(
+            135deg,
+            #30363d,
+            #21262d
+        );
+
+    border: 1px solid #3a424d;
+
+    color: #c9d1d9;
+
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.user-name {
+    max-width: 100px;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    color: #aab4c0;
+    font-size: 11px;
+}
+
+.topbar-icon-button,
+.logout-button {
+    width: 29px;
+    height: 29px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border: 1px solid transparent;
+    border-radius: 7px;
+
+    background: transparent;
+    color: #707b88;
+
+    padding: 0;
+}
+
+.topbar-icon-button:hover,
+.logout-button:hover {
+    background: #1a212b;
+    border-color: #30363d;
+    color: #e6edf3;
+}
+
+.error-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.collaboration-heading {
+    min-height: 59px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 10px 13px;
+
+    border-bottom: 1px solid #242b35;
+}
+
+.collaboration-heading-title {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.collaboration-heading-icon {
+    width: 29px;
+    height: 29px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 8px;
+
+    background:
+        rgba(88, 166, 255, 0.08);
+
+    color: #58a6ff;
+}
+
+.collaboration-heading h2 {
+    margin: 0;
+
+    color: #d7dee7;
+
+    font-size: 12px;
+    font-weight: 750;
+}
+
+.collaboration-heading span {
+    display: block;
+
+    margin-top: 2px;
+
+    color: #596575;
+
+    font-size: 9px;
+}
+
+.collaboration-live {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+
+    color: #3fb950;
+
+    font-size: 9px;
+    font-weight: 800;
+}
+
+.live-dot,
+.status-dot {
+    width: 6px;
+    height: 6px;
+
+    display: inline-block;
+
+    border-radius: 50%;
+
+    background: #3fb950;
+
+    box-shadow:
+        0 0 7px
+        rgba(63, 185, 80, 0.55);
+}
+
+.members-panel-wrapper {
+    max-height: 38%;
+    overflow: auto;
+
+    border-bottom: 1px solid #242b35;
+}
+
+.editor-tab-left {
+    min-width: 0;
+
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.editor-tab-name {
+    color: #d7dee7;
+    font-weight: 600;
+}
+
+.editor-tab-path {
+    max-width: 280px;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    color: #596575;
+    font-size: 10px;
+}
+
+.editor-tab-icon {
+    color: #58a6ff;
+    flex-shrink: 0;
+}
+
+.editor-tab-right {
+    margin-left: auto;
+
+    display: flex;
+    align-items: center;
+}
+
+.editor-save-state {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    color: #596575;
+
+    font-size: 9px;
+}
+
+.empty-editor-logo {
+    width: 72px;
+    height: 72px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    margin-bottom: 15px;
+
+    border: 1px solid #30363d;
+    border-radius: 19px;
+
+    background:
+        radial-gradient(
+            circle at 35% 25%,
+            rgba(88, 166, 255, 0.12),
+            transparent 65%
+        );
+
+    color: #58a6ff;
+
+    box-shadow:
+        0 10px 40px
+        rgba(0, 0, 0, 0.25);
+}
+
+.empty-editor h2 {
+    margin: 0 0 7px;
+
+    color: #c9d1d9;
+
+    font-size: 16px;
+    font-weight: 750;
+}
+
+.empty-editor p {
+    margin: 0;
+
+    color: #667180;
+
+    font-size: 11px;
+}
+
+.empty-editor-hint {
+    display: flex;
+    gap: 8px;
+
+    margin-top: 18px;
+}
+
+.empty-editor-hint span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    padding: 6px 9px;
+
+    border: 1px solid #252c35;
+    border-radius: 7px;
+
+    background: #11161d;
+
+    color: #687381;
+
+    font-size: 9px;
+}
+
+.chat-message-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.chat-message-header span {
+    color: #3fb950;
+    font-size: 8px;
+}
+
+.status-left,
+.status-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+
+    min-width: 0;
+}
+
+.status-left {
+    flex: 1;
+
+    overflow: hidden;
+}
+
+.status-left > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.status-right {
+    flex-shrink: 0;
+}
+
+.status-connection {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.status-brand {
+    color: #596575 !important;
+    font-weight: 700;
+}
+
+@media (max-width: 900px) {
+    .user-name {
+        display: none;
+    }
+
+    .workspace-indicator span {
+        display: none;
+    }
+
+    .editor-tab-path {
+        display: none;
+    }
+
+    .status-right span:nth-child(1),
+    .status-right span:nth-child(2) {
+        display: none;
+    }
+}
+
+@media (max-width: 650px) {
+    .brand-project,
+    .connection-indicator span,
+    .role-badge span {
+        display: none;
+    }
+
+    .topbar-workspace {
+        gap: 6px;
+    }
+
+    .topbar-divider {
+        display: none;
+    }
+
+    .back-button span {
+        display: none;
+    }
+
+    .back-button {
+        width: 30px;
+        height: 30px;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        padding: 0;
+    }
+
+    .status-right {
+        display: none;
+    }
+}
+.code-editor-shell {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    background: #11151c;
+}
+
+.code-editor-shell .monaco-editor,
+.code-editor-shell .monaco-editor-background,
+.code-editor-shell .monaco-editor .margin {
+    background: #11151c !important;
+}
+
+.code-editor-shell .monaco-editor .scroll-decoration {
+    box-shadow: none !important;
+}
+
+.code-break-active-line {
+    background: rgba(125, 211, 252, 0.035);
+}
+
+.editor-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    height: 100%;
+    background: #11151c;
+    color: #778397;
+    font-size: 12px;
+    font-family:
+        Inter,
+        system-ui,
+        sans-serif;
+}
+
+.editor-loading-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid #293241;
+    border-top-color: #7dd3fc;
+    border-radius: 50%;
+    animation: code-break-spin 0.8s linear infinite;
+}
+
+.editor-readonly-badge {
+    position: absolute;
+    right: 16px;
+    bottom: 14px;
+
+    display: flex;
+    align-items: center;
+    gap: 7px;
+
+    padding: 5px 9px;
+
+    border: 1px solid #293241;
+    border-radius: 6px;
+
+    background: rgba(17, 21, 28, 0.92);
+
+    color: #7f8a9d;
+
+    font-size: 11px;
+    font-weight: 500;
+
+    pointer-events: none;
+    backdrop-filter: blur(8px);
+}
+
+.editor-readonly-dot {
+    width: 5px;
+    height: 5px;
+
+    border-radius: 50%;
+
+    background: #f6c177;
+}
+
+@keyframes code-break-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+/* =====================================================
+   SAVE BUTTON
+   ===================================================== */
+
+.topbar-save-button {
+    height: 28px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    gap: 7px;
+
+    padding: 0 9px;
+
+    border: 1px solid #1b2b43;
+    border-radius: 5px;
+
+    background: #080e17;
+
+    color: #71839b;
+
+    font-size: 10px;
+    font-weight: 600;
+
+    cursor: pointer;
+
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease,
+        box-shadow 0.15s ease;
+}
+
+
+.topbar-save-button:hover:not(:disabled) {
+    background: #0c1b31;
+
+    border-color: #245aa4;
+
+    color: #8fc0ff;
+
+    box-shadow:
+        0 0 12px
+        rgba(37, 99, 235, 0.12);
+}
+
+
+/* =====================================================
+   DIRTY SAVE
+   ===================================================== */
+
+.topbar-save-button-dirty {
+    background:
+        linear-gradient(
+            180deg,
+            #1557b8,
+            #0d3f8d
+        );
+
+    border-color: #2876e5;
+
+    color: #ffffff;
+
+    box-shadow:
+        0 0 14px
+        rgba(37, 99, 235, 0.16);
+}
+
+
+.topbar-save-button-dirty:hover:not(:disabled) {
+    background:
+        linear-gradient(
+            180deg,
+            #1b68d5,
+            #1250a8
+        );
+
+    border-color: #4a91f5;
+
+    color: #ffffff;
+}
+
+
+/* =====================================================
+   DISABLED
+   ===================================================== */
+
+.topbar-save-button:disabled {
+    opacity: 0.42;
+
+    cursor: not-allowed;
+
+    box-shadow: none;
+}
+
+
+/* =====================================================
+   KEYBOARD HINT
+   ===================================================== */
+
+.topbar-save-button kbd {
+    min-width: 35px;
+
+    padding: 2px 4px;
+
+    border:
+        1px solid
+        rgba(148, 163, 184, 0.14);
+
+    border-radius: 3px;
+
+    background:
+        rgba(0, 0, 0, 0.18);
+
+    color: #63758c;
+
+    font-family:
+        Inter,
+        system-ui,
+        sans-serif;
+
+    font-size: 8px;
+
+    font-weight: 500;
+}
+
+
+.topbar-save-button-dirty kbd {
+    border-color:
+        rgba(255, 255, 255, 0.16);
+
+    color:
+        #a9caff;
+}
+
+
+/* =====================================================
+   SPINNER
+   ===================================================== */
+
+.save-spinner {
+    width: 11px;
+    height: 11px;
+
+    border:
+        1.5px solid
+        rgba(255, 255, 255, 0.25);
+
+    border-top-color:
+        #ffffff;
+
+    border-radius: 50%;
+
+    animation:
+        save-spin 0.7s
+        linear infinite;
+}
+
+
+@keyframes save-spin {
+
+    from {
+        transform:
+            rotate(0deg);
+    }
+
+    to {
+        transform:
+            rotate(360deg);
+    }
+}
+
+
+/* =====================================================
+   EDITOR SAVE STATUS
+   ===================================================== */
+
+.editor-save-state {
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 5px;
+
+    color: #4caf82;
+
+    font-size: 9px;
+}
+
+
+.editor-save-state-dirty {
+    color: #5b9cf5;
+}
