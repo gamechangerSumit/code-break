@@ -11,7 +11,7 @@ import {
     Circle,
     Cloud,
     CloudOff,
-    Code2,
+        Code2,
     FileCode2,
     FolderOpen,
     LogOut,
@@ -22,8 +22,6 @@ import {
     Bell,
     Settings2,
     Users,
-    Wifi,
-    WifiOff,
     X,
     Zap,
 } from "lucide-react";
@@ -406,10 +404,7 @@ function App() {
     // MEMBERS
     // =================================================
 
-    const [
-        ,
-        setMembers,
-    ] = useState<
+    const [, setMembers] = useState<
         {
             id: number;
             userId: number;
