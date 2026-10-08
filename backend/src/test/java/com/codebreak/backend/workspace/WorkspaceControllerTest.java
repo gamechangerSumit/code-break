@@ -22,7 +22,7 @@ class WorkspaceControllerTest {
     @MockitoBean
     private WorkspaceService workspaceService;
 
-    @MockBean
+    @MockitoBean
     private SimpMessagingTemplate messagingTemplate;
 
     @Test
