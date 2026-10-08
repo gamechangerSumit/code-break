@@ -212,9 +212,22 @@ public class MinioWorkspaceService {
             return "";
         }
 
-        return path
+        String normalized = path
                 .replace("\\", "/")
+                .replaceAll("/+", "/")
                 .replaceAll("^/+", "")
                 .replaceAll("/+$", "");
+
+        if (normalized.length() > 1000 || normalized.indexOf('\\0') >= 0) {
+            throw new IllegalArgumentException("File path is invalid");
+        }
+
+        for (String segment : normalized.split("/")) {
+            if (segment.isBlank() || ".".equals(segment) || "..".equals(segment)) {
+                throw new IllegalArgumentException("File path contains an invalid segment");
+            }
+        }
+
+        return normalized;
     }
 }
