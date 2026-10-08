@@ -346,7 +346,7 @@ export function useCollaboration(
                 new Client({
 
                     brokerURL:
-                        "ws://localhost:8088/ws",
+                        API_URL.replace(/^http/, "ws") + "/ws",
 
                     connectHeaders: {
                         Authorization:
