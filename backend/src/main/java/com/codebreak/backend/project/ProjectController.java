@@ -1,5 +1,6 @@
 package com.codebreak.backend.project;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,7 +23,7 @@ public class ProjectController {
 
     @PostMapping
     public ResponseEntity<ProjectResponse> createProject(
-            @RequestBody ProjectRequest request,
+            @Valid @RequestBody ProjectRequest request,
             Authentication authentication
     ) {
 
@@ -60,7 +61,7 @@ public class ProjectController {
 
     @PostMapping("/join")
     public ResponseEntity<ProjectMemberResponse> joinProject(
-            @RequestBody JoinProjectRequest request,
+            @Valid @RequestBody JoinProjectRequest request,
             Authentication authentication
     ) {
 
