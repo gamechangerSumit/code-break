@@ -1,115 +1,69 @@
 package com.codebreak.backend.websocket;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
-
+import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
-
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
-
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
-
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
-import org.springframework.messaging.simp.config.ChannelRegistration;
-
+import java.util.Arrays;
 
 @Configuration
 @EnableWebSocketMessageBroker
 public class WebSocketConfig
         implements WebSocketMessageBrokerConfigurer {
 
-
-    private final WebSocketAuthInterceptor
-            webSocketAuthInterceptor;
-
+    private final WebSocketAuthInterceptor webSocketAuthInterceptor;
+    private final String[] allowedOrigins;
 
     public WebSocketConfig(
-            WebSocketAuthInterceptor
-                    webSocketAuthInterceptor
+            WebSocketAuthInterceptor webSocketAuthInterceptor,
+            @Value("${app.websocket.allowed-origins}") String configuredOrigins
     ) {
-
-        this.webSocketAuthInterceptor =
-                webSocketAuthInterceptor;
-
+        this.webSocketAuthInterceptor = webSocketAuthInterceptor;
+        this.allowedOrigins = Arrays.stream(
+                        configuredOrigins.split(",")
+                )
+                .map(String::trim)
+                .filter(origin -> !origin.isBlank())
+                .toArray(String[]::new);
     }
-
-
-    // =========================================
-    // MESSAGE BROKER
-    // =========================================
 
     @Override
     public void configureMessageBroker(
-
             MessageBrokerRegistry registry
-
     ) {
-
         registry.enableSimpleBroker(
-
                 "/topic",
-
                 "/queue"
-
         );
-
 
         registry.setApplicationDestinationPrefixes(
-
                 "/app"
-
         );
-
 
         registry.setUserDestinationPrefix(
-
                 "/user"
-
         );
-
     }
-
-
-    // =========================================
-    // WEBSOCKET ENDPOINT
-    // =========================================
 
     @Override
     public void registerStompEndpoints(
-
             StompEndpointRegistry registry
-
     ) {
-
         registry
-
-                .addEndpoint(
-                        "/ws"
-                )
-
-                .setAllowedOriginPatterns(
-                        "*"
-                );
-
+                .addEndpoint("/ws")
+                .setAllowedOrigins(allowedOrigins);
     }
-
-
-    // =========================================
-    // CHANNEL INTERCEPTOR
-    // =========================================
 
     @Override
     public void configureClientInboundChannel(
-
             ChannelRegistration registration
-
     ) {
-
         registration.interceptors(
-
                 webSocketAuthInterceptor
-
         );
-
     }
 }
