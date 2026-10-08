@@ -218,7 +218,7 @@ public class MinioWorkspaceService {
                 .replaceAll("^/+", "")
                 .replaceAll("/+$", "");
 
-        if (normalized.length() > 1000 || normalized.indexOf('\\0') >= 0) {
+        if (normalized.length() > 1000 || normalized.indexOf(Character.MIN_VALUE) >= 0) {
             throw new IllegalArgumentException("File path is invalid");
         }
 
