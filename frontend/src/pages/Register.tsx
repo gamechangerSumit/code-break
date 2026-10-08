@@ -1,30 +1,10 @@
 import { type FormEvent, useState } from "react";
 import { ArrowRight, Code2, Eye, EyeOff, LockKeyhole, Mail, UserRound } from "lucide-react";
 
+import { register } from "../auth/authApi";
+
 interface RegisterProps {
     onBackToLogin: () => void;
-}
-
-const API_URL = "http://localhost:8088";
-
-async function getErrorMessage(
-    response: Response
-): Promise<string> {
-    try {
-        const data = await response.json();
-
-        if (data?.message) {
-            return data.message;
-        }
-
-        if (data?.error) {
-            return data.error;
-        }
-    } catch {
-        // Ignore invalid/non-JSON error bodies.
-    }
-
-    return `Registration failed (${response.status})`;
 }
 
 export default function Register({
@@ -62,8 +42,8 @@ export default function Register({
             return;
         }
 
-        if (password.length < 6) {
-            setError("Password must be at least 6 characters.");
+        if (password.length < 12) {
+            setError("Password must be at least 12 characters.");
             return;
         }
 
@@ -75,26 +55,11 @@ export default function Register({
         setLoading(true);
 
         try {
-            const response = await fetch(
-                `${API_URL}/api/auth/register`,
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        username: cleanUsername,
-                        email: cleanEmail,
-                        password,
-                    }),
-                }
+            await register(
+                cleanUsername,
+                cleanEmail,
+                password
             );
-
-            if (!response.ok) {
-                throw new Error(
-                    await getErrorMessage(response)
-                );
-            }
 
             setSuccess(
                 "Account created successfully. You can sign in now."
