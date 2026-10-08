@@ -1,5 +1,6 @@
 package com.codebreak.backend.auth;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -48,6 +49,18 @@ public class GlobalExceptionHandler {
                 .body(Map.of(
                         "error", "Validation failed",
                         "fields", fields
+                ));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrityViolation(
+            DataIntegrityViolationException exception
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(Map.of(
+                        "error",
+                        "Request conflicts with existing data"
                 ));
     }
 
