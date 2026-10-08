@@ -184,6 +184,40 @@ class WebSocketAuthInterceptorTest {
         verifyNoInteractions(projectMemberService);
     }
 
+
+    @Test
+    void userSubscriptionCannotTargetAnotherUser() {
+        WebSocketAuthInterceptor interceptor =
+                new WebSocketAuthInterceptor(
+                        jwtService,
+                        projectMemberService
+                );
+
+        var user =
+                new org.springframework.security.authentication
+                        .UsernamePasswordAuthenticationToken(
+                                "alice",
+                                null,
+                                java.util.List.of()
+                        );
+
+        StompHeaderAccessor subscribe =
+                StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        subscribe.setUser(user);
+        subscribe.setDestination("/user/bob/queue/notifications");
+
+        Message<byte[]> message =
+                MessageBuilder.createMessage(
+                        new byte[0],
+                        subscribe.getMessageHeaders()
+                );
+
+        assertThrows(
+                MessagingException.class,
+                () -> interceptor.preSend(message, channel)
+        );
+    }
+
     @Test
     void sendAllowsOnlyKnownApplicationDestinations() {
         WebSocketAuthInterceptor interceptor =

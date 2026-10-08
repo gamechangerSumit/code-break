@@ -41,6 +41,30 @@ class WorkspaceControllerTest {
         .andExpect(status().isBadRequest());
     }
 
+
+    @Test
+    void importRejectsTooManyFiles() throws Exception {
+        StringBuilder files = new StringBuilder("[");
+        for (int i = 0; i < 501; i++) {
+            if (i > 0) {
+                files.append(",");
+            }
+            files.append("""
+                    {"path":"file-%d.txt","name":"file-%d.txt","content":"x"}
+                    """.formatted(i, i));
+        }
+        files.append("]");
+
+        mockMvc.perform(
+                post("/api/projects/1/workspace/import")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"files":%s,"folders":[]}
+                                """.formatted(files))
+        )
+        .andExpect(status().isBadRequest());
+    }
+
     @Test
     void saveFileRejectsBlankPath() throws Exception {
         mockMvc.perform(
