@@ -120,7 +120,8 @@ public class ProjectService {
                 userRepository
                         .findByUsername(username)
                         .orElseThrow(() ->
-                                new RuntimeException(
+                                new ResponseStatusException(
+                                        HttpStatus.UNAUTHORIZED,
                                         "User not found"
                                 )
                         );
