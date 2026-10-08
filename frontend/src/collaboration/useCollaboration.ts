@@ -11,6 +11,8 @@ import {
     type StompSubscription,
 } from "@stomp/stompjs";
 
+import { WS_URL } from "../api/http";
+
 
 // =====================================================
 // TYPES
@@ -346,7 +348,7 @@ export function useCollaboration(
                 new Client({
 
                     brokerURL:
-                        API_URL.replace(/^http/, "ws") + "/ws",
+                        WS_URL,
 
                     connectHeaders: {
                         Authorization:
