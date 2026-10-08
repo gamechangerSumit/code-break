@@ -21,7 +21,7 @@ class ProjectControllerTest {
     @MockitoBean
     private ProjectService projectService;
 
-    @MockBean
+    @MockitoBean
     private ProjectMemberService projectMemberService;
 
     @Test
