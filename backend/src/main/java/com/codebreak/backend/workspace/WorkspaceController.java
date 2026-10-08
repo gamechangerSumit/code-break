@@ -15,6 +15,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class WorkspaceController {
 
+    private static final int MAX_IMPORT_FILES = 500;
+    private static final int MAX_IMPORT_CONTENT_BYTES = 5 * 1024 * 1024;
+
     private final WorkspaceService workspaceService;
 
     private final SimpMessagingTemplate messagingTemplate;
@@ -178,6 +181,8 @@ public class WorkspaceController {
             Authentication authentication
     ) {
 
+        validateImportRequest(request);
+
         WorkspaceService.WorkspaceSnapshotResponse response =
                 workspaceService.importWorkspace(
                         projectId,
@@ -224,6 +229,57 @@ public class WorkspaceController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(response);
+    }
+
+
+    private void validateImportRequest(WorkspaceImportRequest request) {
+        if (request == null) {
+            return;
+        }
+
+        if (request.files() != null && request.files().size() > MAX_IMPORT_FILES) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Workspace import contains too many files"
+            );
+        }
+
+        if (request.folders() != null && request.folders().size() > MAX_IMPORT_FILES) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Workspace import contains too many folders"
+            );
+        }
+
+        if (request.files() != null) {
+            for (WorkspaceService.WorkspaceImportFile file : request.files()) {
+                if (file == null) {
+                    continue;
+                }
+
+                if (file.path() != null && file.path().length() > 1000) {
+                    throw new org.springframework.web.server.ResponseStatusException(
+                            HttpStatus.BAD_REQUEST,
+                            "Workspace file path is too long"
+                    );
+                }
+
+                if (file.name() != null && file.name().length() > 255) {
+                    throw new org.springframework.web.server.ResponseStatusException(
+                            HttpStatus.BAD_REQUEST,
+                            "Workspace file name is too long"
+                    );
+                }
+
+                if (file.content() != null &&
+                        file.content().getBytes(java.nio.charset.StandardCharsets.UTF_8).length > MAX_IMPORT_CONTENT_BYTES) {
+                    throw new org.springframework.web.server.ResponseStatusException(
+                            HttpStatus.BAD_REQUEST,
+                            "Workspace file content is too large"
+                    );
+                }
+            }
+        }
     }
 
 

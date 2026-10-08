@@ -139,7 +139,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
         }
 
         // Private user queues are authorized by the authenticated principal.
-        if (destination.startsWith("/user/")) {
+        if (destination.startsWith("/user/queue/")) {
             return;
         }
 
