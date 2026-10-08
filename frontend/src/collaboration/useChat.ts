@@ -9,7 +9,9 @@ import {
     type IMessage,
 } from "@stomp/stompjs";
 
-const WS_URL = "ws://localhost:8088/ws";
+import { WS_URL } from "../api/http";
+
+
 
 export interface ChatMessage {
     projectId: number;
