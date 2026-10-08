@@ -5,6 +5,14 @@ export const API_URL = (
     DEFAULT_API_URL
 ).replace(/\/+$/, "");
 
+const DEFAULT_WS_URL =
+    API_URL.replace(/\/api$/, "").replace(/^http/, "ws");
+
+export const WS_URL = (
+    import.meta.env.VITE_WS_URL?.trim() ||
+    DEFAULT_WS_URL
+).replace(/\/+$/, "");
+
 export class ApiError extends Error {
     readonly status: number;
     readonly code?: string;
