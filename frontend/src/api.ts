@@ -1,4 +1,8 @@
-const API_URL = "http://localhost:8088";
+import {
+    authHeaders,
+    request,
+    requestJson,
+} from "./api/http";
 
 export interface ProjectFile {
     id: number;
@@ -9,39 +13,17 @@ export interface ProjectFile {
     updatedAt?: string;
 }
 
-
-// ========================================
-// GET PROJECT FILES
-// ========================================
-
 export async function getProjectFiles(
     projectId: number,
     token: string
 ): Promise<ProjectFile[]> {
-
-    const response = await fetch(
-        `${API_URL}/api/projects/${projectId}/files`,
+    return requestJson<ProjectFile[]>(
+        `/projects/${projectId}/files`,
         {
-            method: "GET",
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
+            headers: authHeaders(token, false),
         }
     );
-
-    if (!response.ok) {
-        throw new Error(
-            `Failed to fetch project files: ${response.status}`
-        );
-    }
-
-    return response.json();
 }
-
-
-// ========================================
-// CREATE FILE
-// ========================================
 
 export async function createProjectFile(
     projectId: number,
@@ -50,17 +32,11 @@ export async function createProjectFile(
     content: string,
     token: string
 ): Promise<ProjectFile> {
-
-    const response = await fetch(
-        `${API_URL}/api/projects/${projectId}/files`,
+    return requestJson<ProjectFile>(
+        `/projects/${projectId}/files`,
         {
             method: "POST",
-
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-            },
-
+            headers: authHeaders(token),
             body: JSON.stringify({
                 name,
                 path,
@@ -68,20 +44,7 @@ export async function createProjectFile(
             }),
         }
     );
-
-    if (!response.ok) {
-        throw new Error(
-            `Failed to create file: ${response.status}`
-        );
-    }
-
-    return response.json();
 }
-
-
-// ========================================
-// UPDATE / SAVE FILE
-// ========================================
 
 export async function updateProjectFile(
     projectId: number,
@@ -89,57 +52,26 @@ export async function updateProjectFile(
     content: string,
     token: string
 ): Promise<ProjectFile> {
-
-    const response = await fetch(
-        `${API_URL}/api/projects/${projectId}/files/${fileId}`,
+    return requestJson<ProjectFile>(
+        `/projects/${projectId}/files/${fileId}`,
         {
             method: "PUT",
-
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-            },
-
-            body: JSON.stringify({
-                content,
-            }),
+            headers: authHeaders(token),
+            body: JSON.stringify({ content }),
         }
     );
-
-    if (!response.ok) {
-        throw new Error(
-            `Failed to save file: ${response.status}`
-        );
-    }
-
-    return response.json();
 }
-
-
-// ========================================
-// DELETE FILE
-// ========================================
 
 export async function deleteProjectFile(
     projectId: number,
     fileId: number,
     token: string
 ): Promise<void> {
-
-    const response = await fetch(
-        `${API_URL}/api/projects/${projectId}/files/${fileId}`,
+    await request(
+        `/projects/${projectId}/files/${fileId}`,
         {
             method: "DELETE",
-
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
+            headers: authHeaders(token, false),
         }
     );
-
-    if (!response.ok) {
-        throw new Error(
-            `Failed to delete file: ${response.status}`
-        );
-    }
 }
