@@ -314,9 +314,33 @@ public class ProjectMemberService {
 
 
         // =============================================
-        // OWNER ROLE CANNOT BE REMOVED
+        // OWNER ROLE IS RESERVED FOR THE PROJECT OWNER
         // =============================================
 
+        if (newRole == ProjectRole.OWNER) {
+            Long projectOwnerId =
+                    member.getProject().getOwner() == null
+                            ? null
+                            : member.getProject().getOwner().getId();
+
+            Long targetUserId =
+                    member.getUser() == null
+                            ? null
+                            : member.getUser().getId();
+
+            if (
+                    projectOwnerId == null ||
+                            targetUserId == null ||
+                            !projectOwnerId.equals(targetUserId)
+            ) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Only the project owner can have the OWNER role"
+                );
+            }
+        }
+
+        // The project owner cannot be downgraded.
         if (
                 member.getUser() != null &&
                         member.getProject().getOwner() != null &&
@@ -328,13 +352,11 @@ public class ProjectMemberService {
                                 ) &&
                         newRole != ProjectRole.OWNER
         ) {
-
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Project owner's role cannot be changed"
             );
         }
-
 
         member.setRole(newRole);
 
