@@ -4,6 +4,7 @@ import com.codebreak.backend.user.User;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 
 @Entity
@@ -22,6 +23,11 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class Project {
+
+    private static final String JOIN_CODE_CHARACTERS =
+            "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    private static final SecureRandom JOIN_CODE_RANDOM =
+            new SecureRandom();
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -60,22 +66,17 @@ public class Project {
 
     private String generateJoinCode() {
 
-        String characters =
-                "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-
         StringBuilder code =
                 new StringBuilder();
 
         for (int i = 0; i < 8; i++) {
 
-            int index =
-                    (int) (
-                            Math.random()
-                                    * characters.length()
-                    );
-
             code.append(
-                    characters.charAt(index)
+                    JOIN_CODE_CHARACTERS.charAt(
+                            JOIN_CODE_RANDOM.nextInt(
+                                    JOIN_CODE_CHARACTERS.length()
+                            )
+                    )
             );
         }
 

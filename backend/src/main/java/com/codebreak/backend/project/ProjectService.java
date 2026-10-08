@@ -48,7 +48,8 @@ public class ProjectService {
                 userRepository
                         .findByUsername(username)
                         .orElseThrow(() ->
-                                new RuntimeException(
+                                new ResponseStatusException(
+                                        HttpStatus.UNAUTHORIZED,
                                         "User not found"
                                 )
                         );
@@ -59,7 +60,8 @@ public class ProjectService {
                         request.name().isBlank()
         ) {
 
-            throw new RuntimeException(
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
                     "Project name is required"
             );
         }

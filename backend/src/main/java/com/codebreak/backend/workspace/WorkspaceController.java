@@ -17,6 +17,7 @@ public class WorkspaceController {
 
     private static final int MAX_IMPORT_FILES = 500;
     private static final int MAX_IMPORT_CONTENT_BYTES = 5 * 1024 * 1024;
+    private static final int MAX_FILE_CONTENT_BYTES = 5 * 1024 * 1024;
 
     private final WorkspaceService workspaceService;
 
@@ -292,6 +293,7 @@ public class WorkspaceController {
             @jakarta.validation.constraints.Size(max = 1000)
             String path,
 
+            @jakarta.validation.constraints.Size(max = MAX_FILE_CONTENT_BYTES)
             String content
     ) {}
 
