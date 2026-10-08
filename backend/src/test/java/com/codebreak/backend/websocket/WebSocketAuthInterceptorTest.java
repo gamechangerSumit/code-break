@@ -41,6 +41,7 @@ class WebSocketAuthInterceptorTest {
 
         StompHeaderAccessor accessor =
                 StompHeaderAccessor.create(StompCommand.CONNECT);
+        accessor.setLeaveMutable(true);
         accessor.setNativeHeader(
                 "Authorization",
                 "Bearer token"
@@ -104,6 +105,7 @@ class WebSocketAuthInterceptorTest {
 
         StompHeaderAccessor connect =
                 StompHeaderAccessor.create(StompCommand.CONNECT);
+        connect.setLeaveMutable(true);
         connect.setNativeHeader(
                 "Authorization",
                 "Bearer token"
@@ -129,6 +131,7 @@ class WebSocketAuthInterceptorTest {
 
         StompHeaderAccessor subscribe =
                 StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        subscribe.setLeaveMutable(true);
         subscribe.setUser(authenticatedAccessor.getUser());
         subscribe.setDestination(
                 "/topic/project/42/code"
@@ -199,6 +202,7 @@ class WebSocketAuthInterceptorTest {
 
         StompHeaderAccessor send =
                 StompHeaderAccessor.create(StompCommand.SEND);
+        send.setLeaveMutable(true);
         send.setUser(user);
         send.setDestination("/app/chat");
 
