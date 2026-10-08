@@ -1,5 +1,6 @@
 package com.codebreak.backend.workspace;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -68,7 +69,7 @@ public class WorkspaceController {
     public ResponseEntity<WorkspaceService.WorkspaceFileResponse>
     saveFile(
             @PathVariable Long projectId,
-            @RequestBody WorkspaceFileSaveRequest request,
+            @Valid @RequestBody WorkspaceFileSaveRequest request,
             Authentication authentication
     ) {
 
@@ -113,7 +114,7 @@ public class WorkspaceController {
     public ResponseEntity<WorkspaceService.WorkspaceFolderResponse>
     createFolder(
             @PathVariable Long projectId,
-            @RequestBody WorkspaceFolderRequest request,
+            @Valid @RequestBody WorkspaceFolderRequest request,
             Authentication authentication
     ) {
 
@@ -231,12 +232,17 @@ public class WorkspaceController {
     // =====================================================
 
     public record WorkspaceFileSaveRequest(
+            @jakarta.validation.constraints.NotBlank
+            @jakarta.validation.constraints.Size(max = 1000)
             String path,
+
             String content
     ) {}
 
 
     public record WorkspaceFolderRequest(
+            @jakarta.validation.constraints.NotBlank
+            @jakarta.validation.constraints.Size(max = 1000)
             String path
     ) {}
 
