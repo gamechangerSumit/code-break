@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(WorkspaceController.class)
+@AutoConfigureMockMvc(addFilters = false)
 class WorkspaceControllerTest {
 
     @Autowired
