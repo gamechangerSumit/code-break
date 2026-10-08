@@ -9,8 +9,6 @@ import {
     ArrowLeft,
     Check,
     Circle,
-    Cloud,
-    CloudOff,
         Code2,
     FileCode2,
     FolderOpen,
