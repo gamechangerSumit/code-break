@@ -1,13 +1,17 @@
 package com.codebreak.backend.auth;
 
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -33,7 +37,27 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        return new BCryptPasswordEncoder(12);
+    }
+
+    @Bean
+    public AuthenticationEntryPoint authenticationEntryPoint() {
+        return (request, response, exception) ->
+                writeJsonError(
+                        response,
+                        HttpServletResponse.SC_UNAUTHORIZED,
+                        "Authentication required"
+                );
+    }
+
+    @Bean
+    public AccessDeniedHandler accessDeniedHandler() {
+        return (request, response, exception) ->
+                writeJsonError(
+                        response,
+                        HttpServletResponse.SC_FORBIDDEN,
+                        "Access denied"
+                );
     }
 
     @Bean
@@ -51,6 +75,15 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(
                                 SessionCreationPolicy.STATELESS
                         )
+                )
+                .exceptionHandling(exceptions ->
+                        exceptions
+                                .authenticationEntryPoint(
+                                        authenticationEntryPoint()
+                                )
+                                .accessDeniedHandler(
+                                        accessDeniedHandler()
+                                )
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
@@ -121,5 +154,21 @@ public class SecurityConfig {
                 .map(String::trim)
                 .filter(origin -> !origin.isBlank())
                 .toList();
+    }
+
+    private static void writeJsonError(
+            HttpServletResponse response,
+            int status,
+            String message
+    ) throws java.io.IOException {
+        response.setStatus(status);
+        response.setContentType(
+                MediaType.APPLICATION_JSON_VALUE
+        );
+        response.getWriter().write(
+                "{\"error\":\"" +
+                        message +
+                        "\"}"
+        );
     }
 }
