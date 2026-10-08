@@ -1,10 +1,8 @@
-const API_URL =
-    "http://localhost:8088";
-
-
-// =========================================
-// PROJECT
-// =========================================
+import {
+    authHeaders,
+    request,
+    requestJson,
+} from "../api/http";
 
 export interface Project {
     id: number;
@@ -13,20 +11,10 @@ export interface Project {
     joinCode: string | null;
 }
 
-
-// =========================================
-// ROLE
-// =========================================
-
 export type ProjectRole =
     | "OWNER"
     | "EDITOR"
     | "VIEWER";
-
-
-// =========================================
-// MEMBER
-// =========================================
 
 export interface ProjectMember {
     id: number;
@@ -35,237 +23,75 @@ export interface ProjectMember {
     role: ProjectRole;
 }
 
-
-// =========================================
-// ERROR
-// =========================================
-
-async function getErrorMessage(
-    response: Response,
-    fallback: string
-): Promise<string> {
-
-    try {
-
-        const data =
-            await response.json();
-
-        if (
-            data?.message
-        ) {
-            return data.message;
-        }
-
-        if (
-            data?.error
-        ) {
-            return data.error;
-        }
-
-    } catch {
-        // Ignore JSON parsing errors.
-    }
-
-    return fallback;
-}
-
-
-// =========================================
-// GET PROJECTS
-// =========================================
-
 export async function getProjects(
     token: string
 ): Promise<Project[]> {
-
-    const response =
-        await fetch(
-            `${API_URL}/api/projects`,
-            {
-                method: "GET",
-
-                headers: {
-                    Authorization:
-                        `Bearer ${token}`,
-                },
-            }
-        );
-
-    if (!response.ok) {
-        throw new Error(
-            await getErrorMessage(
-                response,
-                "Failed to fetch projects."
-            )
-        );
-    }
-
-    return response.json();
+    return requestJson<Project[]>(
+        "/projects",
+        {
+            headers: authHeaders(token, false),
+        }
+    );
 }
-
-
-// =========================================
-// CREATE PROJECT
-// =========================================
 
 export async function createProject(
     name: string,
     description: string,
     token: string
 ): Promise<Project> {
-
-    const response =
-        await fetch(
-            `${API_URL}/api/projects`,
-            {
-                method: "POST",
-
-                headers: {
-                    "Content-Type":
-                        "application/json",
-
-                    Authorization:
-                        `Bearer ${token}`,
-                },
-
-                body:
-                    JSON.stringify({
-                        name,
-                        description,
-                    }),
-            }
-        );
-
-    if (!response.ok) {
-        throw new Error(
-            await getErrorMessage(
-                response,
-                "Failed to create project."
-            )
-        );
-    }
-
-    return response.json();
+    return requestJson<Project>(
+        "/projects",
+        {
+            method: "POST",
+            headers: authHeaders(token),
+            body: JSON.stringify({
+                name,
+                description,
+            }),
+        }
+    );
 }
-
-// =========================================
-// DELETE PROJECT
-// OWNER ONLY
-// =========================================
 
 export async function deleteProject(
     projectId: number,
     token: string
 ): Promise<void> {
-
-    const response =
-        await fetch(
-            `${API_URL}/api/projects/${projectId}`,
-            {
-                method: "DELETE",
-
-                headers: {
-                    Authorization:
-                        `Bearer ${token}`,
-                },
-            }
-        );
-
-
-    if (!response.ok) {
-
-        throw new Error(
-            await getErrorMessage(
-                response,
-                "Failed to delete project"
-            )
-        );
-
-    }
+    await request(
+        `/projects/${projectId}`,
+        {
+            method: "DELETE",
+            headers: authHeaders(token, false),
+        }
+    );
 }
-
-
-// =========================================
-// JOIN PROJECT
-// =========================================
 
 export async function joinProject(
     joinCode: string,
     token: string
 ): Promise<ProjectMember> {
-
-    const response =
-        await fetch(
-            `${API_URL}/api/projects/join`,
-            {
-                method: "POST",
-
-                headers: {
-                    "Content-Type":
-                        "application/json",
-
-                    Authorization:
-                        `Bearer ${token}`,
-                },
-
-                body:
-                    JSON.stringify({
-                        joinCode,
-                    }),
-            }
-        );
-
-    if (!response.ok) {
-        throw new Error(
-            await getErrorMessage(
-                response,
-                "Failed to join project."
-            )
-        );
-    }
-
-    return response.json();
+    return requestJson<ProjectMember>(
+        "/projects/join",
+        {
+            method: "POST",
+            headers: authHeaders(token),
+            body: JSON.stringify({
+                joinCode,
+            }),
+        }
+    );
 }
-
-
-// =========================================
-// GET MEMBERS
-// =========================================
 
 export async function getProjectMembers(
     projectId: number,
     token: string
 ): Promise<ProjectMember[]> {
-
-    const response =
-        await fetch(
-            `${API_URL}/api/projects/${projectId}/members`,
-            {
-                method: "GET",
-
-                headers: {
-                    Authorization:
-                        `Bearer ${token}`,
-                },
-            }
-        );
-
-    if (!response.ok) {
-        throw new Error(
-            await getErrorMessage(
-                response,
-                "Failed to fetch project members."
-            )
-        );
-    }
-
-    return response.json();
+    return requestJson<ProjectMember[]>(
+        `/projects/${projectId}/members`,
+        {
+            headers: authHeaders(token, false),
+        }
+    );
 }
-
-
-// =========================================
-// CHANGE MEMBER ROLE
-// =========================================
 
 export async function changeMemberRole(
     projectId: number,
@@ -273,28 +99,11 @@ export async function changeMemberRole(
     role: ProjectRole,
     token: string
 ): Promise<ProjectMember> {
-
-    const response =
-        await fetch(
-            `${API_URL}/api/projects/${projectId}/members/${memberId}/role?role=${encodeURIComponent(role)}`,
-            {
-                method: "PUT",
-
-                headers: {
-                    Authorization:
-                        `Bearer ${token}`,
-                },
-            }
-        );
-
-    if (!response.ok) {
-        throw new Error(
-            await getErrorMessage(
-                response,
-                "Failed to change member role."
-            )
-        );
-    }
-
-    return response.json();
+    return requestJson<ProjectMember>(
+        `/projects/${projectId}/members/${memberId}/role?role=${encodeURIComponent(role)}`,
+        {
+            method: "PUT",
+            headers: authHeaders(token, false),
+        }
+    );
 }
