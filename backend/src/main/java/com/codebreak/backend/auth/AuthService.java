@@ -5,6 +5,10 @@ import com.codebreak.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+
+import static org.springframework.http.HttpStatus.CONFLICT;
+import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 @Service
 @RequiredArgsConstructor
@@ -14,40 +18,63 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
-    public User register(RegisterRequest request) {
+    public UserResponse register(RegisterRequest request) {
+        String username = request.username().trim();
+        String email = request.email().trim().toLowerCase();
 
-        if (userRepository.existsByUsername(request.username())) {
-            throw new RuntimeException("Username already exists");
+        if (userRepository.existsByUsername(username)) {
+            throw new ResponseStatusException(
+                    CONFLICT,
+                    "Username already exists"
+            );
         }
 
-        if (userRepository.existsByEmail(request.email())) {
-            throw new RuntimeException("Email already exists");
+        if (userRepository.existsByEmail(email)) {
+            throw new ResponseStatusException(
+                    CONFLICT,
+                    "Email already exists"
+            );
         }
 
         User user = User.builder()
-                .username(request.username())
-                .email(request.email())
+                .username(username)
+                .email(email)
                 .password(passwordEncoder.encode(request.password()))
                 .build();
 
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+
+        return new UserResponse(
+                saved.getId(),
+                saved.getUsername(),
+                saved.getEmail()
+        );
     }
 
-    public String login(LoginRequest request) {
+    public AuthResponse login(LoginRequest request) {
+        String username = request.username().trim();
 
         User user = userRepository
-                .findByUsername(request.username())
+                .findByUsername(username)
                 .orElseThrow(() ->
-                        new RuntimeException("Invalid username or password")
+                        new ResponseStatusException(
+                                UNAUTHORIZED,
+                                "Invalid username or password"
+                        )
                 );
 
         if (!passwordEncoder.matches(
                 request.password(),
                 user.getPassword()
         )) {
-            throw new RuntimeException("Invalid username or password");
+            throw new ResponseStatusException(
+                    UNAUTHORIZED,
+                    "Invalid username or password"
+            );
         }
 
-        return jwtService.generateToken(user.getUsername());
+        return new AuthResponse(
+                jwtService.generateToken(user.getUsername())
+        );
     }
 }
