@@ -7,31 +7,25 @@ import {
 
 import {
     ArrowLeft,
+    Bell,
     Check,
     Circle,
-    Cloud,
-    CloudOff,
     Code2,
     FileCode2,
     FolderOpen,
     LogOut,
     MessageSquare,
     Save,
-    Send,
     Search,
-    Bell,
+    Send,
     Settings2,
     Users,
-    Wifi,
-    WifiOff,
     X,
     Zap,
 } from "lucide-react";
 
 import ActivityBar from "./components/ActivityBar";
-
 import CodeEditor from "./editor/CodeEditor";
-
 import FileExplorer, {
     type ExplorerFile,
 } from "./explorer/FileExplorer";
@@ -41,271 +35,147 @@ import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 
 import MembersPanel from "./project/MembersPanel";
-
-import type {
-    Project,
-    ProjectRole,
-} from "./project/projectApi";
-
 import {
     getProjectMembers,
+    type Project,
+    type ProjectRole,
 } from "./project/projectApi";
 
 import {
     useChat,
-} from "./collaboration/useChat";
-
-import type {
-    ChatMessage,
+    type ChatMessage,
 } from "./collaboration/useChat";
 
 import {
     useCollaboration,
-} from "./collaboration/useCollaboration";
-
-import type {
-    CollaborationMessage,
-    WorkspaceMessage,
-    WorkspaceSnapshot,
-    RoleChangedMessage,
+    type CollaborationMessage,
+    type RoleChangedMessage,
+    type WorkspaceMessage,
+    type WorkspaceSnapshot,
 } from "./collaboration/useCollaboration";
 
 import {
-    importWorkspace,
     getWorkspace,
     getWorkspaceFileContent,
+    importWorkspace,
 } from "./workspace/workspaceApi";
 
 import {
-    openLocalFolder,
-    loadWorkspace,
-    getWorkspaceName,
     clearWorkspace,
     createWorkspaceFile,
     createWorkspaceFolder,
     deleteWorkspaceFile,
     deleteWorkspaceFolder,
+    getWorkspaceName,
+    loadWorkspace,
+    normalizeWorkspacePath,
+    openLocalFolder,
     renameWorkspaceFile,
     renameWorkspaceFolder,
-    normalizeWorkspacePath,
     saveProjectToDevice,
 } from "./workspace/localWorkspace";
 
 import "./App.css";
 
-
-// =====================================================
-// HELPERS
-// =====================================================
-
 function makeExplorerFile(
     path: string,
-    content: string
+    content = "",
 ): ExplorerFile {
-
-    const normalized =
-        normalizeWorkspacePath(path);
-
-    const parts =
-        normalized
-            .split("/")
-            .filter(Boolean);
+    const normalized = normalizeWorkspacePath(path);
+    const parts = normalized.split("/").filter(Boolean);
 
     return {
         path: normalized,
-
-        name:
-            parts[parts.length - 1] ??
-            normalized,
-
-        content:
-            content ?? "",
+        name: parts[parts.length - 1] ?? normalized,
+        content: content ?? "",
     };
 }
 
-
-// =====================================================
-// BUILD FILES
-// =====================================================
-
 function buildExplorerFiles(
-    sourceFiles:
-        {
-            path: string;
-            content?: string;
-            name?: string;
-        }[]
+    sourceFiles: Array<{
+        path: string;
+        content?: string;
+    }> = [],
 ): ExplorerFile[] {
-
-    return (
-        sourceFiles ?? []
-    )
-        .filter(
-            file =>
-                Boolean(
-                    normalizeWorkspacePath(
-                        file.path
-                    )
-                )
+    return sourceFiles
+        .map((file) =>
+            makeExplorerFile(
+                file.path,
+                file.content ?? "",
+            ),
         )
-        .map(
-            file =>
-                makeExplorerFile(
-                    file.path,
-                    file.content ?? ""
-                )
-        )
-        .sort(
-            (a, b) =>
-                a.path.localeCompare(
-                    b.path
-                )
-        );
+        .filter((file) => Boolean(file.path))
+        .sort((a, b) => a.path.localeCompare(b.path));
 }
 
-
-// =====================================================
-// BUILD FOLDERS
-// =====================================================
-
 function buildExplorerFolders(
-    sourceFolders:
-        (
-            string |
-            {
-                path: string;
-            }
-        )[]
+    sourceFolders: Array<string | { path: string }> = [],
 ): string[] {
+    const result = new Set<string>();
 
-    const result =
-        new Set<string>();
-
-    for (
-        const folder
-        of sourceFolders ?? []
-    ) {
-
+    for (const folder of sourceFolders) {
         const rawPath =
             typeof folder === "string"
                 ? folder
                 : folder.path;
 
         const normalized =
-            normalizeWorkspacePath(
-                rawPath
-            );
+            normalizeWorkspacePath(rawPath);
 
         if (!normalized) {
             continue;
         }
 
-        const parts =
-            normalized
-                .split("/")
-                .filter(Boolean);
+        const parts = normalized
+            .split("/")
+            .filter(Boolean);
 
         let current = "";
 
-        for (
-            const part
-            of parts
-        ) {
+        for (const part of parts) {
+            current = current
+                ? `${current}/${part}`
+                : part;
 
-            current =
-                current
-                    ? `${current}/${part}`
-                    : part;
-
-            result.add(
-                current
-            );
+            result.add(current);
         }
     }
 
-    return Array.from(result).sort(
-        (a, b) =>
-            a.localeCompare(b)
+    return Array.from(result).sort((a, b) =>
+        a.localeCompare(b),
     );
 }
 
-
-// =====================================================
-// PARENT FOLDERS
-// =====================================================
-
-function getParentFolders(
-    path: string
-): string[] {
-
-    const normalized =
-        normalizeWorkspacePath(path);
+function getParentFolders(path: string): string[] {
+    const normalized = normalizeWorkspacePath(path);
 
     if (!normalized) {
         return [];
     }
 
-    const parts =
-        normalized
-            .split("/")
-            .filter(Boolean);
+    const parts = normalized
+        .split("/")
+        .filter(Boolean);
 
     parts.pop();
 
     const result: string[] = [];
-
     let current = "";
 
-    for (
-        const part
-        of parts
-    ) {
+    for (const part of parts) {
+        current = current
+            ? `${current}/${part}`
+            : part;
 
-        current =
-            current
-                ? `${current}/${part}`
-                : part;
-
-        result.push(
-            current
-        );
+        result.push(current);
     }
 
     return result;
 }
 
-
-// =====================================================
-// BREADCRUMB PARTS
-// =====================================================
-
-function getBreadcrumbParts(
-    projectName: string,
-    path: string | null
-): string[] {
-
-    const normalized =
-        path
-            ? normalizeWorkspacePath(path)
-            : "";
-
-    return [
-        projectName || "shared-workspace",
-        ...(normalized
-            ? normalized.split("/").filter(Boolean)
-            : []),
-    ];
-}
-
-
-// =====================================================
-// ROLE LABEL
-// =====================================================
-
 function getRoleLabel(
-    role: ProjectRole | null
-) {
-
+    role: ProjectRole | null,
+): string {
     if (!role) {
         return "Loading";
     }
@@ -316,282 +186,149 @@ function getRoleLabel(
     );
 }
 
+function getBreadcrumbParts(
+    projectName: string,
+    path: string | null,
+): string[] {
+    const normalized = path
+        ? normalizeWorkspacePath(path)
+        : "";
 
-// =====================================================
-// APP
-// =====================================================
+    return [
+        projectName || "shared-workspace",
+        ...(normalized
+            ? normalized.split("/").filter(Boolean)
+            : []),
+    ];
+}
 
 function App() {
+    const [authenticated, setAuthenticated] =
+        useState<boolean>(
+            Boolean(localStorage.getItem("token")),
+        );
 
-    // =================================================
-    // AUTH
-    // =================================================
+    const [authScreen, setAuthScreen] =
+        useState<"login" | "register">("login");
 
-    const [
-        authenticated,
-        setAuthenticated,
-    ] = useState<boolean>(
-        Boolean(
-            localStorage.getItem("token")
-        )
-    );
+    const [selectedProject, setSelectedProject] =
+        useState<Project | null>(null);
 
-    const [
-        authScreen,
-        setAuthScreen,
-    ] = useState<"login" | "register">(
-        "login"
-    );
+    const [files, setFiles] =
+        useState<ExplorerFile[]>([]);
 
+    const [folders, setFolders] =
+        useState<string[]>([]);
 
-    // =================================================
-    // PROJECT
-    // =================================================
+    const [selectedFile, setSelectedFile] =
+        useState<ExplorerFile | null>(null);
 
-    const [
-        selectedProject,
-        setSelectedProject,
-    ] = useState<Project | null>(
-        null
-    );
+    const [currentRole, setCurrentRole] =
+        useState<ProjectRole | null>(null);
 
+    const [activePanel, setActivePanel] =
+        useState<
+            "explorer" | "collaboration"
+        >("explorer");
 
-    // =================================================
-    // FILES
-    // =================================================
+    const [chatMessages, setChatMessages] =
+        useState<ChatMessage[]>([]);
 
-    const [
-        files,
-        setFiles,
-    ] = useState<ExplorerFile[]>(
-        []
-    );
+    const [workspaceName, setWorkspaceName] =
+        useState<string | null>(
+            getWorkspaceName(),
+        );
+
+    const [workspaceSyncing, setWorkspaceSyncing] =
+        useState(false);
+
+    const [saving, setSaving] =
+        useState(false);
+
+    const [isDirty, setIsDirty] =
+        useState(false);
+
+    const [error, setError] =
+        useState("");
 
     const filesRef =
-        useRef<ExplorerFile[]>(
-            []
-        );
-
-
-    // =================================================
-    // FOLDERS
-    // =================================================
-
-    const [
-        folders,
-        setFolders,
-    ] = useState<string[]>(
-        []
-    );
+        useRef<ExplorerFile[]>([]);
 
     const foldersRef =
-        useRef<string[]>(
-            []
-        );
-
-
-    // =================================================
-    // SELECTED FILE
-    // =================================================
-
-    const [
-        selectedFile,
-        setSelectedFile,
-    ] = useState<ExplorerFile | null>(
-        null
-    );
-
-
-    // =================================================
-    // MEMBERS
-    // =================================================
-
-    const [
-        ,
-        setMembers,
-    ] = useState<
-        {
-            id: number;
-            userId: number;
-            username: string;
-            role: ProjectRole;
-        }[]
-    >([]);
-
-
-    // =================================================
-    // ROLE
-    // =================================================
-
-    const [
-        currentRole,
-        setCurrentRole,
-    ] = useState<ProjectRole | null>(
-        null
-    );
-
-
-    // =================================================
-    // ACTIVITY PANEL
-    // =================================================
-
-    const [
-        activePanel,
-        setActivePanel,
-    ] = useState<
-        "explorer" | "collaboration"
-    >("explorer");
-
-
-    // =================================================
-    // CHAT
-    // =================================================
-
-    const [
-        chatMessages,
-        setChatMessages,
-    ] = useState<ChatMessage[]>(
-        []
-    );
-
-
-    // =================================================
-    // WORKSPACE
-    // =================================================
-
-    const [
-        workspaceName,
-        setWorkspaceName,
-    ] = useState<string | null>(
-        getWorkspaceName()
-    );
-
-    const [
-        workspaceSyncing,
-        setWorkspaceSyncing,
-    ] = useState(false);
-
-    const [
-    saving,
-    setSaving,
-] = useState(false);
-
-const [
-    isDirty,
-    setIsDirty,
-] = useState(false);
-
-
-    // =================================================
-    // ERROR
-    // =================================================
-
-    const [
-        error,
-        setError,
-    ] = useState("");
-
-
-    // =================================================
-    // LOCAL WORKSPACE ACTIVE
-    // =================================================
+        useRef<string[]>([]);
 
     const localWorkspaceActiveRef =
         useRef(false);
 
-
-    // =================================================
-    // OWNER IMPORT TRACKING
-    // =================================================
-
     const ownerImportedProjectRef =
-        useRef<number | null>(
-            null
-        );
-
-
-    // =================================================
-    // CONTENT REQUEST TRACKING
-    // =================================================
+        useRef<number | null>(null);
 
     const contentRequestIdRef =
         useRef(0);
 
-
-    // =================================================
-    // AUTH DATA
-    // =================================================
-
     const token =
-        localStorage.getItem(
-            "token"
-        );
+        localStorage.getItem("token");
 
     const username =
-        localStorage.getItem(
-            "username"
-        ) ?? "anonymous";
+        localStorage.getItem("username") ??
+        "anonymous";
 
+    const syncFiles = useCallback(
+        (nextFiles: ExplorerFile[]) => {
+            const sorted = [...nextFiles].sort(
+                (a, b) =>
+                    a.path.localeCompare(b.path),
+            );
 
-    // =================================================
-    // CHAT MESSAGE
-    // =================================================
+            filesRef.current = sorted;
+            setFiles(sorted);
+
+            return sorted;
+        },
+        [],
+    );
+
+    const syncFolders = useCallback(
+        (nextFolders: string[]) => {
+            const sorted = [...new Set(nextFolders)]
+                .filter(Boolean)
+                .sort((a, b) =>
+                    a.localeCompare(b),
+                );
+
+            foldersRef.current = sorted;
+            setFolders(sorted);
+
+            return sorted;
+        },
+        [],
+    );
 
     const handleChatMessage =
         useCallback(
-            (
-                message:
-                    ChatMessage
-            ) => {
-
-                if (!selectedProject) {
-                    return;
-                }
-
+            (message: ChatMessage) => {
                 if (
+                    !selectedProject ||
                     message.projectId !==
-                    selectedProject.id
+                        selectedProject.id
                 ) {
                     return;
                 }
 
-                setChatMessages(
-                    current =>
-                        [
-                            ...current,
-                            message,
-                        ].slice(-100)
+                setChatMessages((current) =>
+                    [...current, message].slice(-100),
                 );
             },
-            [
-                selectedProject,
-            ]
+            [selectedProject],
         );
-
-
-    // =================================================
-    // REMOTE CODE
-    // =================================================
 
     const handleRemoteChange =
         useCallback(
-            (
-                message:
-                    CollaborationMessage
-            ) => {
-
-                if (!selectedProject) {
-                    return;
-                }
-
+            (message: CollaborationMessage) => {
                 if (
+                    !selectedProject ||
                     message.projectId !==
-                    selectedProject.id
-                ) {
-                    return;
-                }
-
-                if (
+                        selectedProject.id ||
                     !message.filePath
                 ) {
                     return;
@@ -599,75 +336,55 @@ const [
 
                 const path =
                     normalizeWorkspacePath(
-                        message.filePath
+                        message.filePath,
                     );
 
                 if (!path) {
                     return;
                 }
 
-                const updated =
-                    filesRef.current.map(
-                        file =>
-                            file.path === path
-                                ? {
-                                    ...file,
-                                    content:
-                                        message.content ??
-                                        "",
-                                }
-                                : file
+                const nextFile =
+                    makeExplorerFile(
+                        path,
+                        message.content ?? "",
                     );
 
-                filesRef.current =
-                    updated;
+                const exists =
+                    filesRef.current.some(
+                        (file) =>
+                            file.path === path,
+                    );
 
-                setFiles(
-                    updated
+                syncFiles(
+                    exists
+                        ? filesRef.current.map(
+                              (file) =>
+                                  file.path === path
+                                      ? nextFile
+                                      : file,
+                          )
+                        : [
+                              ...filesRef.current,
+                              nextFile,
+                          ],
                 );
 
-                setSelectedFile(
-                    current =>
-                        current &&
-                        current.path === path
-                            ? {
-                                ...current,
-                                content:
-                                    message.content ??
-                                    "",
-                            }
-                            : current
+                setSelectedFile((current) =>
+                    current?.path === path
+                        ? nextFile
+                        : current,
                 );
             },
-            [
-                selectedProject,
-            ]
+            [selectedProject, syncFiles],
         );
-
-
-    // =================================================
-    // REMOTE WORKSPACE MESSAGE
-    // =================================================
 
     const handleWorkspaceMessage =
         useCallback(
-            (
-                message:
-                    WorkspaceMessage
-            ) => {
-
-                if (!selectedProject) {
-                    return;
-                }
-
+            (message: WorkspaceMessage) => {
                 if (
+                    !selectedProject ||
                     message.projectId !==
-                    selectedProject.id
-                ) {
-                    return;
-                }
-
-                if (
+                        selectedProject.id ||
                     !message.filePath
                 ) {
                     return;
@@ -675,501 +392,331 @@ const [
 
                 const path =
                     normalizeWorkspacePath(
-                        message.filePath
+                        message.filePath,
                     );
 
                 if (!path) {
                     return;
                 }
-
 
                 if (
                     message.type ===
                     "WORKSPACE_FILE"
                 ) {
-
-                    const updatedFile =
+                    const nextFile =
                         makeExplorerFile(
                             path,
-                            message.content ?? ""
+                            message.content ?? "",
                         );
 
                     const exists =
                         filesRef.current.some(
-                            file =>
-                                file.path === path
+                            (file) =>
+                                file.path === path,
                         );
 
-                    const updated =
+                    syncFiles(
                         exists
                             ? filesRef.current.map(
-                                file =>
-                                    file.path === path
-                                        ? updatedFile
-                                        : file
-                            )
+                                  (file) =>
+                                      file.path === path
+                                          ? nextFile
+                                          : file,
+                              )
                             : [
-                                ...filesRef.current,
-                                updatedFile,
-                            ];
-
-                    updated.sort(
-                        (a, b) =>
-                            a.path.localeCompare(
-                                b.path
-                            )
+                                  ...filesRef.current,
+                                  nextFile,
+                              ],
                     );
 
-                    filesRef.current =
-                        updated;
-
-                    setFiles(
-                        updated
+                    syncFolders(
+                        buildExplorerFolders([
+                            ...foldersRef.current,
+                            ...getParentFolders(path),
+                        ]),
                     );
-
-
-                    const parents =
-                        getParentFolders(
-                            path
-                        );
-
-                    if (
-                        parents.length > 0
-                    ) {
-
-                        const updatedFolders =
-                            buildExplorerFolders([
-                                ...foldersRef.current,
-                                ...parents,
-                            ]);
-
-                        foldersRef.current =
-                            updatedFolders;
-
-                        setFolders(
-                            updatedFolders
-                        );
-                    }
 
                     return;
                 }
-
 
                 if (
                     message.type ===
                     "WORKSPACE_FOLDER"
                 ) {
-
-                    const updatedFolders =
+                    syncFolders(
                         buildExplorerFolders([
                             ...foldersRef.current,
                             path,
-                        ]);
-
-                    foldersRef.current =
-                        updatedFolders;
-
-                    setFolders(
-                        updatedFolders
+                        ]),
                     );
 
                     return;
                 }
-
 
                 if (
                     message.type ===
                     "WORKSPACE_RENAME"
                 ) {
-
-                    const oldPath =
-                        normalizeWorkspacePath(
-                            message.filePath
-                        );
-
+                    const oldPath = path;
                     const newPath =
                         normalizeWorkspacePath(
-                            message.content ?? ""
+                            message.content ?? "",
                         );
 
-                    if (!oldPath || !newPath) {
+                    if (!newPath) {
                         return;
                     }
 
-                    const updatedFiles =
+                    const prefix =
+                        `${oldPath}/`;
+
+                    const nextFiles =
                         filesRef.current.map(
-                            file => {
-                                if (file.path === oldPath) {
+                            (file) => {
+                                if (
+                                    file.path ===
+                                    oldPath
+                                ) {
                                     return makeExplorerFile(
                                         newPath,
-                                        file.content ?? ""
+                                        file.content,
                                     );
                                 }
 
-                                return file;
-                            }
-                        );
-
-                    const filePrefix = `${oldPath}/`;
-
-                    const renamedFiles =
-                        updatedFiles.map(
-                            file => {
-                                if (file.path.startsWith(filePrefix)) {
-                                    const nextPath =
-                                        `${newPath}${file.path.slice(oldPath.length)}`;
-
+                                if (
+                                    file.path.startsWith(
+                                        prefix,
+                                    )
+                                ) {
                                     return makeExplorerFile(
-                                        nextPath,
-                                        file.content ?? ""
+                                        `${newPath}${file.path.slice(
+                                            oldPath.length,
+                                        )}`,
+                                        file.content,
                                     );
                                 }
 
                                 return file;
-                            }
+                            },
                         );
 
-                    const renamedFolders =
+                    const nextFolders =
                         foldersRef.current.map(
-                            folder => {
-                                if (folder === oldPath) {
+                            (folder) => {
+                                if (
+                                    folder ===
+                                    oldPath
+                                ) {
                                     return newPath;
                                 }
 
-                                if (folder.startsWith(filePrefix)) {
-                                    return `${newPath}${folder.slice(oldPath.length)}`;
+                                if (
+                                    folder.startsWith(
+                                        prefix,
+                                    )
+                                ) {
+                                    return `${newPath}${folder.slice(
+                                        oldPath.length,
+                                    )}`;
                                 }
 
                                 return folder;
-                            }
+                            },
                         );
 
-                    renamedFiles.sort(
-                        (a, b) =>
-                            a.path.localeCompare(b.path)
-                    );
+                    syncFiles(nextFiles);
+                    syncFolders(nextFolders);
 
-                    renamedFolders.sort(
-                        (a, b) =>
-                            a.localeCompare(b)
-                    );
-
-                    filesRef.current = renamedFiles;
-                    foldersRef.current = renamedFolders;
-
-                    setFiles(renamedFiles);
-                    setFolders(renamedFolders);
-
-                    setSelectedFile(
-                        current => {
-                            if (!current) {
-                                return current;
-                            }
-
-                            if (current.path === oldPath) {
-                                return makeExplorerFile(
-                                    newPath,
-                                    current.content ?? ""
-                                );
-                            }
-
-                            if (current.path.startsWith(filePrefix)) {
-                                const nextPath =
-                                    `${newPath}${current.path.slice(oldPath.length)}`;
-
-                                return makeExplorerFile(
-                                    nextPath,
-                                    current.content ?? ""
-                                );
-                            }
-
+                    setSelectedFile((current) => {
+                        if (!current) {
                             return current;
                         }
-                    );
+
+                        if (
+                            current.path ===
+                            oldPath
+                        ) {
+                            return makeExplorerFile(
+                                newPath,
+                                current.content,
+                            );
+                        }
+
+                        if (
+                            current.path.startsWith(
+                                prefix,
+                            )
+                        ) {
+                            return makeExplorerFile(
+                                `${newPath}${current.path.slice(
+                                    oldPath.length,
+                                )}`,
+                                current.content,
+                            );
+                        }
+
+                        return current;
+                    });
 
                     return;
                 }
-
 
                 if (
                     message.type ===
                     "WORKSPACE_DELETE"
                 ) {
-
-                    const updated =
+                    const nextFiles =
                         filesRef.current.filter(
-                            file =>
-                                file.path !== path
+                            (file) =>
+                                file.path !== path,
                         );
 
-                    filesRef.current =
-                        updated;
+                    syncFiles(nextFiles);
 
-                    setFiles(
-                        updated
-                    );
-
-                    setSelectedFile(
-                        current =>
-                            current?.path === path
-                                ? updated[0] ?? null
-                                : current
+                    setSelectedFile((current) =>
+                        current?.path === path
+                            ? nextFiles[0] ?? null
+                            : current,
                     );
 
                     return;
                 }
-
 
                 if (
                     message.type ===
                     "WORKSPACE_FOLDER_DELETE"
                 ) {
+                    const prefix = `${path}/`;
 
-                    const prefix =
-                        `${path}/`;
-
-
-                    const updatedFiles =
+                    const nextFiles =
                         filesRef.current.filter(
-                            file =>
+                            (file) =>
                                 file.path !== path &&
                                 !file.path.startsWith(
-                                    prefix
-                                )
+                                    prefix,
+                                ),
                         );
 
-
-                    const updatedFolders =
+                    const nextFolders =
                         foldersRef.current.filter(
-                            folder =>
+                            (folder) =>
                                 folder !== path &&
                                 !folder.startsWith(
-                                    prefix
-                                )
+                                    prefix,
+                                ),
                         );
 
+                    syncFiles(nextFiles);
+                    syncFolders(nextFolders);
 
-                    filesRef.current =
-                        updatedFiles;
-
-                    foldersRef.current =
-                        updatedFolders;
-
-
-                    setFiles(
-                        updatedFiles
-                    );
-
-                    setFolders(
-                        updatedFolders
-                    );
-
-
-                    setSelectedFile(
-                        current =>
-                            current &&
-                            (
-                                current.path === path ||
-                                current.path.startsWith(
-                                    prefix
-                                )
+                    setSelectedFile((current) =>
+                        current &&
+                        (
+                            current.path === path ||
+                            current.path.startsWith(
+                                prefix,
                             )
-                                ? updatedFiles[0] ?? null
-                                : current
+                        )
+                            ? nextFiles[0] ?? null
+                            : current,
                     );
                 }
             },
             [
                 selectedProject,
-            ]
+                syncFiles,
+                syncFolders,
+            ],
         );
-
-
-    // =================================================
-    // SNAPSHOT
-    // =================================================
 
     const handleWorkspaceSnapshot =
         useCallback(
-            (
-                snapshot:
-                    WorkspaceSnapshot
-            ) => {
-
-                if (!selectedProject) {
-                    return;
-                }
-
+            (snapshot: WorkspaceSnapshot) => {
                 if (
+                    !selectedProject ||
                     snapshot.projectId !==
-                    selectedProject.id
+                        selectedProject.id
                 ) {
                     return;
                 }
 
-
-                if (
-                    currentRole === "OWNER" &&
-                    localWorkspaceActiveRef.current
-                ) {
-
-                    setWorkspaceSyncing(
-                        false
-                    );
-
-                    return;
-                }
-
-
-                const snapshotFiles =
+                const nextFiles =
                     buildExplorerFiles(
-                        snapshot.files ?? []
+                        snapshot.files ?? [],
                     );
 
-                const snapshotFolders =
+                const nextFolders =
                     buildExplorerFolders(
-                        snapshot.folders ?? []
+                        snapshot.folders ?? [],
                     );
 
+                syncFiles(nextFiles);
+                syncFolders(nextFolders);
 
-                filesRef.current =
-                    snapshotFiles;
+                setSelectedFile((current) => {
+                    if (!current) {
+                        return nextFiles[0] ?? null;
+                    }
 
-                foldersRef.current =
-                    snapshotFolders;
-
-
-                setFiles(
-                    snapshotFiles
-                );
-
-                setFolders(
-                    snapshotFolders
-                );
-
+                    return (
+                        nextFiles.find(
+                            (file) =>
+                                file.path ===
+                                current.path,
+                        ) ??
+                        nextFiles[0] ??
+                        null
+                    );
+                });
 
                 if (
                     !localWorkspaceActiveRef.current
                 ) {
-
                     setWorkspaceName(
-                        current =>
+                        (current) =>
                             current ??
-                            "Shared Workspace"
+                            "Shared Workspace",
                     );
                 }
 
-
-                setSelectedFile(
-                    current => {
-
-                        if (current) {
-
-                            const same =
-                                snapshotFiles.find(
-                                    file =>
-                                        file.path ===
-                                        current.path
-                                );
-
-                            if (same) {
-                                return same;
-                            }
-                        }
-
-                        return (
-                            snapshotFiles[0] ??
-                            null
-                        );
-                    }
-                );
-
-
-                setWorkspaceSyncing(
-                    false
-                );
-
+                setWorkspaceSyncing(false);
                 setError("");
             },
             [
                 selectedProject,
-                currentRole,
-            ]
+                syncFiles,
+                syncFolders,
+            ],
         );
-
-
-    // =================================================
-    // ROLE CHANGE
-    // =================================================
 
     const handleRoleChange =
         useCallback(
-            (
-                message:
-                    RoleChangedMessage
-            ) => {
-
-                if (!selectedProject) {
-                    return;
-                }
-
+            (message: RoleChangedMessage) => {
                 if (
+                    !selectedProject ||
                     message.projectId !==
-                    selectedProject.id
+                        selectedProject.id
                 ) {
                     return;
                 }
-
-
-                const role =
-                    message.role as ProjectRole;
-
-
-                setMembers(
-                    current =>
-                        current.map(
-                            member =>
-                                member.id ===
-                                message.memberId
-                                    ? {
-                                        ...member,
-                                        role,
-                                    }
-                                    : member
-                        )
-                );
-
 
                 if (
                     message.username ===
                     username
                 ) {
+                    const role =
+                        message.role as ProjectRole;
 
-                    setCurrentRole(
-                        role
-                    );
+                    setCurrentRole(role);
 
-
-                    if (
-                        role ===
-                        "OWNER"
-                    ) {
-
+                    if (role === "OWNER") {
                         ownerImportedProjectRef.current =
                             null;
                     }
                 }
             },
-            [
-                selectedProject,
-                username,
-            ]
+            [selectedProject, username],
         );
-
-
-    // =================================================
-    // COLLABORATION
-    // =================================================
 
     const {
         sendChange,
@@ -1180,1837 +727,1122 @@ const [
         sendWorkspaceRename,
         requestWorkspaceSnapshot,
         isConnected,
-    } =
-        useCollaboration({
-            projectId:
-                selectedProject?.id ??
-                null,
+    } = useCollaboration({
+        projectId:
+            selectedProject?.id ?? null,
+        filePath:
+            selectedFile?.path ?? null,
+        onRemoteChange:
+            handleRemoteChange,
+        onWorkspaceFile:
+            handleWorkspaceMessage,
+        onWorkspaceSnapshot:
+            handleWorkspaceSnapshot,
+        onRoleChange:
+            handleRoleChange,
+    });
 
-            filePath:
-                selectedFile?.path ??
-                null,
-
-            onRemoteChange:
-                handleRemoteChange,
-
-            onWorkspaceFile:
-                handleWorkspaceMessage,
-
-            onWorkspaceSnapshot:
-                handleWorkspaceSnapshot,
-
-            onRoleChange:
-                handleRoleChange,
-        });
-
-
-    // =================================================
-    // CHAT
-    // =================================================
-
-    const {
-        sendMessage,
-    } =
+    const { sendMessage } =
         useChat({
             projectId:
-                selectedProject?.id ??
-                null,
-
+                selectedProject?.id ?? null,
             onMessage:
                 handleChatMessage,
         });
 
+    useEffect(() => {
+        if (
+            !selectedProject ||
+            !token
+        ) {
+            setCurrentRole(null);
+            return;
+        }
 
-    // =================================================
-    // LOAD MEMBERS
-    // =================================================
+        let cancelled = false;
 
-    useEffect(
-        () => {
+        getProjectMembers(
+            selectedProject.id,
+            token,
+        )
+            .then((members) => {
+                if (cancelled) {
+                    return;
+                }
 
-            if (
-                !selectedProject ||
-                !token
-            ) {
-
-                setMembers([]);
+                const me = members.find(
+                    (member) =>
+                        member.username ===
+                        username,
+                );
 
                 setCurrentRole(
-                    null
+                    me?.role ?? null,
                 );
-
-                return;
-            }
-
-
-            let cancelled =
-                false;
-
-
-            getProjectMembers(
-                selectedProject.id,
-                token
-            )
-                .then(data => {
-
-                    if (
-                        cancelled
-                    ) {
-                        return;
-                    }
-
-
-                    setMembers(
-                        data
-                    );
-
-
-                    const currentMember =
-                        data.find(
-                            member =>
-                                member.username ===
-                                username
-                        );
-
-
-                    setCurrentRole(
-                        currentMember?.role ??
-                        null
-                    );
-
-                })
-                .catch(err => {
-
-                    if (
-                        cancelled
-                    ) {
-                        return;
-                    }
-
-
-                    console.error(
-                        "[APP] Failed to load members:",
-                        err
-                    );
-
-
-                    setError(
-                        err instanceof Error
-                            ? err.message
-                            : "Failed to load project members."
-                    );
-                });
-
-
-            return () => {
-                cancelled = true;
-            };
-
-        },
-        [
-            selectedProject?.id,
-            token,
-            username,
-        ]
-    );
-
-
-    // =================================================
-    // PROJECT RESET
-    // =================================================
-
-    useEffect(
-        () => {
-
-            contentRequestIdRef.current += 1;
-
-            setFiles([]);
-
-            setFolders([]);
-
-            setSelectedFile(
-                null
-            );
-
-            setMembers([]);
-
-            setCurrentRole(
-                null
-            );
-
-            setChatMessages([]);
-
-            setSaving(
-                false
-            );
-
-            setIsDirty(
-                false
-            );
-
-            setWorkspaceSyncing(
-                false
-            );
-
-            setWorkspaceName(
-                getWorkspaceName()
-            );
-
-            setActivePanel(
-                "explorer"
-            );
-
-
-            filesRef.current =
-                [];
-
-            foldersRef.current =
-                [];
-
-
-            localWorkspaceActiveRef.current =
-                false;
-
-
-            ownerImportedProjectRef.current =
-                null;
-
-
-            setError("");
-
-        },
-        [
-            selectedProject?.id,
-        ]
-    );
-
-
-    // =================================================
-    // INITIAL REST WORKSPACE LOAD
-    // =================================================
-
-    useEffect(
-        () => {
-
-            if (
-                !selectedProject ||
-                !token
-            ) {
-                return;
-            }
-
-
-            if (
-                currentRole ===
-                "OWNER"
-            ) {
-                return;
-            }
-
-
-            if (
-                localWorkspaceActiveRef.current
-            ) {
-                return;
-            }
-
-
-            let cancelled =
-                false;
-
-
-            setWorkspaceSyncing(
-                true
-            );
-
-
-            getWorkspace(
-                selectedProject.id,
-                token
-            )
-                .then(
-                    snapshot => {
-
-                        if (
-                            cancelled
-                        ) {
-                            return;
-                        }
-
-
-                        handleWorkspaceSnapshot(
-                            snapshot
-                        );
-                    }
-                )
-                .catch(
-                    err => {
-
-                        if (
-                            cancelled
-                        ) {
-                            return;
-                        }
-
-
-                        console.error(
-                            "[APP] Failed to load workspace:",
-                            err
-                        );
-
-
-                        setWorkspaceSyncing(
-                            false
-                        );
-
-
-                        setError(
-                            err instanceof Error
-                                ? err.message
-                                : "Failed to load workspace."
-                        );
-                    }
-                );
-
-
-            return () => {
-                cancelled = true;
-            };
-
-        },
-        [
-            selectedProject?.id,
-            currentRole,
-            token,
-            handleWorkspaceSnapshot,
-        ]
-    );
-
-
-    // =================================================
-    // OWNER COMPLETE REST IMPORT
-    // =================================================
-
-    const importOwnerWorkspace =
-        useCallback(
-            async () => {
-
-                if (!selectedProject) {
+            })
+            .catch((err: unknown) => {
+                if (cancelled) {
                     return;
                 }
-
-
-                if (
-                    currentRole !==
-                    "OWNER"
-                ) {
-                    return;
-                }
-
-
-                if (
-                    !localWorkspaceActiveRef.current
-                ) {
-                    return;
-                }
-
-
-                if (!token) {
-
-                    setError(
-                        "Authentication token is missing."
-                    );
-
-                    return;
-                }
-
-
-                if (
-                    ownerImportedProjectRef.current ===
-                    selectedProject.id
-                ) {
-                    return;
-                }
-
-
-                const workspaceFiles =
-                    filesRef.current;
-
-
-                const workspaceFolders =
-                    foldersRef.current;
-
-
-                setWorkspaceSyncing(
-                    true
-                );
-
-
-                try {
-
-                    const response =
-                        await importWorkspace(
-                            selectedProject.id,
-
-                            {
-                                files:
-                                    workspaceFiles.map(
-                                        file => ({
-                                            path:
-                                                normalizeWorkspacePath(
-                                                    file.path
-                                                ),
-
-                                            name:
-                                                file.name,
-
-                                            content:
-                                                file.content ??
-                                                "",
-                                        })
-                                    ),
-
-                                folders:
-                                    workspaceFolders.map(
-                                        folder =>
-                                            normalizeWorkspacePath(
-                                                folder
-                                            )
-                                    ),
-                            },
-
-                            token
-                        );
-
-
-                    ownerImportedProjectRef.current =
-                        selectedProject.id;
-
-
-                    setWorkspaceSyncing(
-                        false
-                    );
-
-                    setError("");
-
-                    console.log(
-                        "[APP] Owner import complete:",
-                        {
-                            projectId:
-                                response.projectId,
-                            files:
-                                response.files?.length ??
-                                0,
-                            folders:
-                                response.folders?.length ??
-                                0,
-                        }
-                    );
-
-                } catch (err) {
-
-                    ownerImportedProjectRef.current =
-                        null;
-
-
-                    setWorkspaceSyncing(
-                        false
-                    );
-
-
-                    setError(
-                        err instanceof Error
-                            ? err.message
-                            : "Failed to import workspace."
-                    );
-                }
-
-            },
-            [
-                selectedProject,
-                currentRole,
-                token,
-            ]
-        );
-
-
-    // =================================================
-    // OWNER AUTO IMPORT
-    // =================================================
-
-    useEffect(
-        () => {
-
-            if (!selectedProject) {
-                return;
-            }
-
-
-            if (
-                currentRole !==
-                "OWNER"
-            ) {
-                return;
-            }
-
-
-            if (
-                !localWorkspaceActiveRef.current
-            ) {
-                return;
-            }
-
-
-            void importOwnerWorkspace();
-
-        },
-        [
-            selectedProject?.id,
-            currentRole,
-            importOwnerWorkspace,
-        ]
-    );
-
-
-    // =================================================
-    // NON OWNER SNAPSHOT REQUEST
-    // =================================================
-
-    useEffect(
-        () => {
-
-            if (!selectedProject) {
-                return;
-            }
-
-
-            if (
-                currentRole ===
-                "OWNER"
-            ) {
-                return;
-            }
-
-
-            if (!isConnected) {
-                return;
-            }
-
-
-            setWorkspaceSyncing(
-                true
-            );
-
-
-            requestWorkspaceSnapshot();
-
-        },
-        [
-            selectedProject?.id,
-            currentRole,
-            isConnected,
-            requestWorkspaceSnapshot,
-        ]
-    );
-
-
-    // =================================================
-    // LOAD SELECTED FILE CONTENT
-    // =================================================
-
-    useEffect(
-        () => {
-
-            if (
-                !selectedProject ||
-                !selectedFile ||
-                !token
-            ) {
-                return;
-            }
-
-
-            if (
-                localWorkspaceActiveRef.current
-            ) {
-                return;
-            }
-
-
-            const path =
-                normalizeWorkspacePath(
-                    selectedFile.path
-                );
-
-
-            if (!path) {
-                return;
-            }
-
-
-            const requestId =
-                ++contentRequestIdRef.current;
-
-
-            let cancelled =
-                false;
-
-
-            setWorkspaceSyncing(
-                true
-            );
-
-
-            getWorkspaceFileContent(
-                selectedProject.id,
-                path,
-                token
-            )
-                .then(
-                    content => {
-
-                        if (
-                            cancelled ||
-                            requestId !==
-                            contentRequestIdRef.current
-                        ) {
-                            return;
-                        }
-
-
-                        const updatedFile =
-                            makeExplorerFile(
-                                path,
-                                content
-                            );
-
-
-                        const exists =
-                            filesRef.current.some(
-                                file =>
-                                    file.path === path
-                            );
-
-
-                        const updated =
-                            exists
-                                ? filesRef.current.map(
-                                    file =>
-                                        file.path === path
-                                            ? updatedFile
-                                            : file
-                                )
-                                : [
-                                    ...filesRef.current,
-                                    updatedFile,
-                                ];
-
-
-                        updated.sort(
-                            (a, b) =>
-                                a.path.localeCompare(
-                                    b.path
-                                )
-                        );
-
-
-                        filesRef.current =
-                            updated;
-
-
-                        setFiles(
-                            updated
-                        );
-
-
-                        setSelectedFile(
-                            current =>
-                                current &&
-                                current.path === path
-                                    ? updatedFile
-                                    : current
-                        );
-
-
-                        setError("");
-                    }
-                )
-                .catch(
-                    err => {
-
-                        if (
-                            cancelled ||
-                            requestId !== contentRequestIdRef.current
-                        ) {
-                            return;
-                        }
-
-
-                        setError(
-                            err instanceof Error
-                                ? err.message
-                                : `Failed to load "${path}".`
-                        );
-                    }
-                )
-                .finally(
-                    () => {
-
-                        if (
-                            cancelled ||
-                            requestId !== contentRequestIdRef.current
-                        ) {
-                            return;
-                        }
-
-
-                        setWorkspaceSyncing(
-                            false
-                        );
-                    }
-                );
-
-
-            return () => {
-
-                cancelled =
-                    true;
-            };
-
-        },
-        [
-            selectedProject?.id,
-            selectedFile?.path,
-            token,
-        ]
-    );
-
-
-    // =================================================
-    // OPEN LOCAL FOLDER
-    // =================================================
-
-    const handleOpenFolder =
-        async () => {
-
-            if (
-                currentRole ===
-                "VIEWER"
-            ) {
 
                 setError(
-                    "Viewers cannot open a workspace."
+                    err instanceof Error
+                        ? err.message
+                        : "Failed to load project members.",
+                );
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [
+        selectedProject?.id,
+        token,
+        username,
+    ]);
+
+    useEffect(() => {
+        contentRequestIdRef.current += 1;
+
+        filesRef.current = [];
+        foldersRef.current = [];
+
+        setFiles([]);
+        setFolders([]);
+        setSelectedFile(null);
+        setChatMessages([]);
+        setCurrentRole(null);
+        setSaving(false);
+        setIsDirty(false);
+        setWorkspaceSyncing(false);
+        setWorkspaceName(getWorkspaceName());
+        setError("");
+
+        localWorkspaceActiveRef.current = false;
+        ownerImportedProjectRef.current = null;
+    }, [selectedProject?.id]);
+
+    useEffect(() => {
+        if (
+            !selectedProject ||
+            !token ||
+            currentRole === "OWNER" ||
+            localWorkspaceActiveRef.current
+        ) {
+            return;
+        }
+
+        let cancelled = false;
+
+        setWorkspaceSyncing(true);
+
+        getWorkspace(
+            selectedProject.id,
+            token,
+        )
+            .then((snapshot) => {
+                if (!cancelled) {
+                    handleWorkspaceSnapshot(
+                        snapshot,
+                    );
+                }
+            })
+            .catch((err: unknown) => {
+                if (cancelled) {
+                    return;
+                }
+
+                setWorkspaceSyncing(false);
+                setError(
+                    err instanceof Error
+                        ? err.message
+                        : "Failed to load workspace.",
+                );
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [
+        selectedProject?.id,
+        currentRole,
+        token,
+        handleWorkspaceSnapshot,
+    ]);
+
+    useEffect(() => {
+        if (
+            !selectedProject ||
+            currentRole === "OWNER" ||
+            !isConnected
+        ) {
+            return;
+        }
+
+        setWorkspaceSyncing(true);
+        requestWorkspaceSnapshot();
+    }, [
+        selectedProject?.id,
+        currentRole,
+        isConnected,
+        requestWorkspaceSnapshot,
+    ]);
+
+    useEffect(() => {
+        if (
+            !selectedProject ||
+            !selectedFile ||
+            !token ||
+            localWorkspaceActiveRef.current
+        ) {
+            return;
+        }
+
+        const path =
+            normalizeWorkspacePath(
+                selectedFile.path,
+            );
+
+        if (!path) {
+            return;
+        }
+
+        const requestId =
+            ++contentRequestIdRef.current;
+
+        let cancelled = false;
+
+        setWorkspaceSyncing(true);
+
+        getWorkspaceFileContent(
+            selectedProject.id,
+            path,
+            token,
+        )
+            .then((content) => {
+                if (
+                    cancelled ||
+                    requestId !==
+                        contentRequestIdRef.current
+                ) {
+                    return;
+                }
+
+                const nextFile =
+                    makeExplorerFile(
+                        path,
+                        content,
+                    );
+
+                const nextFiles =
+                    filesRef.current.some(
+                        (file) =>
+                            file.path === path,
+                    )
+                        ? filesRef.current.map(
+                              (file) =>
+                                  file.path === path
+                                      ? nextFile
+                                      : file,
+                          )
+                        : [
+                              ...filesRef.current,
+                              nextFile,
+                          ];
+
+                syncFiles(nextFiles);
+
+                setSelectedFile(
+                    nextFile,
                 );
 
+                setError("");
+            })
+            .catch((err: unknown) => {
+                if (
+                    cancelled ||
+                    requestId !==
+                        contentRequestIdRef.current
+                ) {
+                    return;
+                }
+
+                setError(
+                    err instanceof Error
+                        ? err.message
+                        : `Failed to load "${path}".`,
+                );
+            })
+            .finally(() => {
+                if (
+                    !cancelled &&
+                    requestId ===
+                        contentRequestIdRef.current
+                ) {
+                    setWorkspaceSyncing(false);
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [
+        selectedProject?.id,
+        selectedFile?.path,
+        token,
+        syncFiles,
+    ]);
+
+    const handleOpenFolder =
+        useCallback(async () => {
+            if (currentRole === "VIEWER") {
+                setError(
+                    "Viewers cannot open a workspace.",
+                );
                 return;
             }
 
-
             try {
-
                 setError("");
-
 
                 const mode =
                     currentRole === "OWNER"
                         ? "OWNER"
                         : "COLLABORATOR";
 
-
                 const name =
-                    await openLocalFolder(
-                        mode
-                    );
-
-
-                localWorkspaceActiveRef.current =
-                    currentRole === "OWNER";
-
-
-                setWorkspaceName(
-                    name
-                );
-
+                    await openLocalFolder(mode);
 
                 const localWorkspace =
                     await loadWorkspace();
 
-
-                const explorerFiles =
+                const nextFiles =
                     buildExplorerFiles(
-                        localWorkspace.files ?? []
+                        localWorkspace.files,
                     );
 
-
-                const explorerFolders =
+                const nextFolders =
                     buildExplorerFolders(
-                        localWorkspace.folders ?? []
+                        localWorkspace.folders,
                     );
 
+                localWorkspaceActiveRef.current =
+                    true;
+
+                setWorkspaceName(name);
+                syncFiles(nextFiles);
+                syncFolders(nextFolders);
+                setSelectedFile(
+                    nextFiles[0] ?? null,
+                );
 
                 if (
-                    currentRole ===
-                    "OWNER"
+                    currentRole === "OWNER" &&
+                    selectedProject &&
+                    token
                 ) {
+                    setWorkspaceSyncing(true);
 
-                    filesRef.current =
-                        explorerFiles;
-
-                    foldersRef.current =
-                        explorerFolders;
-
-
-                    setFiles(
-                        explorerFiles
-                    );
-
-                    setFolders(
-                        explorerFolders
-                    );
-
-                    setSelectedFile(
-                        explorerFiles[0] ??
-                        null
-                    );
-
+                    const snapshot =
+                        await importWorkspace(
+                            selectedProject.id,
+                            {
+                                files: nextFiles.map(
+                                    (file) => ({
+                                        path:
+                                            normalizeWorkspacePath(
+                                                file.path,
+                                            ),
+                                        name: file.name,
+                                        content:
+                                            file.content,
+                                    }),
+                                ),
+                                folders:
+                                    nextFolders.map(
+                                        (folder) =>
+                                            normalizeWorkspacePath(
+                                                folder,
+                                            ),
+                                    ),
+                            },
+                            token,
+                        );
 
                     ownerImportedProjectRef.current =
-                        null;
+                        selectedProject.id;
 
+                    handleWorkspaceSnapshot(
+                        snapshot,
+                    );
+                } else if (
+                    currentRole !== "OWNER" &&
+                    selectedProject &&
+                    token
+                ) {
+                    setWorkspaceSyncing(true);
 
-                    if (
-                        selectedProject &&
-                        token
-                    ) {
-
-                        setWorkspaceSyncing(
-                            true
+                    const snapshot =
+                        await getWorkspace(
+                            selectedProject.id,
+                            token,
                         );
 
+                    handleWorkspaceSnapshot(
+                        snapshot,
+                    );
 
-                        try {
-
-                            const response =
-                                await importWorkspace(
-                                    selectedProject.id,
-
-                                    {
-                                        files:
-                                            explorerFiles.map(
-                                                file => ({
-                                                    path:
-                                                        normalizeWorkspacePath(
-                                                            file.path
-                                                        ),
-
-                                                    name:
-                                                        file.name,
-
-                                                    content:
-                                                        file.content ??
-                                                        "",
-                                                })
-                                            ),
-
-                                        folders:
-                                            explorerFolders.map(
-                                                folder =>
-                                                    normalizeWorkspacePath(
-                                                        folder
-                                                    )
-                                            ),
-                                    },
-
-                                    token
-                                );
-
-
-                            ownerImportedProjectRef.current =
-                                selectedProject.id;
-
-
-                            setWorkspaceSyncing(
-                                false
-                            );
-
-                            setError("");
-
-                            console.log(
-                                "[APP] Owner initial import complete:",
-                                response
-                            );
-
-                        } catch (err) {
-
-                            ownerImportedProjectRef.current =
-                                null;
-
-
-                            setWorkspaceSyncing(
-                                false
-                            );
-
-
-                            setError(
-                                err instanceof Error
-                                    ? err.message
-                                    : "Failed to import workspace."
-                            );
-                        }
-                    }
-
-                } else {
-
-                    if (
-                        selectedProject &&
-                        token
-                    ) {
-
-                        setWorkspaceSyncing(
-                            true
+                    const remoteFiles =
+                        buildExplorerFiles(
+                            snapshot.files ?? [],
                         );
 
-
-                        try {
-
-                            const snapshot =
-                                await getWorkspace(
-                                    selectedProject.id,
-                                    token
-                                );
-
-
-                            handleWorkspaceSnapshot(
-                                snapshot
-                            );
-
-                        } catch (err) {
-
-                            setWorkspaceSyncing(
-                                false
-                            );
-
-
-                            setError(
-                                err instanceof Error
-                                    ? err.message
-                                    : "Failed to load shared workspace."
-                            );
-                        }
+                    if (remoteFiles.length > 0) {
+                        syncFiles(
+                            nextFiles.length > 0
+                                ? nextFiles
+                                : remoteFiles,
+                        );
                     }
                 }
-
-            } catch (err) {
-
+            } catch (err: unknown) {
                 if (
                     err instanceof DOMException &&
-                    err.name ===
-                        "AbortError"
+                    err.name === "AbortError"
                 ) {
                     return;
                 }
 
-
+                setWorkspaceSyncing(false);
                 setError(
                     err instanceof Error
                         ? err.message
-                        : "Failed to open folder."
+                        : "Failed to open folder.",
                 );
             }
-        };
-
-
-    // =================================================
-    // CREATE FILE
-    // =================================================
+        }, [
+            currentRole,
+            selectedProject,
+            token,
+            syncFiles,
+            syncFolders,
+            handleWorkspaceSnapshot,
+        ]);
 
     const handleCreateFile =
-        async () => {
-
-            if (
-                currentRole ===
-                "VIEWER"
-            ) {
-                return;
-            }
-
-
-            if (
-                !localWorkspaceActiveRef.current
-            ) {
-
-                setError(
-                    "Open a local folder first."
-                );
-
-                return;
-            }
-
-
-            const input =
-                window.prompt(
-                    "Enter file path",
-                    "src/new-file.txt"
-                );
-
-
-            if (
-                input === null
-            ) {
-                return;
-            }
-
-
-            const path =
-                normalizeWorkspacePath(
-                    input.trim()
-                );
-
-
-            if (!path) {
-
-                setError(
-                    "File path is required."
-                );
-
-                return;
-            }
-
-
-            try {
-
-                await createWorkspaceFile(
-                    path,
-                    ""
-                );
-
-
-                const newFile =
-                    makeExplorerFile(
-                        path,
-                        ""
-                    );
-
-
-                const updated =
-                    filesRef.current.some(
-                        file =>
-                            file.path === path
-                    )
-                        ? filesRef.current
-                        : [
-                            ...filesRef.current,
-                            newFile,
-                        ];
-
-
-                updated.sort(
-                    (a, b) =>
-                        a.path.localeCompare(
-                            b.path
-                        )
-                );
-
-
-                filesRef.current =
-                    updated;
-
-
-                setFiles(
-                    updated
-                );
-
-                setSelectedFile(
-                    newFile
-                );
-
-
-                const updatedFolders =
-                    buildExplorerFolders([
-                        ...foldersRef.current,
-                        ...getParentFolders(
-                            path
-                        ),
-                    ]);
-
-
-                foldersRef.current =
-                    updatedFolders;
-
-                setFolders(
-                    updatedFolders
-                );
-
-
-                sendWorkspaceFile(
-                    path,
-                    ""
-                );
-
-            } catch (err) {
-
-                setError(
-                    err instanceof Error
-                        ? err.message
-                        : "Failed to create file."
-                );
-            }
-        };
-
-
-    // =================================================
-    // CREATE FOLDER
-    // =================================================
-
-    const handleCreateFolder =
-        async () => {
-
-            if (
-                currentRole ===
-                "VIEWER"
-            ) {
-                return;
-            }
-
-
-            if (
-                !localWorkspaceActiveRef.current
-            ) {
-
-                setError(
-                    "Open a local folder first."
-                );
-
-                return;
-            }
-
-
-            const input =
-                window.prompt(
-                    "Enter folder path",
-                    "src/components"
-                );
-
-
-            if (
-                input === null
-            ) {
-                return;
-            }
-
-
-            const path =
-                normalizeWorkspacePath(
-                    input.trim()
-                );
-
-
-            if (!path) {
-
-                setError(
-                    "Folder path is required."
-                );
-
-                return;
-            }
-
-
-            try {
-
-                await createWorkspaceFolder(
-                    path
-                );
-
-
-                const updatedFolders =
-                    buildExplorerFolders([
-                        ...foldersRef.current,
-                        path,
-                    ]);
-
-
-                foldersRef.current =
-                    updatedFolders;
-
-                setFolders(
-                    updatedFolders
-                );
-
-
-                sendWorkspaceFolder(
-                    path
-                );
-
-            } catch (err) {
-
-                setError(
-                    err instanceof Error
-                        ? err.message
-                        : "Failed to create folder."
-                );
-            }
-        };
-
-
-    // =================================================
-    // CODE CHANGE
-    // =================================================
-
-    const handleCodeChange =
-        (
-            value: string
-        ) => {
-
-            if (
-                currentRole ===
-                "VIEWER"
-            ) {
-                return;
-            }
-
-
-            if (!selectedFile) {
-                return;
-            }
-
-
-            const path =
-                selectedFile.path;
-
-
-            const updatedFile =
-                makeExplorerFile(
-                    path,
-                    value
-                );
-
-
-            const updated =
-                filesRef.current.map(
-                    file =>
-                        file.path === path
-                            ? updatedFile
-                            : file
-                );
-
-
-            filesRef.current =
-                updated;
-
-            setFiles(
-                updated
-            );
-
-            setSelectedFile(
-                updatedFile
-            );
-
-
-            setIsDirty(
-                true
-            );
-
-            sendChange(
-                value
-            );
-        };
-
-
-    // =================================================
-    // DELETE FILE
-    // =================================================
-
-    const handleDeleteFile =
-        async (
-            file: ExplorerFile
-        ) => {
-
-            if (
-                currentRole ===
-                "VIEWER"
-            ) {
-                return;
-            }
-
-
-            if (
-                !localWorkspaceActiveRef.current
-            ) {
-
-                setError(
-                    "Open a local folder first."
-                );
-
-                return;
-            }
-
-
-            if (
-                !window.confirm(
-                    `Delete "${file.path}"?`
-                )
-            ) {
-                return;
-            }
-
-
-            try {
-
-                await deleteWorkspaceFile(
-                    file.path
-                );
-
-
-                const updated =
-                    filesRef.current.filter(
-                        current =>
-                            current.path !==
-                            file.path
-                    );
-
-
-                filesRef.current =
-                    updated;
-
-                setFiles(
-                    updated
-                );
-
-
-                setSelectedFile(
-                    current =>
-                        current?.path ===
-                        file.path
-                            ? updated[0] ?? null
-                            : current
-                );
-
-
-                sendWorkspaceDelete(
-                    file.path
-                );
-
-            } catch (err) {
-
-                setError(
-                    err instanceof Error
-                        ? err.message
-                        : "Failed to delete file."
-                );
-            }
-        };
-
-
-    // =================================================
-    // DELETE FOLDER
-    // =================================================
-
-    const handleDeleteFolder =
-        async (
-            path: string
-        ) => {
-
-            if (
-                currentRole ===
-                "VIEWER"
-            ) {
-                return;
-            }
-
-
-            if (
-                !localWorkspaceActiveRef.current
-            ) {
-
-                setError(
-                    "Open a local folder first."
-                );
-
-                return;
-            }
-
-
-            if (
-                !window.confirm(
-                    `Delete folder "${path}" and everything inside it?`
-                )
-            ) {
-                return;
-            }
-
-
-            try {
-
-                await deleteWorkspaceFolder(
-                    path
-                );
-
-
-                const prefix =
-                    `${path}/`;
-
-
-                const updatedFiles =
-                    filesRef.current.filter(
-                        file =>
-                            file.path !== path &&
-                            !file.path.startsWith(
-                                prefix
-                            )
-                    );
-
-
-                const updatedFolders =
-                    foldersRef.current.filter(
-                        folder =>
-                            folder !== path &&
-                            !folder.startsWith(
-                                prefix
-                            )
-                    );
-
-
-                filesRef.current =
-                    updatedFiles;
-
-                foldersRef.current =
-                    updatedFolders;
-
-
-                setFiles(
-                    updatedFiles
-                );
-
-                setFolders(
-                    updatedFolders
-                );
-
-
-                setSelectedFile(
-                    current =>
-                        current &&
-                        (
-                            current.path === path ||
-                            current.path.startsWith(
-                                prefix
-                            )
-                        )
-                            ? updatedFiles[0] ?? null
-                            : current
-                );
-
-
-                sendWorkspaceFolderDelete(
-                    path
-                );
-
-            } catch (err) {
-
-                setError(
-                    err instanceof Error
-                        ? err.message
-                        : "Failed to delete folder."
-                );
-            }
-        };
-        // =================================================
-    // RENAME FILE
-    // =================================================
-
-    const handleRenameFile =
-        async (
-            file: ExplorerFile
-        ) => {
-
+        useCallback(async () => {
             if (currentRole === "VIEWER") {
                 return;
             }
 
-            if (!localWorkspaceActiveRef.current) {
-                setError("Open a local folder first.");
+            if (
+                !localWorkspaceActiveRef.current
+            ) {
+                setError(
+                    "Open a local folder first.",
+                );
                 return;
             }
 
-            const currentName = file.name;
             const input = window.prompt(
-                `Rename file "${currentName}"`,
-                currentName
+                "Enter file path",
+                "src/new-file.txt",
             );
 
             if (input === null) {
                 return;
             }
 
-            const nextName = input.trim();
-
-            if (!nextName) {
-                setError("File name is required.");
-                return;
-            }
-
-            const parts = file.path.split("/");
-            parts.pop();
-
-            const newPath =
+            const path =
                 normalizeWorkspacePath(
-                    parts.length > 0
-                        ? `${parts.join("/")}/${nextName}`
-                        : nextName
+                    input.trim(),
                 );
 
-            if (!newPath || newPath === file.path) {
-                return;
-            }
-
-            if (filesRef.current.some(item => item.path === newPath)) {
-                setError(`A file already exists at "${newPath}".`);
-                return;
-            }
-
-            if (foldersRef.current.some(folder => folder === newPath)) {
-                setError(`A folder already exists at "${newPath}".`);
-                return;
-            }
-
-            try {
-                await renameWorkspaceFile(
-                    file.path,
-                    newPath
-                );
-
-                const updated =
-                    filesRef.current
-                        .map(current =>
-                            current.path === file.path
-                                ? makeExplorerFile(
-                                    newPath,
-                                    current.content ?? ""
-                                )
-                                : current
-                        )
-                        .sort((a, b) => a.path.localeCompare(b.path));
-
-                filesRef.current = updated;
-                setFiles(updated);
-
-                setSelectedFile(current =>
-                    current?.path === file.path
-                        ? makeExplorerFile(
-                            newPath,
-                            current.content ?? ""
-                        )
-                        : current
-                );
-
-                sendWorkspaceRename(
-                    file.path,
-                    newPath
-                );
-
-                setError("");
-            } catch (err) {
-                setError(
-                    err instanceof Error
-                        ? err.message
-                        : "Failed to rename file."
-                );
-            }
-        };
-
-
-    // =================================================
-    // RENAME FOLDER
-    // =================================================
-
-    const handleRenameFolder =
-        async (
-            oldPath: string
-        ) => {
-
-            if (currentRole === "VIEWER") {
-                return;
-            }
-
-            if (!localWorkspaceActiveRef.current) {
-                setError("Open a local folder first.");
-                return;
-            }
-
-            const parts = oldPath.split("/");
-            const currentName = parts.pop() ?? oldPath;
-
-            const input = window.prompt(
-                `Rename folder "${currentName}"`,
-                currentName
-            );
-
-            if (input === null) {
-                return;
-            }
-
-            const nextName = input.trim();
-
-            if (!nextName) {
-                setError("Folder name is required.");
-                return;
-            }
-
-            const parent = parts.join("/");
-            const newPath =
-                normalizeWorkspacePath(
-                    parent
-                        ? `${parent}/${nextName}`
-                        : nextName
-                );
-
-            if (!newPath || newPath === oldPath) {
-                return;
-            }
-
-            const oldPrefix = `${oldPath}/`;
-            const newPrefix = `${newPath}/`;
-
-            if (
-                newPath.startsWith(oldPrefix)
-            ) {
-                setError("A folder cannot be moved inside itself.");
+            if (!path) {
+                setError("File path is required.");
                 return;
             }
 
             if (
                 filesRef.current.some(
-                    file =>
-                        file.path === newPath ||
-                        file.path.startsWith(newPrefix)
-                )
-            ) {
-                setError(`A file already exists at or inside "${newPath}".`);
-                return;
-            }
-
-            if (
+                    (file) =>
+                        file.path === path,
+                ) ||
                 foldersRef.current.some(
-                    folder =>
-                        folder === newPath ||
-                        folder.startsWith(newPrefix)
+                    (folder) =>
+                        folder === path,
                 )
             ) {
-                setError(`A folder already exists at or inside "${newPath}".`);
+                setError(
+                    `"${path}" already exists.`,
+                );
                 return;
             }
 
             try {
-                await renameWorkspaceFolder(
-                    oldPath,
-                    newPath
+                await createWorkspaceFile(
+                    path,
+                    "",
                 );
 
-                const updatedFiles =
-                    filesRef.current
-                        .map(file => {
-                            if (file.path === oldPath) {
-                                return file;
-                            }
+                const nextFile =
+                    makeExplorerFile(path, "");
 
-                            if (file.path.startsWith(oldPrefix)) {
-                                return makeExplorerFile(
-                                    `${newPath}${file.path.slice(oldPath.length)}`,
-                                    file.content ?? ""
-                                );
-                            }
+                syncFiles([
+                    ...filesRef.current,
+                    nextFile,
+                ]);
 
-                            return file;
-                        })
-                        .sort((a, b) => a.path.localeCompare(b.path));
-
-                const updatedFolders =
-                    foldersRef.current
-                        .map(folder => {
-                            if (folder === oldPath) {
-                                return newPath;
-                            }
-
-                            if (folder.startsWith(oldPrefix)) {
-                                return `${newPath}${folder.slice(oldPath.length)}`;
-                            }
-
-                            return folder;
-                        })
-                        .sort((a, b) => a.localeCompare(b));
-
-                filesRef.current = updatedFiles;
-                foldersRef.current = updatedFolders;
-
-                setFiles(updatedFiles);
-                setFolders(updatedFolders);
-
-                setSelectedFile(current => {
-                    if (!current) {
-                        return current;
-                    }
-
-                    if (current.path.startsWith(oldPrefix)) {
-                        return makeExplorerFile(
-                            `${newPath}${current.path.slice(oldPath.length)}`,
-                            current.content ?? ""
-                        );
-                    }
-
-                    return current;
-                });
-
-                sendWorkspaceRename(
-                    oldPath,
-                    newPath
+                syncFolders(
+                    buildExplorerFolders([
+                        ...foldersRef.current,
+                        ...getParentFolders(path),
+                    ]),
                 );
 
+                setSelectedFile(nextFile);
+                setIsDirty(false);
+                sendWorkspaceFile(path, "");
                 setError("");
-            } catch (err) {
+            } catch (err: unknown) {
                 setError(
                     err instanceof Error
                         ? err.message
-                        : "Failed to rename folder."
+                        : "Failed to create file.",
                 );
             }
-        };
+        }, [
+            currentRole,
+            syncFiles,
+            syncFolders,
+            sendWorkspaceFile,
+        ]);
 
-
-    // =================================================
-// SAVE TO DEVICE
-// =================================================
-
-const handleSaveToDevice =
-    useCallback(
-        async () => {
+    const handleCreateFolder =
+        useCallback(async () => {
+            if (currentRole === "VIEWER") {
+                return;
+            }
 
             if (
-                currentRole ===
-                "VIEWER"
+                !localWorkspaceActiveRef.current
             ) {
-
                 setError(
-                    "Viewers cannot save files."
+                    "Open a local folder first.",
                 );
-
                 return;
             }
 
+            const input = window.prompt(
+                "Enter folder path",
+                "src/components",
+            );
 
-            if (
-                files.length === 0
-            ) {
+            if (input === null) {
+                return;
+            }
 
+            const path =
+                normalizeWorkspacePath(
+                    input.trim(),
+                );
+
+            if (!path) {
                 setError(
-                    "No files available to save."
+                    "Folder path is required.",
                 );
-
                 return;
             }
-
 
             if (
-                saving
+                foldersRef.current.includes(path) ||
+                filesRef.current.some(
+                    (file) =>
+                        file.path === path,
+                )
             ) {
+                setError(
+                    `"${path}" already exists.`,
+                );
                 return;
             }
-
 
             try {
+                await createWorkspaceFolder(path);
 
-                setSaving(
-                    true
+                syncFolders([
+                    ...foldersRef.current,
+                    path,
+                ]);
+
+                sendWorkspaceFolder(path);
+                setError("");
+            } catch (err: unknown) {
+                setError(
+                    err instanceof Error
+                        ? err.message
+                        : "Failed to create folder.",
+                );
+            }
+        }, [
+            currentRole,
+            syncFolders,
+            sendWorkspaceFolder,
+        ]);
+
+    const handleCodeChange =
+        useCallback(
+            (value: string) => {
+                if (
+                    currentRole === "VIEWER" ||
+                    !selectedFile
+                ) {
+                    return;
+                }
+
+                const nextFile =
+                    makeExplorerFile(
+                        selectedFile.path,
+                        value,
+                    );
+
+                syncFiles(
+                    filesRef.current.map(
+                        (file) =>
+                            file.path ===
+                            selectedFile.path
+                                ? nextFile
+                                : file,
+                    ),
                 );
 
-                setError("");
+                setSelectedFile(nextFile);
+                setIsDirty(true);
+                sendChange(value);
+            },
+            [
+                currentRole,
+                selectedFile,
+                syncFiles,
+                sendChange,
+            ],
+        );
 
+    const handleDeleteFile =
+        useCallback(
+            async (file: ExplorerFile) => {
+                if (
+                    currentRole === "VIEWER"
+                ) {
+                    return;
+                }
+
+                if (
+                    !localWorkspaceActiveRef.current
+                ) {
+                    setError(
+                        "Open a local folder first.",
+                    );
+                    return;
+                }
+
+                if (
+                    !window.confirm(
+                        `Delete "${file.path}"?`,
+                    )
+                ) {
+                    return;
+                }
+
+                try {
+                    await deleteWorkspaceFile(
+                        file.path,
+                    );
+
+                    const nextFiles =
+                        filesRef.current.filter(
+                            (item) =>
+                                item.path !==
+                                file.path,
+                        );
+
+                    syncFiles(nextFiles);
+
+                    setSelectedFile(
+                        (current) =>
+                            current?.path ===
+                            file.path
+                                ? nextFiles[0] ??
+                                  null
+                                : current,
+                    );
+
+                    setIsDirty(false);
+                    sendWorkspaceDelete(
+                        file.path,
+                    );
+                    setError("");
+                } catch (err: unknown) {
+                    setError(
+                        err instanceof Error
+                            ? err.message
+                            : "Failed to delete file.",
+                    );
+                }
+            },
+            [
+                currentRole,
+                syncFiles,
+                sendWorkspaceDelete,
+            ],
+        );
+
+    const handleDeleteFolder =
+        useCallback(
+            async (path: string) => {
+                if (
+                    currentRole === "VIEWER"
+                ) {
+                    return;
+                }
+
+                if (
+                    !localWorkspaceActiveRef.current
+                ) {
+                    setError(
+                        "Open a local folder first.",
+                    );
+                    return;
+                }
+
+                if (
+                    !window.confirm(
+                        `Delete folder "${path}" and everything inside it?`,
+                    )
+                ) {
+                    return;
+                }
+
+                try {
+                    await deleteWorkspaceFolder(
+                        path,
+                    );
+
+                    const prefix = `${path}/`;
+
+                    const nextFiles =
+                        filesRef.current.filter(
+                            (file) =>
+                                file.path !== path &&
+                                !file.path.startsWith(
+                                    prefix,
+                                ),
+                        );
+
+                    const nextFolders =
+                        foldersRef.current.filter(
+                            (folder) =>
+                                folder !== path &&
+                                !folder.startsWith(
+                                    prefix,
+                                ),
+                        );
+
+                    syncFiles(nextFiles);
+                    syncFolders(nextFolders);
+
+                    setSelectedFile((current) =>
+                        current &&
+                        (
+                            current.path === path ||
+                            current.path.startsWith(
+                                prefix,
+                            )
+                        )
+                            ? nextFiles[0] ?? null
+                            : current,
+                    );
+
+                    setIsDirty(false);
+                    sendWorkspaceFolderDelete(
+                        path,
+                    );
+                    setError("");
+                } catch (err: unknown) {
+                    setError(
+                        err instanceof Error
+                            ? err.message
+                            : "Failed to delete folder.",
+                    );
+                }
+            },
+            [
+                currentRole,
+                syncFiles,
+                syncFolders,
+                sendWorkspaceFolderDelete,
+            ],
+        );
+
+    const handleRenameFile =
+        useCallback(
+            async (file: ExplorerFile) => {
+                if (
+                    currentRole === "VIEWER"
+                ) {
+                    return;
+                }
+
+                if (
+                    !localWorkspaceActiveRef.current
+                ) {
+                    setError(
+                        "Open a local folder first.",
+                    );
+                    return;
+                }
+
+                const nextName =
+                    window.prompt(
+                        `Rename file "${file.name}"`,
+                        file.name,
+                    )?.trim();
+
+                if (!nextName) {
+                    return;
+                }
+
+                const parent =
+                    file.path
+                        .split("/")
+                        .slice(0, -1)
+                        .join("/");
+
+                const newPath =
+                    normalizeWorkspacePath(
+                        parent
+                            ? `${parent}/${nextName}`
+                            : nextName,
+                    );
+
+                if (
+                    !newPath ||
+                    newPath === file.path
+                ) {
+                    return;
+                }
+
+                if (
+                    filesRef.current.some(
+                        (item) =>
+                            item.path ===
+                            newPath,
+                    ) ||
+                    foldersRef.current.some(
+                        (folder) =>
+                            folder === newPath,
+                    )
+                ) {
+                    setError(
+                        `"${newPath}" already exists.`,
+                    );
+                    return;
+                }
+
+                try {
+                    await renameWorkspaceFile(
+                        file.path,
+                        newPath,
+                    );
+
+                    const nextFiles =
+                        filesRef.current.map(
+                            (item) =>
+                                item.path ===
+                                file.path
+                                    ? makeExplorerFile(
+                                          newPath,
+                                          item.content,
+                                      )
+                                    : item,
+                        );
+
+                    syncFiles(nextFiles);
+
+                    setSelectedFile((current) =>
+                        current?.path ===
+                        file.path
+                            ? makeExplorerFile(
+                                  newPath,
+                                  file.content,
+                              )
+                            : current,
+                    );
+
+                    sendWorkspaceRename(
+                        file.path,
+                        newPath,
+                    );
+
+                    setError("");
+                } catch (err: unknown) {
+                    setError(
+                        err instanceof Error
+                            ? err.message
+                            : "Failed to rename file.",
+                    );
+                }
+            },
+            [
+                currentRole,
+                syncFiles,
+                sendWorkspaceRename,
+            ],
+        );
+
+    const handleRenameFolder =
+        useCallback(
+            async (oldPath: string) => {
+                if (
+                    currentRole === "VIEWER"
+                ) {
+                    return;
+                }
+
+                if (
+                    !localWorkspaceActiveRef.current
+                ) {
+                    setError(
+                        "Open a local folder first.",
+                    );
+                    return;
+                }
+
+                const currentName =
+                    oldPath
+                        .split("/")
+                        .pop() ?? oldPath;
+
+                const nextName =
+                    window.prompt(
+                        `Rename folder "${currentName}"`,
+                        currentName,
+                    )?.trim();
+
+                if (!nextName) {
+                    return;
+                }
+
+                const parent =
+                    oldPath
+                        .split("/")
+                        .slice(0, -1)
+                        .join("/");
+
+                const newPath =
+                    normalizeWorkspacePath(
+                        parent
+                            ? `${parent}/${nextName}`
+                            : nextName,
+                    );
+
+                if (
+                    !newPath ||
+                    newPath === oldPath
+                ) {
+                    return;
+                }
+
+                const oldPrefix =
+                    `${oldPath}/`;
+                const newPrefix =
+                    `${newPath}/`;
+
+                if (
+                    newPath.startsWith(
+                        oldPrefix,
+                    )
+                ) {
+                    setError(
+                        "A folder cannot be moved inside itself.",
+                    );
+                    return;
+                }
+
+                if (
+                    filesRef.current.some(
+                        (file) =>
+                            file.path ===
+                                newPath ||
+                            file.path.startsWith(
+                                newPrefix,
+                            ),
+                    ) ||
+                    foldersRef.current.some(
+                        (folder) =>
+                            folder === newPath ||
+                            folder.startsWith(
+                                newPrefix,
+                            ),
+                    )
+                ) {
+                    setError(
+                        `"${newPath}" already exists or contains existing files.`,
+                    );
+                    return;
+                }
+
+                try {
+                    await renameWorkspaceFolder(
+                        oldPath,
+                        newPath,
+                    );
+
+                    const nextFiles =
+                        filesRef.current.map(
+                            (file) =>
+                                file.path ===
+                                oldPath
+                                    ? file
+                                    : file.path.startsWith(
+                                          oldPrefix,
+                                      )
+                                    ? makeExplorerFile(
+                                          `${newPath}${file.path.slice(
+                                              oldPath.length,
+                                          )}`,
+                                          file.content,
+                                      )
+                                    : file,
+                        );
+
+                    const nextFolders =
+                        foldersRef.current.map(
+                            (folder) =>
+                                folder ===
+                                oldPath
+                                    ? newPath
+                                    : folder.startsWith(
+                                          oldPrefix,
+                                      )
+                                    ? `${newPath}${folder.slice(
+                                          oldPath.length,
+                                      )}`
+                                    : folder,
+                        );
+
+                    syncFiles(nextFiles);
+                    syncFolders(nextFolders);
+
+                    setSelectedFile((current) => {
+                        if (
+                            !current ||
+                            !current.path.startsWith(
+                                oldPrefix,
+                            )
+                        ) {
+                            return current;
+                        }
+
+                        return makeExplorerFile(
+                            `${newPath}${current.path.slice(
+                                oldPath.length,
+                            )}`,
+                            current.content,
+                        );
+                    });
+
+                    sendWorkspaceRename(
+                        oldPath,
+                        newPath,
+                    );
+
+                    setError("");
+                } catch (err: unknown) {
+                    setError(
+                        err instanceof Error
+                            ? err.message
+                            : "Failed to rename folder.",
+                    );
+                }
+            },
+            [
+                currentRole,
+                syncFiles,
+                syncFolders,
+                sendWorkspaceRename,
+            ],
+        );
+
+    const handleSaveToDevice =
+        useCallback(async () => {
+            if (currentRole === "VIEWER") {
+                setError(
+                    "Viewers cannot save files.",
+                );
+                return;
+            }
+
+            if (
+                filesRef.current.length === 0
+            ) {
+                setError(
+                    "No files available to save.",
+                );
+                return;
+            }
+
+            if (saving) {
+                return;
+            }
+
+            try {
+                setSaving(true);
+                setError("");
 
                 const savedName =
                     await saveProjectToDevice(
-                        files.map(
-                            file => ({
-                                path:
-                                    file.path,
-
+                        filesRef.current.map(
+                            (file) => ({
+                                path: file.path,
                                 content:
-                                    file.content ??
-                                    "",
-                            })
-                        )
+                                    file.content ?? "",
+                            }),
+                        ),
                     );
-
-
-                /*
-                 * Saving to the local workspace
-                 * succeeded.
-                 */
 
                 localWorkspaceActiveRef.current =
                     true;
 
-
                 setWorkspaceName(
-                    savedName
+                    savedName,
                 );
 
-
-                setIsDirty(
-                    false
-                );
-
-
-                setError("");
-
-            } catch (
-                err
-            ) {
-
-                /*
-                 * User cancelled the
-                 * folder picker.
-                 */
-
+                setIsDirty(false);
+            } catch (err: unknown) {
                 if (
                     err instanceof DOMException &&
-                    err.name ===
-                        "AbortError"
+                    err.name === "AbortError"
                 ) {
-
                     return;
                 }
-
 
                 setError(
                     err instanceof Error
                         ? err.message
-                        : "Failed to save workspace."
+                        : "Failed to save workspace.",
                 );
-
             } finally {
-
-                setSaving(
-                    false
-                );
+                setSaving(false);
             }
-
-        },
-        [
+        }, [
             currentRole,
-            files,
             saving,
-        ]
-    );
-    // =================================================
-// KEYBOARD SAVE
-// =================================================
+        ]);
 
-useEffect(
-    () => {
-
-        const handleKeyboardSave =
-            (
-                event: KeyboardEvent
-            ) => {
-
+    useEffect(() => {
+        const onKeyDown =
+            (event: KeyboardEvent) => {
                 if (
                     (
                         event.ctrlKey ||
@@ -3019,187 +1851,86 @@ useEffect(
                     event.key.toLowerCase() ===
                         "s"
                 ) {
-
                     event.preventDefault();
-
                     void handleSaveToDevice();
                 }
             };
 
-
         window.addEventListener(
             "keydown",
-            handleKeyboardSave
+            onKeyDown,
         );
 
-
-        return () => {
-
+        return () =>
             window.removeEventListener(
                 "keydown",
-                handleKeyboardSave
+                onKeyDown,
             );
-        };
-
-    },
-    [
-        handleSaveToDevice,
-    ]
-);
-        
-
-
-    // =================================================
-    // CHAT SEND
-    // =================================================
+    }, [handleSaveToDevice]);
 
     const handleSendChat =
-        (
-            content: string
-        ) => {
+        useCallback(
+            (content: string) => {
+                const clean =
+                    content.trim();
 
-            const clean =
-                content.trim();
+                if (clean) {
+                    sendMessage(clean);
+                }
+            },
+            [sendMessage],
+        );
 
-
-            if (!clean) {
-                return;
-            }
-
-
-            sendMessage(
-                clean
-            );
-        };
-
-
-    // =================================================
-    // LOGOUT
-    // =================================================
-
-    const handleLogout =
-        () => {
-
-            contentRequestIdRef.current += 1;
-
-            clearWorkspace();
-
-
-            localWorkspaceActiveRef.current =
-                false;
-
-
-            ownerImportedProjectRef.current =
-                null;
-
-
-            localStorage.removeItem(
-                "token"
-            );
-
-            localStorage.removeItem(
-                "username"
-            );
-
-
-            setAuthenticated(
-                false
-            );
-
-            setAuthScreen(
-                "login"
-            );
-
-            setSelectedProject(
-                null
-            );
-
-            setFiles([]);
-
-            setFolders([]);
-
-            setSelectedFile(
-                null
-            );
-
-            setMembers([]);
-
-            setCurrentRole(
-                null
-            );
-
-            setChatMessages([]);
-
-            setWorkspaceName(
-                null
-            );
-
-            setError("");
-        };
-
-
-    // =================================================
-    // BACK
-    // =================================================
+    const handleSelectFile =
+        useCallback(
+            (file: ExplorerFile) => {
+                setError("");
+                setSelectedFile(file);
+                setIsDirty(false);
+            },
+            [],
+        );
 
     const handleBack =
-        () => {
-
+        useCallback(() => {
             contentRequestIdRef.current += 1;
-
             clearWorkspace();
-
 
             localWorkspaceActiveRef.current =
                 false;
-
-
             ownerImportedProjectRef.current =
                 null;
 
-
-            setSelectedProject(
-                null
-            );
-
+            setSelectedProject(null);
             setFiles([]);
-
             setFolders([]);
-
-            setSelectedFile(
-                null
-            );
-
-            setMembers([]);
-
-            setCurrentRole(
-                null
-            );
-
+            setSelectedFile(null);
+            setCurrentRole(null);
             setChatMessages([]);
+            setWorkspaceName(null);
+            setIsDirty(false);
+            setError("");
+        }, []);
 
-            setWorkspaceName(
-                null
+    const handleLogout =
+        useCallback(() => {
+            handleBack();
+
+            localStorage.removeItem("token");
+            localStorage.removeItem(
+                "username",
             );
 
-            setError("");
-        };
-
-
-    // =================================================
-    // LOGIN
-    // =================================================
+            setAuthenticated(false);
+            setAuthScreen("login");
+        }, [handleBack]);
 
     if (!authenticated) {
-
         if (authScreen === "register") {
-
             return (
                 <Register
                     onBackToLogin={() =>
-                        setAuthScreen(
-                            "login"
-                        )
+                        setAuthScreen("login")
                     }
                 />
             );
@@ -3208,73 +1939,29 @@ useEffect(
         return (
             <Login
                 onLogin={() =>
-                    setAuthenticated(
-                        true
-                    )
+                    setAuthenticated(true)
                 }
-
                 onRegister={() =>
-                    setAuthScreen(
-                        "register"
-                    )
+                    setAuthScreen("register")
                 }
             />
         );
     }
 
-
-    // =================================================
-    // DASHBOARD
-    // =================================================
-
     if (!selectedProject) {
-
         return (
             <Dashboard
                 onOpenProject={
-                    project =>
-                        setSelectedProject(
-                            project
-                        )
+                    setSelectedProject
                 }
             />
         );
     }
 
-
-    // =================================================
-    // SELECT FILE
-    // =================================================
-
-    const handleSelectFile =
-        (
-            file:
-                ExplorerFile
-        ) => {
-
-            setError("");
-
-            setSelectedFile(
-                file
-            );
-        };
-
-
-    // =================================================
-    // UI
-    // =================================================
-
     return (
         <div className="app">
-
-            {/* =================================================
-                TOPBAR
-            ================================================= */}
-
             <header className="topbar">
-
                 <div className="topbar-brand">
-
                     <div className="brand-mark">
                         <Code2
                             size={15}
@@ -3283,7 +1970,6 @@ useEffect(
                     </div>
 
                     <div className="brand-copy">
-
                         <span className="brand-name">
                             Code Break
                         </span>
@@ -3295,167 +1981,122 @@ useEffect(
                         <span className="brand-project">
                             {selectedProject.name}
                         </span>
-
                     </div>
-
                 </div>
-
 
                 <button
                     type="button"
                     className="back-button"
-                    onClick={
-                        handleBack
-                    }
+                    onClick={handleBack}
                     title="Back to projects"
                 >
-                    <ArrowLeft
-                        size={15}
-                    />
-
-                    <span>
-                        Projects
-                    </span>
+                    <ArrowLeft size={15} />
+                    <span>Projects</span>
                 </button>
-
 
                 <div className="topbar-spacer" />
 
-
                 <div className="topbar-workspace">
-
                     <div className="workspace-mode-pill">
-
-                        <Code2
-                            size={13}
-                        />
-
+                        <Code2 size={13} />
                         <span>
                             Shared Workspace
                         </span>
-
                     </div>
 
                     <div className="workspace-live-pill">
-
                         <span className="live-dot" />
-
                         <span>
                             {isConnected
                                 ? "Live"
                                 : "Connecting"}
                         </span>
-
                     </div>
 
                     <div className="workspace-role-pill">
-
                         <Circle
                             size={7}
                             fill="currentColor"
                         />
-
                         <span>
-                            {getRoleLabel(currentRole)}
+                            {getRoleLabel(
+                                currentRole,
+                            )}
                         </span>
-
                     </div>
-
                 </div>
 
                 <button
-    type="button"
-    className={
-        isDirty
-            ? "topbar-save-button topbar-save-button-dirty"
-            : "topbar-save-button"
-    }
-    onClick={
-        () => {
-            void handleSaveToDevice();
-        }
-    }
-    disabled={
-        currentRole === "VIEWER" ||
-        saving ||
-        files.length === 0
-    }
-    title={
-        currentRole === "VIEWER"
-            ? "Viewers cannot save"
-            : "Save workspace (Ctrl+S)"
-    }
->
+                    type="button"
+                    className={
+                        isDirty
+                            ? "topbar-save-button topbar-save-button-dirty"
+                            : "topbar-save-button"
+                    }
+                    onClick={() =>
+                        void handleSaveToDevice()
+                    }
+                    disabled={
+                        currentRole === "VIEWER" ||
+                        saving ||
+                        files.length === 0
+                    }
+                    title={
+                        currentRole === "VIEWER"
+                            ? "Viewers cannot save"
+                            : "Save workspace (Ctrl+S)"
+                    }
+                >
+                    {saving ? (
+                        <span className="save-spinner" />
+                    ) : (
+                        <Save
+                            size={14}
+                            strokeWidth={2}
+                        />
+                    )}
 
-    {saving ? (
-        <span className="save-spinner" />
-    ) : (
-        <Save
-            size={14}
-            strokeWidth={2}
-        />
-    )}
+                    <span>
+                        {saving
+                            ? "Saving..."
+                            : "Save"}
+                    </span>
 
-    <span>
-        {saving
-            ? "Saving..."
-            : "Save"}
-    </span>
-
-    {!saving && (
-        <kbd>
-            Ctrl S
-        </kbd>
-    )}
-
-</button>
-
+                    {!saving && (
+                        <kbd>Ctrl S</kbd>
+                    )}
+                </button>
 
                 <div className="topbar-divider" />
 
-
                 <div className="user">
-
                     <div
-                        className={
-                            `role-badge role-${(
-                                currentRole ??
-                                "viewer"
-                            ).toLowerCase()}`
-                        }
+                        className={`role-badge role-${(
+                            currentRole ??
+                            "viewer"
+                        ).toLowerCase()}`}
                     >
-
                         <Circle
                             size={7}
                             fill="currentColor"
                         />
-
                         <span>
-                            {
-                                getRoleLabel(
-                                    currentRole
-                                )
-                            }
+                            {getRoleLabel(
+                                currentRole,
+                            )}
                         </span>
-
                     </div>
-
 
                     <div className="user-avatar">
-                        {
-                            username
-                                .charAt(0)
-                                .toUpperCase()
-                        }
+                        {username
+                            .charAt(0)
+                            .toUpperCase()}
                     </div>
-
 
                     <span className="user-name">
                         {username}
                     </span>
-
                 </div>
-
 
                 <button
                     type="button"
@@ -3463,9 +2104,7 @@ useEffect(
                     title="Search"
                     aria-label="Search"
                 >
-                    <Search
-                        size={17}
-                    />
+                    <Search size={17} />
                 </button>
 
                 <button
@@ -3474,10 +2113,7 @@ useEffect(
                     title="Notifications"
                     aria-label="Notifications"
                 >
-                    <Bell
-                        size={16}
-                    />
-
+                    <Bell size={16} />
                     <span className="notification-dot" />
                 </button>
 
@@ -3487,47 +2123,25 @@ useEffect(
                     title="Settings"
                     aria-label="Settings"
                 >
-                    <Settings2
-                        size={16}
-                    />
+                    <Settings2 size={16} />
                 </button>
-
 
                 <button
                     type="button"
                     className="logout-button"
-                    onClick={
-                        handleLogout
-                    }
+                    onClick={handleLogout}
                     title="Logout"
                 >
-                    <LogOut
-                        size={15}
-                    />
+                    <LogOut size={15} />
                 </button>
-
             </header>
-
-
-            {/* =================================================
-                ERROR
-            ================================================= */}
 
             {error && (
                 <div className="error-banner">
-
                     <div className="error-content">
-
-                        <X
-                            size={15}
-                        />
-
-                        <span>
-                            {error}
-                        </span>
-
+                        <X size={15} />
+                        <span>{error}</span>
                     </div>
-
 
                     <button
                         type="button"
@@ -3537,111 +2151,70 @@ useEffect(
                         title="Dismiss"
                         aria-label="Dismiss error"
                     >
-                        <X
-                            size={15}
-                        />
+                        <X size={15} />
                     </button>
-
                 </div>
             )}
 
-
-            {/* =================================================
-                MAIN WORKSPACE
-            ================================================= */}
-
             <main className="workspace">
-
-                {/* =============================================
-                    ACTIVITY BAR
-                ============================================= */}
-
                 <ActivityBar
-                    activePanel={
-                        activePanel
-                    }
-
+                    activePanel={activePanel}
                     onPanelChange={
                         setActivePanel
                     }
                 />
 
-
-                {/* =============================================
-                    EXPLORER
-                ============================================= */}
-
-                <div className="workspace-panel explorer-panel-visible">
-
+                <div
+                    className={
+                        activePanel === "explorer"
+                            ? "workspace-panel explorer-panel-visible"
+                            : "workspace-panel explorer-panel-hidden"
+                    }
+                >
                     <FileExplorer
-                        files={
-                            files
-                        }
-
-                        folders={
-                            folders
-                        }
-
+                        files={files}
+                        folders={folders}
                         selectedFile={
                             selectedFile?.path ??
                             ""
                         }
-
                         workspaceName={
                             workspaceName
                         }
-
                         onSelectFile={
                             handleSelectFile
                         }
-
                         onOpenFolder={
                             handleOpenFolder
                         }
-
                         onCreateFile={
                             handleCreateFile
                         }
-
                         onCreateFolder={
                             handleCreateFolder
                         }
-
                         onDeleteFile={
                             handleDeleteFile
                         }
-
                         onDeleteFolder={
                             handleDeleteFolder
                         }
-
                         onRenameFile={
                             handleRenameFile
                         }
-
                         onRenameFolder={
                             handleRenameFolder
                         }
-
                         readOnly={
                             currentRole ===
                             "VIEWER"
                         }
                     />
-
                 </div>
 
-
-                {/* =============================================
-                    EDITOR
-                ============================================= */}
-
                 <section className="editor-container">
-
                     <div className="editor-tab">
-
                         <div className="editor-tab-left">
-
                             {selectedFile ? (
                                 <FileCode2
                                     size={14}
@@ -3654,14 +2227,10 @@ useEffect(
                                 />
                             )}
 
-
                             <span className="editor-tab-name">
-                                {
-                                    selectedFile?.name ??
-                                    "Welcome"
-                                }
+                                {selectedFile?.name ??
+                                    "Welcome"}
                             </span>
-
 
                             {selectedFile && (
                                 <span className="editor-tab-path">
@@ -3670,137 +2239,117 @@ useEffect(
                                     }
                                 </span>
                             )}
-
                         </div>
 
-
- {selectedFile && (
-    <div className="editor-tab-right">
-
-        <span
-            className={
-                isDirty
-                    ? "editor-save-state editor-save-state-dirty"
-                    : "editor-save-state"
-            }
-        >
-
-            {saving ? (
-                <>
-                    <Save
-                        size={12}
-                    />
-
-                    Saving...
-                </>
-            ) : isDirty ? (
-                <>
-                    <Circle
-                        size={7}
-                        fill="currentColor"
-                    />
-
-                    Unsaved changes
-                </>
-            ) : (
-                <>
-                    <Check
-                        size={12}
-                    />
-
-                    Saved
-                </>
-            )}
-
-        </span>
-
-    </div>
-)}
-
+                        {selectedFile && (
+                            <div className="editor-tab-right">
+                                <span
+                                    className={
+                                        isDirty
+                                            ? "editor-save-state editor-save-state-dirty"
+                                            : "editor-save-state"
+                                    }
+                                >
+                                    {saving ? (
+                                        <>
+                                            <Save
+                                                size={12}
+                                            />
+                                            Saving...
+                                        </>
+                                    ) : isDirty ? (
+                                        <>
+                                            <Circle
+                                                size={7}
+                                                fill="currentColor"
+                                            />
+                                            Unsaved changes
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Check
+                                                size={12}
+                                            />
+                                            Saved
+                                        </>
+                                    )}
+                                </span>
+                            </div>
+                        )}
                     </div>
-
 
                     {selectedFile && (
                         <div className="editor-breadcrumb">
-
                             {getBreadcrumbParts(
                                 selectedProject.name,
-                                selectedFile.path
+                                selectedFile.path,
                             ).map(
-                                (part, index, parts) => (
+                                (
+                                    part,
+                                    index,
+                                    parts,
+                                ) => (
                                     <span
                                         key={`${part}-${index}`}
                                         className={
-                                            index === parts.length - 1
+                                            index ===
+                                            parts.length -
+                                                1
                                                 ? "breadcrumb-current"
                                                 : "breadcrumb-part"
                                         }
                                     >
                                         {part}
 
-                                        {index < parts.length - 1 && (
+                                        {index <
+                                            parts.length -
+                                                1 && (
                                             <span className="breadcrumb-separator">
                                                 ›
                                             </span>
                                         )}
                                     </span>
-                                )
+                                ),
                             )}
-
                         </div>
                     )}
 
                     <div className="editor">
-
                         {selectedFile ? (
-
                             <CodeEditor
                                 value={
                                     selectedFile.content
                                 }
-
                                 onChange={
                                     handleCodeChange
                                 }
-
                                 readOnly={
                                     currentRole ===
                                     "VIEWER"
                                 }
                             />
-
                         ) : (
-
                             <div className="empty-editor">
-
                                 <div className="empty-editor-logo">
-
                                     <Zap
                                         size={30}
                                         strokeWidth={1.6}
                                     />
-
                                 </div>
 
-
-                                <h2>
-                                    Code Break
-                                </h2>
-
+                                <h2>Code Break</h2>
 
                                 <p>
-                                    Select a file from the
-                                    explorer to start coding.
+                                    Select a file from
+                                    the explorer to
+                                    start coding.
                                 </p>
 
-
                                 <div className="empty-editor-hint">
-
                                     <span>
                                         <FolderOpen
                                             size={13}
                                         />
-
                                         Open a workspace
                                     </span>
 
@@ -3808,25 +2357,18 @@ useEffect(
                                         <Code2
                                             size={13}
                                         />
-
                                         Start building
                                     </span>
-
                                 </div>
-
                             </div>
                         )}
-
                     </div>
 
                     {selectedFile && (
                         <div className="editor-statusbar">
-
                             <div className="editor-status-left">
-
                                 <span className="editor-status-connected">
                                     <span className="status-dot" />
-
                                     {isConnected
                                         ? "Connected • Live"
                                         : "Connecting..."}
@@ -3843,19 +2385,9 @@ useEffect(
                                 <span>
                                     main*
                                 </span>
-
                             </div>
 
                             <div className="editor-status-right">
-
-                                <span>
-                                    Ln 1, Col 1
-                                </span>
-
-                                <span>
-                                    Spaces: 4
-                                </span>
-
                                 <span>
                                     UTF-8
                                 </span>
@@ -3865,39 +2397,29 @@ useEffect(
                                 </span>
 
                                 <span className="editor-status-prettier">
-                                    <Check
-                                        size={10}
-                                    />
-
+                                    <Check size={10} />
                                     Prettier • Ready
                                 </span>
-
                             </div>
-
                         </div>
                     )}
-
                 </section>
 
-
-                {/* =============================================
-                    COLLABORATION
-                ============================================= */}
-
-                <aside className="collaboration-panel collaboration-panel-visible">
-
+                <aside
+                    className={
+                        activePanel ===
+                        "collaboration"
+                            ? "collaboration-panel collaboration-panel-visible"
+                            : "collaboration-panel collaboration-panel-hidden"
+                    }
+                >
                     <div className="collaboration-heading">
-
                         <div className="collaboration-heading-title">
-
                             <div className="collaboration-heading-icon">
-                                <Users
-                                    size={15}
-                                />
+                                <Users size={15} />
                             </div>
 
                             <div>
-
                                 <h2>
                                     Collaboration
                                 </h2>
@@ -3905,115 +2427,85 @@ useEffect(
                                 <span>
                                     Team workspace
                                 </span>
-
                             </div>
-
                         </div>
-
 
                         <div className="collaboration-live">
-
                             <span className="live-dot" />
-
                             Live
-
                         </div>
-
                     </div>
 
-
                     <div className="members-panel-wrapper">
-
                         <MembersPanel
                             projectId={
                                 selectedProject.id
                             }
-
                             currentUsername={
                                 username
                             }
-
                             onCurrentRoleChange={
                                 setCurrentRole
                             }
                         />
-
                     </div>
 
-
                     <section className="chat-panel">
-
                         <div className="chat-header">
-
                             <div className="chat-title">
-
                                 <div className="chat-icon">
                                     <MessageSquare
                                         size={15}
                                     />
                                 </div>
 
-
                                 <div>
-
                                     <h3>
                                         Team Chat
                                     </h3>
 
                                     <span>
-                                        Real-time conversation
+                                        Real-time
+                                        conversation
                                     </span>
-
                                 </div>
-
                             </div>
-
 
                             <div className="chat-online">
                                 <span className="live-dot" />
                                 Online
                             </div>
-
                         </div>
 
-
                         <div className="chat-messages">
-
-                            {chatMessages.length === 0 ? (
-
+                            {chatMessages.length ===
+                            0 ? (
                                 <div className="chat-empty">
-
                                     <div className="chat-empty-icon">
                                         <MessageSquare
                                             size={21}
                                         />
                                     </div>
 
-
                                     <p>
                                         No messages yet
                                     </p>
 
-
                                     <span>
-                                        Start a conversation
-                                        with your team.
+                                        Start a
+                                        conversation
+                                        with your
+                                        team.
                                     </span>
-
                                 </div>
-
                             ) : (
-
                                 chatMessages.map(
                                     (
                                         message,
-                                        index
+                                        index,
                                     ) => (
-
                                         <div
-                                            key={
-                                                `${message.username}-${index}`
-                                            }
+                                            key={`${message.username}-${index}`}
                                             className={
                                                 message.username ===
                                                 username
@@ -4021,73 +2513,52 @@ useEffect(
                                                     : "chat-message"
                                             }
                                         >
-
                                             <div className="chat-message-top">
-
                                                 <span className="chat-username">
                                                     {
                                                         message.username
                                                     }
                                                 </span>
 
-
-                                                {
-                                                    message.username ===
+                                                {message.username ===
                                                     username && (
-                                                        <span className="chat-you">
-                                                            You
-                                                        </span>
-                                                    )
-                                                }
-
+                                                    <span className="chat-you">
+                                                        You
+                                                    </span>
+                                                )}
                                             </div>
 
-
                                             <div className="chat-content">
-
                                                 {
                                                     message.content
                                                 }
-
                                             </div>
-
                                         </div>
-                                    )
+                                    ),
                                 )
                             )}
-
                         </div>
-
 
                         <form
                             className="chat-input-container"
-                            onSubmit={
-                                event => {
+                            onSubmit={(event) => {
+                                event.preventDefault();
 
-                                    event.preventDefault();
+                                const form =
+                                    event.currentTarget;
 
+                                const input =
+                                    form.elements.namedItem(
+                                        "message",
+                                    ) as HTMLInputElement;
 
-                                    const form =
-                                        event.currentTarget;
+                                handleSendChat(
+                                    input.value,
+                                );
 
-
-                                    const input =
-                                        form.elements.namedItem(
-                                            "message"
-                                        ) as HTMLInputElement;
-
-
-                                    handleSendChat(
-                                        input.value
-                                    );
-
-
-                                    input.value =
-                                        "";
-                                }
-                            }
+                                input.value = "";
+                            }}
                         >
-
                             <input
                                 name="message"
                                 type="text"
@@ -4095,45 +2566,26 @@ useEffect(
                                 autoComplete="off"
                             />
 
-
                             <button
                                 type="submit"
                                 className="chat-send-button"
                                 title="Send message"
                                 aria-label="Send message"
                             >
-                                <Send
-                                    size={14}
-                                />
+                                <Send size={14} />
                             </button>
-
                         </form>
-
                     </section>
-
                 </aside>
-
             </main>
 
-
-            {/* =================================================
-                STATUS BAR
-            ================================================= */}
-
             <footer className="statusbar">
-
                 <div className="status-left">
-
                     <span className="status-connection">
-
                         <span className="status-dot" />
-
-                        {
-                            isConnected
-                                ? "Connected • Live"
-                                : "Connecting..."
-                        }
-
+                        {isConnected
+                            ? "Connected • Live"
+                            : "Connecting..."}
                     </span>
 
                     <span>
@@ -4143,12 +2595,9 @@ useEffect(
                     <span>
                         {folders.length} folders
                     </span>
-
                 </div>
 
-
                 <div className="status-right">
-
                     <span>
                         {workspaceSyncing
                             ? "Syncing workspace..."
@@ -4156,20 +2605,18 @@ useEffect(
                     </span>
 
                     <span>
-                        {getRoleLabel(currentRole)}
+                        {getRoleLabel(
+                            currentRole,
+                        )}
                     </span>
 
                     <span className="status-brand">
                         Code Break
                     </span>
-
                 </div>
-
             </footer>
-
         </div>
     );
 }
-
 
 export default App;

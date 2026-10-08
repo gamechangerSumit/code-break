@@ -15,8 +15,11 @@ import java.util.List;
 public class ProjectMemberService {
 
     private final ProjectMemberRepository projectMemberRepository;
+
     private final UserRepository userRepository;
+
     private final ProjectRepository projectRepository;
+
     private final SimpMessagingTemplate messagingTemplate;
 
 
@@ -24,15 +27,18 @@ public class ProjectMemberService {
     // GET USER
     // =====================================================
 
-    private User getUser(String username) {
+    private User getUser(
+            String username
+    ) {
 
         return userRepository
                 .findByUsername(username)
-                .orElseThrow(() ->
-                        new ResponseStatusException(
-                                HttpStatus.UNAUTHORIZED,
-                                "User not found"
-                        )
+                .orElseThrow(
+                        () ->
+                                new ResponseStatusException(
+                                        HttpStatus.UNAUTHORIZED,
+                                        "User not found"
+                                )
                 );
     }
 
@@ -41,22 +47,27 @@ public class ProjectMemberService {
     // GET PROJECT
     // =====================================================
 
-    public Project getProject(Long projectId) {
+    public Project getProject(
+            Long projectId
+    ) {
 
         if (projectId == null) {
+
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Project ID is required"
             );
         }
 
+
         return projectRepository
                 .findById(projectId)
-                .orElseThrow(() ->
-                        new ResponseStatusException(
-                                HttpStatus.NOT_FOUND,
-                                "Project not found"
-                        )
+                .orElseThrow(
+                        () ->
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "Project not found"
+                                )
                 );
     }
 
@@ -70,18 +81,23 @@ public class ProjectMemberService {
             String username
     ) {
 
-        User user = getUser(username);
+        User user =
+                getUser(
+                        username
+                );
+
 
         return projectMemberRepository
                 .findByProjectIdAndUserId(
                         projectId,
                         user.getId()
                 )
-                .orElseThrow(() ->
-                        new ResponseStatusException(
-                                HttpStatus.FORBIDDEN,
-                                "You are not a member of this project"
-                        )
+                .orElseThrow(
+                        () ->
+                                new ResponseStatusException(
+                                        HttpStatus.FORBIDDEN,
+                                        "You are not a member of this project"
+                                )
                 );
     }
 
@@ -117,7 +133,10 @@ public class ProjectMemberService {
                         username
                 );
 
-        ProjectRole role = member.getRole();
+
+        ProjectRole role =
+                member.getRole();
+
 
         if (
                 role != ProjectRole.OWNER &&
@@ -152,33 +171,44 @@ public class ProjectMemberService {
             );
         }
 
-        User user = getUser(username);
+
+        User user =
+                getUser(
+                        username
+                );
+
 
         String normalizedCode =
                 joinCode
                         .trim()
                         .toUpperCase();
 
+
         Project project =
                 projectRepository
-                        .findByJoinCode(normalizedCode)
-                        .orElseThrow(() ->
-                                new ResponseStatusException(
-                                        HttpStatus.NOT_FOUND,
-                                        "Invalid join code"
-                                )
+                        .findByJoinCode(
+                                normalizedCode
+                        )
+                        .orElseThrow(
+                                () ->
+                                        new ResponseStatusException(
+                                                HttpStatus.NOT_FOUND,
+                                                "Invalid join code"
+                                        )
                         );
 
 
-        // =============================================
+        // =================================================
         // OWNER CANNOT JOIN OWN PROJECT
-        // =============================================
+        // =================================================
 
         if (
                 project.getOwner() != null &&
                         project.getOwner()
                                 .getId()
-                                .equals(user.getId())
+                                .equals(
+                                        user.getId()
+                                )
         ) {
 
             throw new ResponseStatusException(
@@ -188,9 +218,9 @@ public class ProjectMemberService {
         }
 
 
-        // =============================================
+        // =================================================
         // ALREADY MEMBER
-        // =============================================
+        // =================================================
 
         if (
                 projectMemberRepository
@@ -207,9 +237,9 @@ public class ProjectMemberService {
         }
 
 
-        // =============================================
+        // =================================================
         // NEW MEMBER = VIEWER
-        // =============================================
+        // =================================================
 
         ProjectMember member =
                 ProjectMember.builder()
@@ -218,11 +248,60 @@ public class ProjectMemberService {
                         .role(ProjectRole.VIEWER)
                         .build();
 
+
         ProjectMember saved =
-                projectMemberRepository.save(member);
+                projectMemberRepository.save(
+                        member
+                );
 
 
-        return toResponse(saved);
+        ProjectMemberResponse response =
+                toResponse(
+                        saved
+                );
+
+
+        // =================================================
+        // REAL-TIME MEMBER JOIN EVENT
+        // =================================================
+
+        messagingTemplate.convertAndSend(
+                "/topic/project/" +
+                        project.getId() +
+                        "/members",
+
+                new MemberJoinedMessage(
+                        "MEMBER_JOINED",
+                        project.getId(),
+                        saved.getId(),
+                        saved.getUser().getId(),
+                        saved.getUser().getUsername(),
+                        saved.getRole()
+                )
+        );
+
+
+        // =================================================
+        // ALSO REQUEST WORKSPACE REFRESH
+        //
+        // Existing collaborators can refresh metadata
+        // without a browser reload.
+        // =================================================
+
+        messagingTemplate.convertAndSend(
+                "/topic/project/" +
+                        project.getId() +
+                        "/workspace",
+
+                new WorkspaceRefreshMessage(
+                        "WORKSPACE_REFRESH",
+                        project.getId(),
+                        username
+                )
+        );
+
+
+        return response;
     }
 
 
@@ -240,10 +319,15 @@ public class ProjectMemberService {
                 username
         );
 
+
         return projectMemberRepository
-                .findByProjectId(projectId)
+                .findByProjectId(
+                        projectId
+                )
                 .stream()
-                .map(this::toResponse)
+                .map(
+                        this::toResponse
+                )
                 .toList();
     }
 
@@ -289,12 +373,15 @@ public class ProjectMemberService {
 
         ProjectMember member =
                 projectMemberRepository
-                        .findById(memberId)
-                        .orElseThrow(() ->
-                                new ResponseStatusException(
-                                        HttpStatus.NOT_FOUND,
-                                        "Project member not found"
-                                )
+                        .findById(
+                                memberId
+                        )
+                        .orElseThrow(
+                                () ->
+                                        new ResponseStatusException(
+                                                HttpStatus.NOT_FOUND,
+                                                "Project member not found"
+                                        )
                         );
 
 
@@ -303,7 +390,9 @@ public class ProjectMemberService {
                         member.getProject().getId() == null ||
                         !member.getProject()
                                 .getId()
-                                .equals(projectId)
+                                .equals(
+                                        projectId
+                                )
         ) {
 
             throw new ResponseStatusException(
@@ -313,9 +402,9 @@ public class ProjectMemberService {
         }
 
 
-        // =============================================
+        // =================================================
         // OWNER ROLE CANNOT BE REMOVED
-        // =============================================
+        // =================================================
 
         if (
                 member.getUser() != null &&
@@ -336,24 +425,32 @@ public class ProjectMemberService {
         }
 
 
-        member.setRole(newRole);
+        member.setRole(
+                newRole
+        );
+
 
         ProjectMember saved =
-                projectMemberRepository.save(member);
+                projectMemberRepository.save(
+                        member
+                );
 
 
         ProjectMemberResponse response =
-                toResponse(saved);
+                toResponse(
+                        saved
+                );
 
 
-        // =============================================
-        // BROADCAST ROLE CHANGE
-        // =============================================
+        // =================================================
+        // REAL-TIME ROLE CHANGE
+        // =================================================
 
         messagingTemplate.convertAndSend(
                 "/topic/project/" +
                         projectId +
                         "/members",
+
                 new RoleChangedMessage(
                         "ROLE_CHANGED",
                         projectId,
@@ -386,6 +483,21 @@ public class ProjectMemberService {
 
 
     // =====================================================
+    // MEMBER JOIN MESSAGE
+    // =====================================================
+
+    public record MemberJoinedMessage(
+            String type,
+            Long projectId,
+            Long memberId,
+            Long userId,
+            String username,
+            ProjectRole role
+    ) {
+    }
+
+
+    // =====================================================
     // ROLE CHANGE MESSAGE
     // =====================================================
 
@@ -395,6 +507,18 @@ public class ProjectMemberService {
             Long memberId,
             String username,
             ProjectRole role
+    ) {
+    }
+
+
+    // =====================================================
+    // WORKSPACE REFRESH MESSAGE
+    // =====================================================
+
+    public record WorkspaceRefreshMessage(
+            String type,
+            Long projectId,
+            String username
     ) {
     }
 }

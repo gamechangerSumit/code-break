@@ -1,3 +1,5 @@
+import { API_URL as BASE_URL } from "../config";
+
 export interface WorkspaceFileMetadata {
     path: string;
     name: string;
@@ -34,7 +36,7 @@ export interface WorkspaceImportRequest {
 }
 
 const API_URL =
-    "http://localhost:8088/api";
+    `${BASE_URL}/api`;
 
 
 // =========================================================

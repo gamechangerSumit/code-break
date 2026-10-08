@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:8088";
+import { API_URL } from "../config";
 
 interface LoginResponse {
     token: string;

@@ -9,7 +9,11 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Controller
 @RequiredArgsConstructor
@@ -22,6 +26,21 @@ public class CollaborationController {
     private final RedisWorkspaceService redisWorkspaceService;
 
     private final WorkspaceService workspaceService;
+
+
+    /**
+     * Per-project/per-file JVM locks.
+     *
+     * This prevents two websocket messages for the same file
+     * from reading the same old content and overwriting each other.
+     *
+     * NOTE:
+     * This is safe for a single backend instance.
+     * For multiple backend instances a distributed Redis lock
+     * or CRDT/OT layer should be introduced later.
+     */
+    private final Map<String, Object> fileLocks =
+            new ConcurrentHashMap<>();
 
 
     // =====================================================
@@ -57,9 +76,14 @@ public class CollaborationController {
                 );
 
 
-        // =============================================
-        // WRITE PERMISSION
-        // =============================================
+        if (filePath.isBlank()) {
+            return;
+        }
+
+
+        // =================================================
+        // SERVER-SIDE WRITE PERMISSION
+        // =================================================
 
         projectMemberService.requireWriteAccess(
                 projectId,
@@ -67,61 +91,288 @@ public class CollaborationController {
         );
 
 
-        // =============================================
-        // SAVE LATEST EDIT IN REDIS
-        //
-        // This is temporary dirty state.
-        // Scheduler persists it to MinIO.
-        // =============================================
+        String lockKey =
+                projectId +
+                        ":" +
+                        filePath;
 
-        redisWorkspaceService.saveDirtyContent(
-                projectId,
-                filePath,
-                message.getContent()
+
+        Object lock =
+                fileLocks.computeIfAbsent(
+                        lockKey,
+                        ignored -> new Object()
+                );
+
+
+        synchronized (lock) {
+
+            // =============================================
+            // LOAD AUTHORITATIVE CURRENT CONTENT
+            //
+            // Redis dirty state is checked first by
+            // WorkspaceService.
+            //
+            // MinIO is used when there is no dirty state.
+            // =============================================
+
+            String currentContent =
+                    workspaceService.getFileContent(
+                            projectId,
+                            filePath,
+                            username
+                    );
+
+
+            if (currentContent == null) {
+                currentContent = "";
+            }
+
+
+            // =============================================
+            // APPLY INCREMENTAL CHANGES
+            // =============================================
+
+            String mergedContent =
+                    currentContent;
+
+
+            List<CollaborationMessage.CodeChange> changes =
+                    message.getChanges();
+
+
+            if (
+                    changes != null &&
+                            !changes.isEmpty()
+            ) {
+
+                mergedContent =
+                        applyChanges(
+                                currentContent,
+                                changes
+                        );
+
+            } else if (
+                    message.getContent() != null
+            ) {
+
+                /*
+                 * Backward compatibility with the old client.
+                 *
+                 * Old frontend sends complete content.
+                 * We accept it temporarily.
+                 *
+                 * New frontend should always send `changes`.
+                 */
+                mergedContent =
+                        message.getContent();
+            }
+
+
+            // =============================================
+            // SAVE TEMPORARY AUTHORITATIVE STATE
+            // =============================================
+
+            redisWorkspaceService.saveDirtyContent(
+                    projectId,
+                    filePath,
+                    mergedContent
+            );
+
+            redisWorkspaceService.markActive(
+                    projectId
+            );
+
+
+            // =============================================
+            // BROADCAST
+            // =============================================
+
+            CollaborationMessage outgoing =
+                    new CollaborationMessage();
+
+            outgoing.setType(
+                    "CODE_CHANGE"
+            );
+
+            outgoing.setProjectId(
+                    projectId
+            );
+
+            outgoing.setFilePath(
+                    filePath
+            );
+
+            outgoing.setUsername(
+                    username
+            );
+
+            /*
+             * Keep complete content temporarily so the current
+             * frontend can consume the message safely.
+             *
+             * Once App.tsx is fully migrated to delta application,
+             * this can be removed to reduce network traffic.
+             */
+            outgoing.setContent(
+                    mergedContent
+            );
+
+            outgoing.setChanges(
+                    changes
+            );
+
+
+            messagingTemplate.convertAndSend(
+                    "/topic/project/" +
+                            projectId +
+                            "/code",
+                    outgoing
+            );
+        }
+    }
+
+
+    // =====================================================
+    // APPLY MONACO CHANGES
+    // =====================================================
+
+    private String applyChanges(
+            String currentContent,
+            List<CollaborationMessage.CodeChange> incomingChanges
+    ) {
+
+        if (incomingChanges == null ||
+                incomingChanges.isEmpty()) {
+
+            return currentContent;
+        }
+
+
+        String result =
+                currentContent;
+
+
+        /*
+         * Monaco offsets are based on the document state at the
+         * time the change event was generated.
+         *
+         * Applying changes from right to left prevents earlier
+         * replacements from shifting the offsets of later ones.
+         */
+        List<CollaborationMessage.CodeChange> changes =
+                new ArrayList<>(
+                        incomingChanges
+                );
+
+
+        changes.sort(
+                Comparator.comparing(
+                        CollaborationMessage.CodeChange::getRangeOffset,
+                        Comparator.nullsLast(
+                                Comparator.reverseOrder()
+                        )
+                )
         );
 
 
-        redisWorkspaceService.markActive(
-                projectId
-        );
+        for (
+                CollaborationMessage.CodeChange change
+                : changes
+        ) {
+
+            if (change == null) {
+                continue;
+            }
 
 
-        // =============================================
-        // CLEAN MESSAGE
-        // =============================================
+            Integer offsetValue =
+                    change.getRangeOffset();
 
-        message.setProjectId(
-                projectId
-        );
-
-        message.setFilePath(
-                filePath
-        );
-
-        message.setUsername(
-                username
-        );
+            Integer lengthValue =
+                    change.getRangeLength();
 
 
-        // =============================================
-        // BROADCAST LIVE EDIT
-        // =============================================
+            int offset =
+                    offsetValue == null
+                            ? 0
+                            : offsetValue;
 
-        messagingTemplate.convertAndSend(
-                "/topic/project/" +
-                        projectId +
-                        "/code",
-                message
-        );
+
+            int length =
+                    lengthValue == null
+                            ? 0
+                            : lengthValue;
+
+
+            String text =
+                    change.getText() == null
+                            ? ""
+                            : change.getText();
+
+
+            if (offset < 0) {
+                throw new IllegalArgumentException(
+                        "Invalid edit offset"
+                );
+            }
+
+
+            if (length < 0) {
+                throw new IllegalArgumentException(
+                        "Invalid edit length"
+                );
+            }
+
+
+            if (
+                    offset >
+                            result.length()
+            ) {
+
+                throw new IllegalArgumentException(
+                        "Edit offset is outside document"
+                );
+            }
+
+
+            long endLong =
+                    (long) offset +
+                            length;
+
+
+            if (
+                    endLong >
+                            result.length()
+            ) {
+
+                throw new IllegalArgumentException(
+                        "Edit range is outside document"
+                );
+            }
+
+
+            int end =
+                    (int) endLong;
+
+
+            result =
+                    result.substring(
+                            0,
+                            offset
+                    ) +
+                            text +
+                            result.substring(
+                                    end
+                            );
+        }
+
+
+        return result;
     }
 
 
     // =====================================================
     // WORKSPACE STRUCTURE EVENTS
-    //
-    // File/folder create/delete only.
-    //
-    // Complete project import is REST based.
     // =====================================================
 
     @MessageMapping("/workspace")
@@ -145,10 +396,6 @@ public class CollaborationController {
         String username =
                 principal.getName();
 
-
-        // =============================================
-        // WRITE PERMISSION
-        // =============================================
 
         projectMemberService.requireWriteAccess(
                 projectId,
@@ -175,11 +422,6 @@ public class CollaborationController {
 
         // =================================================
         // LEGACY COMPLETE SYNC
-        //
-        // Kept temporarily so older frontend builds
-        // don't immediately break.
-        //
-        // New frontend does NOT use this path.
         // =================================================
 
         if (
@@ -268,6 +510,29 @@ public class CollaborationController {
         }
 
 
+        // =================================================
+        // RENAME
+        //
+        // Current WorkspaceService does not expose a rename
+        // operation, so do not fake persistence here.
+        // The local client may still handle its own rename.
+        // =================================================
+
+        if (
+                "WORKSPACE_RENAME".equals(type)
+        ) {
+
+            messagingTemplate.convertAndSend(
+                    "/topic/project/" +
+                            projectId +
+                            "/workspace",
+                    message
+            );
+
+            return;
+        }
+
+
         System.out.println(
                 "[WS WORKSPACE] Unknown type: " +
                         type
@@ -301,21 +566,11 @@ public class CollaborationController {
                 principal.getName();
 
 
-        // =============================================
-        // READ PERMISSION
-        // =============================================
-
         projectMemberService.requireReadAccess(
                 projectId,
                 username
         );
 
-
-        // =============================================
-        // METADATA ONLY
-        //
-        // No file contents are loaded here.
-        // =============================================
 
         WorkspaceService.WorkspaceSnapshotResponse snapshot =
                 workspaceService.getWorkspace(
@@ -323,19 +578,6 @@ public class CollaborationController {
                         username
                 );
 
-
-        System.out.println(
-                "[WS SNAPSHOT] Request received: " +
-                        "User=" + username +
-                        " Project=" + projectId +
-                        " Files=" + snapshot.files().size() +
-                        " Folders=" + snapshot.folders().size()
-        );
-
-
-        // =============================================
-        // PRIVATE RESPONSE
-        // =============================================
 
         messagingTemplate.convertAndSendToUser(
                 username,
@@ -346,12 +588,6 @@ public class CollaborationController {
 
         redisWorkspaceService.markActive(
                 projectId
-        );
-
-
-        System.out.println(
-                "[WS SNAPSHOT] Metadata sent to: " +
-                        username
         );
     }
 
@@ -366,26 +602,6 @@ public class CollaborationController {
             String username
     ) {
 
-        int fileCount =
-                message.getFiles() == null
-                        ? 0
-                        : message.getFiles().size();
-
-        int folderCount =
-                message.getFolders() == null
-                        ? 0
-                        : message.getFolders().size();
-
-
-        System.out.println(
-                "[WS WORKSPACE] LEGACY SYNC received: " +
-                        "Project=" + projectId +
-                        " User=" + username +
-                        " Files=" + fileCount +
-                        " Folders=" + folderCount
-        );
-
-
         workspaceService.importWorkspace(
                 projectId,
 
@@ -393,16 +609,17 @@ public class CollaborationController {
                         ? List.of()
                         : message.getFiles()
                           .stream()
-                          .map(file ->
-                               new WorkspaceService.WorkspaceImportFile(
-                                       normalizePath(
-                                               file.getPath()
-                                       ),
-                                       extractName(
-                                               file.getPath()
-                                       ),
-                                       file.getContent()
-                               )
+                          .map(
+                                  file ->
+                                  new WorkspaceService.WorkspaceImportFile(
+                                          normalizePath(
+                                                  file.getPath()
+                                          ),
+                                          extractName(
+                                                  file.getPath()
+                                          ),
+                                          file.getContent()
+                                  )
                           )
                           .toList(),
 
@@ -423,13 +640,6 @@ public class CollaborationController {
                 projectId
         );
 
-
-        /*
-         * Keep this broadcast for old clients.
-         *
-         * New frontend uses REST import and receives
-         * WORKSPACE_REFRESH from WorkspaceController.
-         */
 
         messagingTemplate.convertAndSend(
                 "/topic/project/" +
@@ -463,13 +673,6 @@ public class CollaborationController {
                         message.getFilePath()
                 );
 
-
-        /*
-         * Structural file operation goes directly
-         * to persistent storage.
-         *
-         * This is NOT the same as a keystroke.
-         */
 
         workspaceService.saveFile(
                 projectId,

@@ -11,6 +11,10 @@ import {
 } from "@stomp/stompjs";
 
 import {
+    RefreshCw,
+} from "lucide-react";
+
+import {
     getProjectMembers,
     changeMemberRole,
 } from "./projectApi";
@@ -20,8 +24,7 @@ import type {
     ProjectRole,
 } from "./projectApi";
 
-const WS_URL =
-    "ws://localhost:8088/ws";
+import { WS_URL } from "../config";
 
 interface ProjectRoleChangedMessage {
     projectId: number;
@@ -396,6 +399,24 @@ export default function MembersPanel({
                     </span>
 
                 </div>
+
+                <button
+                    type="button"
+                    className="members-refresh-btn"
+                    onClick={() => void loadMembers()}
+                    disabled={loading}
+                    title="Refresh members"
+                    aria-label="Refresh members"
+                >
+                    <RefreshCw
+                        size={14}
+                        className={
+                            loading
+                                ? "members-refresh-spin"
+                                : ""
+                        }
+                    />
+                </button>
 
             </div>
 

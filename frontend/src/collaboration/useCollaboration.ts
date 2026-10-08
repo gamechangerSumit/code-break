@@ -16,47 +16,122 @@ import {
 // TYPES
 // =====================================================
 
-export interface CollaborationMessage {
-    type?: string;
-    projectId: number;
-    filePath: string;
-    username?: string;
-    content?: string;
+export interface CodeChange {
+
+    rangeOffset:
+        number;
+
+    rangeLength:
+        number;
+
+    text:
+        string;
 }
+
+
+export interface CollaborationMessage {
+
+    type?: string;
+
+    projectId:
+        number;
+
+    filePath:
+        string;
+
+    username?:
+        string;
+
+    /**
+     * Kept for compatibility.
+     *
+     * New collaboration uses `changes`.
+     */
+    content?:
+        string;
+
+    changes?:
+        CodeChange[];
+}
+
 
 export interface WorkspaceFileMetadata {
-    path: string;
-    name: string;
-    size: number;
-    version: number;
+
+    path:
+        string;
+
+    name:
+        string;
+
+    size:
+        number;
+
+    version:
+        number;
 }
+
 
 export interface WorkspaceFolderMetadata {
-    path: string;
-    name: string;
-    parentPath: string | null;
+
+    path:
+        string;
+
+    name:
+        string;
+
+    parentPath:
+        string | null;
 }
+
 
 export interface WorkspaceSnapshot {
-    projectId: number;
-    files: WorkspaceFileMetadata[];
-    folders: WorkspaceFolderMetadata[];
+
+    projectId:
+        number;
+
+    files:
+        WorkspaceFileMetadata[];
+
+    folders:
+        WorkspaceFolderMetadata[];
 }
+
 
 export interface WorkspaceMessage {
-    type?: string;
-    projectId: number;
-    filePath?: string;
-    username?: string;
-    content?: string;
+
+    type?:
+        string;
+
+    projectId:
+        number;
+
+    filePath?:
+        string;
+
+    username?:
+        string;
+
+    content?:
+        string;
 }
 
+
 export interface RoleChangedMessage {
-    type?: string;
-    projectId: number;
-    memberId: number;
-    username: string;
-    role: string;
+
+    type?:
+        string;
+
+    projectId:
+        number;
+
+    memberId:
+        number;
+
+    username:
+        string;
+
+    role:
+        string;
 }
 
 
@@ -102,21 +177,14 @@ interface UseCollaborationProps {
 // HOOK
 // =====================================================
 
-export function useCollaboration(
-    {
-        projectId,
-        filePath,
-        onRemoteChange,
-        onWorkspaceFile,
-        onWorkspaceSnapshot,
-        onRoleChange,
-    }:
-        UseCollaborationProps
-) {
-
-    // =================================================
-    // CONNECTION
-    // =================================================
+export function useCollaboration({
+    projectId,
+    filePath,
+    onRemoteChange,
+    onWorkspaceFile,
+    onWorkspaceSnapshot,
+    onRoleChange,
+}: UseCollaborationProps) {
 
     const [
         isConnected,
@@ -143,7 +211,7 @@ export function useCollaboration(
 
 
     // =================================================
-    // LATEST CALLBACK REFS
+    // CALLBACK REFS
     // =================================================
 
     const onRemoteChangeRef =
@@ -235,7 +303,30 @@ export function useCollaboration(
 
 
     // =================================================
-    // REQUEST WORKSPACE SNAPSHOT REF
+    // FILE REF
+    // =================================================
+
+    const filePathRef =
+        useRef<string | null>(
+            filePath
+        );
+
+
+    useEffect(
+        () => {
+
+            filePathRef.current =
+                filePath;
+
+        },
+        [
+            filePath,
+        ]
+    );
+
+
+    // =================================================
+    // SNAPSHOT REQUEST
     // =================================================
 
     const requestWorkspaceSnapshot =
@@ -244,7 +335,6 @@ export function useCollaboration(
 
                 const client =
                     clientRef.current;
-
 
                 const currentProjectId =
                     projectIdRef.current;
@@ -255,33 +345,12 @@ export function useCollaboration(
                     !client.connected ||
                     !currentProjectId
                 ) {
-
-                    console.log(
-                        "[WS] Snapshot request skipped:",
-                        {
-                            connected:
-                                client?.connected ??
-                                false,
-
-                            projectId:
-                                currentProjectId,
-                        }
-                    );
-
                     return;
                 }
 
 
-                console.log(
-                    "[WS] Requesting workspace snapshot:",
-                    {
-                        projectId:
-                            currentProjectId,
-                    }
-                );
-
-
                 client.publish({
+
                     destination:
                         "/app/workspace/request",
 
@@ -322,24 +391,12 @@ export function useCollaboration(
 
             if (!token) {
 
-                console.warn(
-                    "[WS] No JWT token available."
-                );
-
                 setIsConnected(
                     false
                 );
 
                 return;
             }
-
-
-            console.log(
-                "[WS] Creating STOMP client:",
-                {
-                    projectId,
-                }
-            );
 
 
             const client =
@@ -353,26 +410,17 @@ export function useCollaboration(
                             `Bearer ${token}`,
                     },
 
-
                     reconnectDelay:
                         3000,
-
 
                     heartbeatIncoming:
                         10000,
 
-
                     heartbeatOutgoing:
                         10000,
 
-
                     debug:
-                        message => {
-                            console.log(
-                                "[STOMP]",
-                                message
-                            );
-                        },
+                        () => {},
                 });
 
 
@@ -387,14 +435,6 @@ export function useCollaboration(
             client.onConnect =
                 () => {
 
-                    console.log(
-                        "[WS] Connected:",
-                        {
-                            projectId,
-                        }
-                    );
-
-
                     setIsConnected(
                         true
                     );
@@ -405,10 +445,6 @@ export function useCollaboration(
                             version + 1
                     );
 
-
-                    // =================================
-                    // CLEAN OLD SUBSCRIPTIONS
-                    // =================================
 
                     subscriptionsRef.current
                         .forEach(
@@ -422,7 +458,7 @@ export function useCollaboration(
 
 
                     // =================================
-                    // CODE CHANGES
+                    // CODE
                     // =================================
 
                     const codeSubscription =
@@ -451,11 +487,6 @@ export function useCollaboration(
                                     }
 
 
-                                    /*
-                                     * Ignore our own edit.
-                                     * The local editor already contains it.
-                                     */
-
                                     const currentUsername =
                                         localStorage.getItem(
                                             "username"
@@ -475,9 +506,7 @@ export function useCollaboration(
                                         payload
                                     );
 
-                                } catch (
-                                    error
-                                ) {
+                                } catch (error) {
 
                                     console.error(
                                         "[WS] Invalid code message:",
@@ -494,7 +523,7 @@ export function useCollaboration(
 
 
                     // =================================
-                    // WORKSPACE EVENTS
+                    // WORKSPACE
                     // =================================
 
                     const workspaceSubscription =
@@ -523,29 +552,24 @@ export function useCollaboration(
                                     }
 
 
-                                    // =============================
-                                    // COMPLETE SNAPSHOT
-                                    // =============================
-
                                     if (
                                         payload.type ===
                                         "WORKSPACE_SYNC"
                                     ) {
 
-                                        /*
-                                         * Backward compatibility
-                                         * with the old backend.
-                                         */
-
                                         const legacy =
                                             payload as
                                                 WorkspaceMessage & {
                                                     files?: {
-                                                        path: string;
-                                                        content: string;
+                                                        path:
+                                                            string;
+
+                                                        content:
+                                                            string;
                                                     }[];
 
-                                                    folders?: string[];
+                                                    folders?:
+                                                        string[];
                                                 };
 
 
@@ -612,6 +636,7 @@ export function useCollaboration(
 
 
                                                         return {
+
                                                             path:
                                                                 normalized,
 
@@ -648,10 +673,6 @@ export function useCollaboration(
                                     }
 
 
-                                    // =============================
-                                    // NEW REFRESH EVENT
-                                    // =============================
-
                                     if (
                                         payload.type ===
                                         "WORKSPACE_REFRESH"
@@ -663,46 +684,14 @@ export function useCollaboration(
                                             );
 
 
-                                        /*
-                                         * The owner already has the
-                                         * local folder loaded.
-                                         *
-                                         * No need to request another
-                                         * snapshot for the owner.
-                                         */
-
                                         if (
                                             payload.username &&
                                             payload.username ===
                                                 currentUsername
                                         ) {
-
-                                            console.log(
-                                                "[WS] Ignoring own workspace refresh."
-                                            );
-
                                             return;
                                         }
 
-
-                                        console.log(
-                                            "[WS] Workspace refresh received:",
-                                            {
-                                                projectId,
-                                                from:
-                                                    payload.username,
-                                            }
-                                        );
-
-
-                                        /*
-                                         * Only metadata is requested.
-                                         *
-                                         * File contents stay in MinIO
-                                         * and are fetched separately
-                                         * when the collaborator selects
-                                         * a file.
-                                         */
 
                                         requestWorkspaceSnapshot();
 
@@ -710,17 +699,11 @@ export function useCollaboration(
                                     }
 
 
-                                    // =============================
-                                    // NORMAL WORKSPACE EVENT
-                                    // =============================
-
                                     onWorkspaceFileRef.current?.(
                                         payload
                                     );
 
-                                } catch (
-                                    error
-                                ) {
+                                } catch (error) {
 
                                     console.error(
                                         "[WS] Invalid workspace message:",
@@ -737,7 +720,7 @@ export function useCollaboration(
 
 
                     // =================================
-                    // PRIVATE WORKSPACE SNAPSHOT
+                    // PRIVATE SNAPSHOT
                     // =================================
 
                     const snapshotSubscription =
@@ -766,30 +749,11 @@ export function useCollaboration(
                                     }
 
 
-                                    console.log(
-                                        "[WS] Workspace snapshot received:",
-                                        {
-                                            projectId:
-                                                snapshot.projectId,
-
-                                            files:
-                                                snapshot.files?.length ??
-                                                0,
-
-                                            folders:
-                                                snapshot.folders?.length ??
-                                                0,
-                                        }
-                                    );
-
-
                                     onWorkspaceSnapshotRef.current?.(
                                         snapshot
                                     );
 
-                                } catch (
-                                    error
-                                ) {
+                                } catch (error) {
 
                                     console.error(
                                         "[WS] Invalid snapshot:",
@@ -806,7 +770,7 @@ export function useCollaboration(
 
 
                     // =================================
-                    // MEMBER ROLE CHANGES
+                    // ROLE
                     // =================================
 
                     const roleSubscription =
@@ -839,9 +803,7 @@ export function useCollaboration(
                                         payload
                                     );
 
-                                } catch (
-                                    error
-                                ) {
+                                } catch (error) {
 
                                     console.error(
                                         "[WS] Invalid role message:",
@@ -855,23 +817,22 @@ export function useCollaboration(
                     subscriptionsRef.current.push(
                         roleSubscription
                     );
+
+
+                    /*
+                     * Initial snapshot is requested only AFTER
+                     * every required subscription is ready.
+                     */
+                    requestWorkspaceSnapshot();
                 };
 
 
             // =========================================
-            // DISCONNECTED
+            // DISCONNECT
             // =========================================
 
             client.onDisconnect =
                 () => {
-
-                    console.log(
-                        "[WS] Disconnected:",
-                        {
-                            projectId,
-                        }
-                    );
-
 
                     setIsConnected(
                         false
@@ -880,18 +841,15 @@ export function useCollaboration(
 
 
             // =========================================
-            // ERROR
+            // ERRORS
             // =========================================
 
             client.onStompError =
                 frame => {
 
                     console.error(
-                        "[WS] STOMP broker error:",
-                        frame.headers[
-                            "message"
-                        ],
-
+                        "[WS] STOMP error:",
+                        frame.headers["message"],
                         frame.body
                     );
                 };
@@ -907,26 +865,10 @@ export function useCollaboration(
                 };
 
 
-            // =========================================
-            // ACTIVATE
-            // =========================================
-
             client.activate();
 
 
-            // =========================================
-            // CLEANUP
-            // =========================================
-
             return () => {
-
-                console.log(
-                    "[WS] Cleaning connection:",
-                    {
-                        projectId,
-                    }
-                );
-
 
                 subscriptionsRef.current
                     .forEach(
@@ -939,7 +881,7 @@ export function useCollaboration(
                     [];
 
 
-                client.deactivate();
+                void client.deactivate();
 
 
                 if (
@@ -960,6 +902,7 @@ export function useCollaboration(
         },
         [
             projectId,
+            requestWorkspaceSnapshot,
         ]
     );
 
@@ -971,22 +914,25 @@ export function useCollaboration(
     const sendChange =
         useCallback(
             (
-                content: string
+                content: string,
+                changes: CodeChange[] = []
             ) => {
 
                 const client =
                     clientRef.current;
 
-
                 const currentProjectId =
                     projectIdRef.current;
+
+                const currentFilePath =
+                    filePathRef.current;
 
 
                 if (
                     !client ||
                     !client.connected ||
                     !currentProjectId ||
-                    !filePath
+                    !currentFilePath
                 ) {
                     return;
                 }
@@ -1006,16 +952,26 @@ export function useCollaboration(
                             projectId:
                                 currentProjectId,
 
-                            filePath,
+                            filePath:
+                                currentFilePath,
 
-                            content,
+                            /*
+                             * Kept as a compatibility fallback.
+                             */
+                            content:
+                                changes.length === 0
+                                    ? content
+                                    : undefined,
+
+                            changes:
+                                changes.length > 0
+                                    ? changes
+                                    : undefined,
                         }),
                 });
 
             },
-            [
-                filePath,
-            ]
+            []
         );
 
 
@@ -1032,7 +988,6 @@ export function useCollaboration(
 
                 const client =
                     clientRef.current;
-
 
                 const currentProjectId =
                     projectIdRef.current;
@@ -1086,7 +1041,6 @@ export function useCollaboration(
                 const client =
                     clientRef.current;
 
-
                 const currentProjectId =
                     projectIdRef.current;
 
@@ -1136,7 +1090,6 @@ export function useCollaboration(
 
                 const client =
                     clientRef.current;
-
 
                 const currentProjectId =
                     projectIdRef.current;
@@ -1188,7 +1141,6 @@ export function useCollaboration(
                 const client =
                     clientRef.current;
 
-
                 const currentProjectId =
                     projectIdRef.current;
 
@@ -1227,12 +1179,7 @@ export function useCollaboration(
 
 
     // =================================================
-    // RENAME WORKSPACE ITEM
-    //
-    // filePath = old path
-    // content  = new path
-    // This preserves compatibility with the current
-    // backend workspace message contract.
+    // RENAME
     // =================================================
 
     const sendWorkspaceRename =
@@ -1248,6 +1195,7 @@ export function useCollaboration(
                 const currentProjectId =
                     projectIdRef.current;
 
+
                 if (
                     !client ||
                     !client.connected ||
@@ -1256,17 +1204,38 @@ export function useCollaboration(
                     return;
                 }
 
+
                 const cleanOldPath =
                     oldPath
-                        .replaceAll("\\", "/")
-                        .replace(/^\/+/, "")
-                        .replace(/\/+$/, "");
+                        .replaceAll(
+                            "\\",
+                            "/"
+                        )
+                        .replace(
+                            /^\/+/,
+                            ""
+                        )
+                        .replace(
+                            /\/+$/,
+                            ""
+                        );
+
 
                 const cleanNewPath =
                     newPath
-                        .replaceAll("\\", "/")
-                        .replace(/^\/+/, "")
-                        .replace(/\/+$/, "");
+                        .replaceAll(
+                            "\\",
+                            "/"
+                        )
+                        .replace(
+                            /^\/+/,
+                            ""
+                        )
+                        .replace(
+                            /\/+$/,
+                            ""
+                        );
+
 
                 if (
                     !cleanOldPath ||
@@ -1275,12 +1244,15 @@ export function useCollaboration(
                     return;
                 }
 
+
                 client.publish({
+
                     destination:
                         "/app/workspace",
 
                     body:
                         JSON.stringify({
+
                             type:
                                 "WORKSPACE_RENAME",
 
@@ -1290,15 +1262,11 @@ export function useCollaboration(
                             filePath:
                                 cleanOldPath,
 
-                            username:
-                                localStorage.getItem(
-                                    "username"
-                                ) ?? "anonymous",
-
                             content:
                                 cleanNewPath,
                         }),
                 });
+
             },
             []
         );

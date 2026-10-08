@@ -7,11 +7,31 @@ import {
     useRef,
 } from "react";
 
+import type {
+    editor,
+    IDisposable,
+} from "monaco-editor";
+
+
+export interface CodeEditorChange {
+    rangeOffset: number;
+    rangeLength: number;
+    text: string;
+}
+
+
 interface CodeEditorProps {
+
     value: string;
-    onChange: (value: string) => void;
+
+    onChange: (
+        value: string,
+        changes: CodeEditorChange[]
+    ) => void;
+
     readOnly?: boolean;
 }
+
 
 export default function CodeEditor({
     value,
@@ -19,93 +39,286 @@ export default function CodeEditor({
     readOnly = false,
 }: CodeEditorProps) {
 
-    const editorRef = useRef<
-        Parameters<OnMount>[0] | null
-    >(null);
+    const editorRef =
+        useRef<editor.IStandaloneCodeEditor | null>(
+            null
+        );
 
-    const lastValueRef = useRef<string>("");
+
+    const changeSubscriptionRef =
+        useRef<IDisposable | null>(
+            null
+        );
+
+
+    const suppressChangeRef =
+        useRef(false);
+
+
+    const latestValueRef =
+        useRef<string>(
+            typeof value === "string"
+                ? value
+                : ""
+        );
+
 
     const safeValue =
         typeof value === "string"
             ? value
             : "";
 
-    /**
-     * Monaco editor mount
-     */
+
+    // =====================================================
+    // LATEST CALLBACK
+    // =====================================================
+
+    const onChangeRef =
+        useRef(onChange);
+
+
+    useEffect(
+        () => {
+
+            onChangeRef.current =
+                onChange;
+
+        },
+        [
+            onChange,
+        ]
+    );
+
+
+    // =====================================================
+    // MOUNT
+    // =====================================================
+
     const handleEditorMount: OnMount = (
-        editor
+        editorInstance
     ) => {
-        editorRef.current = editor;
 
-        lastValueRef.current = safeValue;
+        editorRef.current =
+            editorInstance;
 
-        /*
-         * Important:
-         * Parent se jo value aa rahi hai,
-         * wahi Monaco ke model me set hoti hai.
-         */
+
+        latestValueRef.current =
+            safeValue;
+
+
+        suppressChangeRef.current =
+            true;
+
+
         if (
-            editor.getValue() !== safeValue
+            editorInstance.getValue() !==
+            safeValue
         ) {
-            editor.setValue(safeValue);
+
+            editorInstance.setValue(
+                safeValue
+            );
         }
 
-        editor.focus();
+
+        suppressChangeRef.current =
+            false;
+
+
+        // =============================================
+        // MONACO DELTA EVENTS
+        // =============================================
+
+        changeSubscriptionRef.current =
+            editorInstance.onDidChangeModelContent(
+                event => {
+
+                    if (
+                        suppressChangeRef.current
+                    ) {
+                        return;
+                    }
+
+
+                    if (readOnly) {
+                        return;
+                    }
+
+
+                    const nextValue =
+                        editorInstance.getValue();
+
+
+                    latestValueRef.current =
+                        nextValue;
+
+
+                    const changes: CodeEditorChange[] =
+                        event.changes.map(
+                            change => ({
+                                rangeOffset:
+                                    change.rangeOffset,
+
+                                rangeLength:
+                                    change.rangeLength,
+
+                                text:
+                                    change.text,
+                            })
+                        );
+
+
+                    onChangeRef.current(
+                        nextValue,
+                        changes
+                    );
+                }
+            );
+
+
+        editorInstance.focus();
     };
 
-    /**
-     * Parent -> Monaco synchronization
-     *
-     * Jab selected file change hoti hai
-     * ya workspace se content load hota hai,
-     * Monaco ko new value milni chahiye.
-     */
-    useEffect(() => {
-        const editor = editorRef.current;
 
-        if (!editor) {
-            return;
-        }
+    // =====================================================
+    // PARENT -> MONACO
+    // =====================================================
 
-        const currentValue =
-            editor.getValue();
+    useEffect(
+        () => {
 
-        if (
-            currentValue !== safeValue &&
-            lastValueRef.current !== safeValue
-        ) {
+            const editorInstance =
+                editorRef.current;
+
+
+            if (!editorInstance) {
+                return;
+            }
+
+
+            const currentValue =
+                editorInstance.getValue();
+
+
+            if (
+                currentValue ===
+                safeValue
+            ) {
+
+                latestValueRef.current =
+                    safeValue;
+
+                return;
+            }
+
+
+            /*
+             * Parent value changed because of:
+             *
+             * - selecting another file
+             * - loading workspace content
+             * - receiving remote content
+             * - role/workspace refresh
+             *
+             * This is NOT a user edit.
+             *
+             * Therefore suppress Monaco's change callback.
+             */
+
+            suppressChangeRef.current =
+                true;
+
+
             const position =
-                editor.getPosition();
+                editorInstance.getPosition();
 
-            editor.setValue(safeValue);
+
+            const selection =
+                editorInstance.getSelection();
+
+
+            editorInstance.setValue(
+                safeValue
+            );
+
 
             if (position) {
-                editor.setPosition(position);
+                editorInstance.setPosition(
+                    position
+                );
             }
-        }
 
-        lastValueRef.current = safeValue;
-    }, [safeValue]);
 
-    /**
-     * Monaco -> Parent synchronization
-     */
-    const handleChange = (
-        nextValue: string | undefined
-    ) => {
-        if (readOnly) {
-            return;
-        }
+            if (selection) {
+                editorInstance.setSelection(
+                    selection
+                );
+            }
 
-        const content =
-            nextValue ?? "";
 
-        lastValueRef.current =
-            content;
+            latestValueRef.current =
+                safeValue;
 
-        onChange(content);
-    };
+
+            suppressChangeRef.current =
+                false;
+
+        },
+        [
+            safeValue,
+        ]
+    );
+
+
+    // =====================================================
+    // READ ONLY CHANGE
+    // =====================================================
+
+    useEffect(
+        () => {
+
+            const editorInstance =
+                editorRef.current;
+
+
+            if (!editorInstance) {
+                return;
+            }
+
+
+            editorInstance.updateOptions({
+                readOnly,
+            });
+
+        },
+        [
+            readOnly,
+        ]
+    );
+
+
+    // =====================================================
+    // CLEANUP
+    // =====================================================
+
+    useEffect(
+        () => {
+
+            return () => {
+
+                changeSubscriptionRef.current?.dispose();
+
+                changeSubscriptionRef.current =
+                    null;
+
+                editorRef.current =
+                    null;
+            };
+
+        },
+        []
+    );
+
 
     return (
         <div className="code-editor-shell">
@@ -116,23 +329,23 @@ export default function CodeEditor({
                 language="java"
                 theme="vs-dark"
 
-                value={safeValue}
+                defaultValue={
+                    safeValue
+                }
 
                 onMount={
                     handleEditorMount
                 }
 
-                onChange={
-                    handleChange
-                }
-
                 loading={
                     <div className="editor-loading">
+
                         <div className="editor-loading-spinner" />
 
                         <span>
                             Loading editor...
                         </span>
+
                     </div>
                 }
 
@@ -142,12 +355,11 @@ export default function CodeEditor({
                     automaticLayout:
                         true,
 
-                    /**
-                     * Editor appearance
-                     */
-                    fontSize: 14,
+                    fontSize:
+                        14,
 
-                    lineHeight: 22,
+                    lineHeight:
+                        22,
 
                     fontFamily:
                         "JetBrains Mono, Consolas, Monaco, monospace",
@@ -158,10 +370,8 @@ export default function CodeEditor({
                     fontWeight:
                         "400",
 
-                    /**
-                     * Code behaviour
-                     */
-                    tabSize: 4,
+                    tabSize:
+                        4,
 
                     insertSpaces:
                         true,
@@ -181,9 +391,6 @@ export default function CodeEditor({
                     mouseWheelZoom:
                         true,
 
-                    /**
-                     * Cursor
-                     */
                     cursorBlinking:
                         "smooth",
 
@@ -193,21 +400,20 @@ export default function CodeEditor({
                     renderLineHighlight:
                         "all",
 
-                    /**
-                     * Minimap
-                     */
                     minimap: {
-                        enabled: true,
-                        side: "right",
+                        enabled:
+                            true,
+
+                        side:
+                            "right",
+
                         showSlider:
                             "mouseover",
+
                         renderCharacters:
                             true,
                     },
 
-                    /**
-                     * Folding
-                     */
                     folding:
                         true,
 
@@ -217,9 +423,6 @@ export default function CodeEditor({
                     showFoldingControls:
                         "mouseover",
 
-                    /**
-                     * Brackets / guides
-                     */
                     bracketPairColorization: {
                         enabled:
                             true,
@@ -228,32 +431,28 @@ export default function CodeEditor({
                     guides: {
                         indentation:
                             true,
+
                         bracketPairs:
                             true,
+
                         highlightActiveIndentation:
                             true,
                     },
 
-                    /**
-                     * Whitespace
-                     */
                     renderWhitespace:
                         "selection",
 
                     renderControlCharacters:
                         false,
 
-                    /**
-                     * Editor spacing
-                     */
                     padding: {
-                        top: 14,
-                        bottom: 20,
+                        top:
+                            14,
+
+                        bottom:
+                            20,
                     },
 
-                    /**
-                     * Scrollbars
-                     */
                     scrollbar: {
                         verticalScrollbarSize:
                             10,
@@ -268,31 +467,25 @@ export default function CodeEditor({
                             false,
                     },
 
-                    /**
-                     * Overview ruler
-                     */
                     overviewRulerLanes:
                         3,
 
                     hideCursorInOverviewRuler:
                         false,
 
-                    /**
-                     * Context menu
-                     */
                     contextmenu:
                         true,
 
-                    /**
-                     * Selection / suggestions
-                     */
                     suggest: {
                         showMethods:
                             true,
+
                         showFunctions:
                             true,
+
                         showVariables:
                             true,
+
                         showClasses:
                             true,
                     },
@@ -305,18 +498,12 @@ export default function CodeEditor({
                             true,
                     },
 
-                    /**
-                     * Performance
-                     */
                     largeFileOptimizations:
                         true,
 
                     stopRenderingLineAfter:
                         10000,
 
-                    /**
-                     * Accessibility
-                     */
                     accessibilitySupport:
                         "auto",
 
@@ -327,13 +514,16 @@ export default function CodeEditor({
                 }}
             />
 
+
             {readOnly && (
                 <div className="editor-readonly-badge">
+
                     <span className="editor-readonly-dot" />
 
                     <span>
                         Read only
                     </span>
+
                 </div>
             )}
 
