@@ -77,11 +77,19 @@ public class WorkspaceController {
             Authentication authentication
     ) {
 
+        String content = request.content() == null ? "" : request.content();
+        if (content.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > MAX_FILE_CONTENT_BYTES) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Workspace file content is too large"
+            );
+        }
+
         WorkspaceService.WorkspaceFileResponse response =
                 workspaceService.saveFile(
                         projectId,
                         request.path(),
-                        request.content(),
+                        content,
                         authentication.getName()
                 );
 
