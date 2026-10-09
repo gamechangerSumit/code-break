@@ -9,13 +9,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 @Service
 @RequiredArgsConstructor
 public class MinioWorkspaceService {
+
+    private static final int MAX_FILE_CONTENT_BYTES = 5 * 1024 * 1024;
 
     private final MinioClient minioClient;
 
@@ -114,14 +115,14 @@ public class MinioWorkspaceService {
                         )
         ) {
 
-            ByteArrayOutputStream output =
-                    new ByteArrayOutputStream();
+            byte[] bytes = inputStream.readNBytes(MAX_FILE_CONTENT_BYTES + 1);
+            if (bytes.length > MAX_FILE_CONTENT_BYTES) {
+                throw new IllegalStateException(
+                        "Workspace file exceeds the maximum supported size: " + path
+                );
+            }
 
-            inputStream.transferTo(output);
-
-            return output.toString(
-                    StandardCharsets.UTF_8
-            );
+            return new String(bytes, StandardCharsets.UTF_8);
 
         } catch (Exception exception) {
 
