@@ -261,6 +261,17 @@ public class WorkspaceController {
             );
         }
 
+        if (request.folders() != null) {
+            for (String folder : request.folders()) {
+                if (folder != null && folder.length() > 1000) {
+                    throw new org.springframework.web.server.ResponseStatusException(
+                            HttpStatus.BAD_REQUEST,
+                            "Workspace folder path is too long"
+                    );
+                }
+            }
+        }
+
         long totalContentBytes = 0;
         if (request.files() != null) {
             for (WorkspaceService.WorkspaceImportFile file : request.files()) {
