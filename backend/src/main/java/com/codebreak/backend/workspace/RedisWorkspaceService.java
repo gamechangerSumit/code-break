@@ -204,13 +204,19 @@ public class RedisWorkspaceService {
         String normalizedPath =
                 normalizePath(path);
 
-
-        if (
-                normalizedPath.isBlank()
-        ) {
+        if (normalizedPath.isBlank()) {
             return;
         }
 
+        if (normalizedPath.length() > 1000) {
+            throw new IllegalArgumentException("Workspace file path is invalid");
+        }
+
+        String safeContent = content == null ? "" : content;
+        if (safeContent.getBytes(java.nio.charset.StandardCharsets.UTF_8).length >
+                5 * 1024 * 1024) {
+            throw new IllegalArgumentException("Workspace file content exceeds the 5 MiB limit");
+        }
 
         redisTemplate.opsForValue().set(
 
@@ -219,9 +225,7 @@ public class RedisWorkspaceService {
                         normalizedPath
                 ),
 
-                content == null
-                        ? ""
-                        : content,
+                safeContent,
 
                 DIRTY_TTL
         );

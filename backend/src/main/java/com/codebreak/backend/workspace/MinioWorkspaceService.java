@@ -54,6 +54,12 @@ public class MinioWorkspaceService {
                         : content
                 ).getBytes(StandardCharsets.UTF_8);
 
+        if (bytes.length > MAX_FILE_CONTENT_BYTES) {
+            throw new IllegalArgumentException(
+                    "Workspace file content exceeds the 5 MiB limit"
+            );
+        }
+
         try {
 
             minioClient.putObject(
