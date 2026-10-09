@@ -17,6 +17,7 @@ public class WorkspaceController {
 
     private static final int MAX_IMPORT_FILES = 500;
     private static final int MAX_IMPORT_CONTENT_BYTES = 5 * 1024 * 1024;
+    private static final long MAX_IMPORT_TOTAL_CONTENT_BYTES = 20L * 1024 * 1024;
     private static final int MAX_FILE_CONTENT_BYTES = 5 * 1024 * 1024;
 
     private final WorkspaceService workspaceService;
@@ -260,6 +261,7 @@ public class WorkspaceController {
             );
         }
 
+        long totalContentBytes = 0;
         if (request.files() != null) {
             for (WorkspaceService.WorkspaceImportFile file : request.files()) {
                 if (file == null) {
@@ -280,12 +282,22 @@ public class WorkspaceController {
                     );
                 }
 
-                if (file.content() != null &&
-                        file.content().getBytes(java.nio.charset.StandardCharsets.UTF_8).length > MAX_IMPORT_CONTENT_BYTES) {
-                    throw new org.springframework.web.server.ResponseStatusException(
-                            HttpStatus.BAD_REQUEST,
-                            "Workspace file content is too large"
-                    );
+                if (file.content() != null) {
+                    int contentBytes = file.content().getBytes(java.nio.charset.StandardCharsets.UTF_8).length;
+                    if (contentBytes > MAX_IMPORT_CONTENT_BYTES) {
+                        throw new org.springframework.web.server.ResponseStatusException(
+                                HttpStatus.BAD_REQUEST,
+                                "Workspace file content is too large"
+                        );
+                    }
+
+                    totalContentBytes += contentBytes;
+                    if (totalContentBytes > MAX_IMPORT_TOTAL_CONTENT_BYTES) {
+                        throw new org.springframework.web.server.ResponseStatusException(
+                                HttpStatus.BAD_REQUEST,
+                                "Workspace import content exceeds the 20 MiB total limit"
+                        );
+                    }
                 }
             }
         }
