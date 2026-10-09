@@ -2,6 +2,7 @@ package com.codebreak.backend.workspace;
 
 import com.codebreak.backend.project.Project;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +17,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class WorkspaceService {
@@ -1034,11 +1036,11 @@ public class WorkspaceService {
                     Exception exception
             ) {
 
-                System.err.println(
-                        "[WORKSPACE CLEAR] MinIO delete failed: " +
-                                "Project=" + projectId +
-                                " Path=" + file.getPath() +
-                                " Error=" + exception.getMessage()
+                log.warn(
+                        "Failed to delete workspace object from MinIO during project cleanup. projectId={}, path={}",
+                        projectId,
+                        file.getPath(),
+                        exception
                 );
             }
 
