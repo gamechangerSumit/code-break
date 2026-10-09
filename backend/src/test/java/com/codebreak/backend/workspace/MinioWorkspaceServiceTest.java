@@ -3,6 +3,7 @@ package com.codebreak.backend.workspace;
 import io.minio.GetObjectArgs;
 import io.minio.GetObjectResponse;
 import io.minio.MinioClient;
+import io.minio.PutObjectArgs;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -10,6 +11,8 @@ import java.nio.charset.StandardCharsets;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -57,6 +60,22 @@ class MinioWorkspaceServiceTest {
                 "Workspace file exceeds the maximum supported size: src/Large.java",
                 exception.getCause().getMessage()
         );
+    }
+
+    @Test
+    void rejectsOversizedFileBeforeWritingToMinio() throws Exception {
+        MinioClient minioClient = mock(MinioClient.class);
+        MinioWorkspaceService service = new MinioWorkspaceService(minioClient);
+        ReflectionTestUtils.setField(service, "bucket", "workspace-test");
+
+        String oversizedContent = "x".repeat(MAX_FILE_CONTENT_BYTES + 1);
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.saveFile(1L, "src/Large.java", oversizedContent)
+        );
+
+        assertEquals("Workspace file content exceeds the 5 MiB limit", exception.getMessage());
+        verify(minioClient, never()).putObject(any(PutObjectArgs.class));
     }
 
     @Test
