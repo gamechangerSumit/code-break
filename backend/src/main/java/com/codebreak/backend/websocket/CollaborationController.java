@@ -15,6 +15,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class CollaborationController {
 
+    private static final int MAX_FILE_CONTENT_BYTES = 5 * 1024 * 1024;
+    private static final int MAX_IMPORT_CONTENT_BYTES = 20 * 1024 * 1024;
+    private static final int MAX_IMPORT_FILES = 500;
+    private static final int MAX_IMPORT_FOLDERS = 500;
+    private static final int MAX_PATH_LENGTH = 1000;
+
     private final SimpMessagingTemplate messagingTemplate;
 
     private final ProjectMemberService projectMemberService;
@@ -55,6 +61,9 @@ public class CollaborationController {
                 normalizePath(
                         message.getFilePath()
                 );
+
+        validatePathLength(filePath);
+        validateFileContent(message.getContent());
 
 
         // =============================================
@@ -377,6 +386,8 @@ public class CollaborationController {
                         : message.getFolders().size();
 
 
+        validateLegacyWorkspacePayload(message);
+
         System.out.println(
                 "[WS WORKSPACE] LEGACY SYNC received: " +
                         "Project=" + projectId +
@@ -463,6 +474,9 @@ public class CollaborationController {
                         message.getFilePath()
                 );
 
+        validatePathLength(path);
+        validateFileContent(message.getContent());
+
 
         /*
          * Structural file operation goes directly
@@ -521,6 +535,7 @@ public class CollaborationController {
                         message.getFilePath()
                 );
 
+        validatePathLength(path);
 
         workspaceService.createFolder(
                 projectId,
@@ -571,6 +586,7 @@ public class CollaborationController {
                         message.getFilePath()
                 );
 
+        validatePathLength(path);
 
         workspaceService.deleteFile(
                 projectId,
@@ -621,6 +637,7 @@ public class CollaborationController {
                         message.getFilePath()
                 );
 
+        validatePathLength(path);
 
         workspaceService.deleteFolder(
                 projectId,
@@ -702,6 +719,58 @@ public class CollaborationController {
 
 
         return normalized;
+    }
+
+
+    private void validateLegacyWorkspacePayload(CollaborationMessage message) {
+        int fileCount = message.getFiles() == null ? 0 : message.getFiles().size();
+        int folderCount = message.getFolders() == null ? 0 : message.getFolders().size();
+
+        if (fileCount > MAX_IMPORT_FILES) {
+            throw new IllegalArgumentException("Workspace import exceeds the 500-file limit");
+        }
+        if (folderCount > MAX_IMPORT_FOLDERS) {
+            throw new IllegalArgumentException("Workspace import exceeds the 500-folder limit");
+        }
+
+        long totalBytes = 0;
+        if (message.getFiles() != null) {
+            for (CollaborationMessage.WorkspaceFilePayload file : message.getFiles()) {
+                if (file == null) {
+                    continue;
+                }
+                validatePathLength(normalizePath(file.getPath()));
+                String fileContent = file.getContent() == null ? "" : file.getContent();
+                long bytes = fileContent.getBytes(java.nio.charset.StandardCharsets.UTF_8).length;
+                if (bytes > MAX_FILE_CONTENT_BYTES) {
+                    throw new IllegalArgumentException("Workspace file content exceeds the 5 MiB limit");
+                }
+                totalBytes += bytes;
+                if (totalBytes > MAX_IMPORT_CONTENT_BYTES) {
+                    throw new IllegalArgumentException("Workspace import content exceeds the 20 MiB limit");
+                }
+            }
+        }
+
+        if (message.getFolders() != null) {
+            for (String folder : message.getFolders()) {
+                validatePathLength(normalizePath(folder));
+            }
+        }
+    }
+
+    private void validateFileContent(String content) {
+        int bytes = (content == null ? "" : content)
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8).length;
+        if (bytes > MAX_FILE_CONTENT_BYTES) {
+            throw new IllegalArgumentException("Workspace file content exceeds the 5 MiB limit");
+        }
+    }
+
+    private void validatePathLength(String path) {
+        if (path == null || path.isBlank() || path.length() > MAX_PATH_LENGTH) {
+            throw new IllegalArgumentException("Workspace file path is invalid");
+        }
     }
 
 
