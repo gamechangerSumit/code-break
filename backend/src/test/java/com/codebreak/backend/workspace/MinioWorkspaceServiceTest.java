@@ -1,11 +1,11 @@
 package com.codebreak.backend.workspace;
 
 import io.minio.GetObjectArgs;
+import io.minio.GetObjectResponse;
 import io.minio.MinioClient;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -22,8 +22,10 @@ class MinioWorkspaceServiceTest {
     @Test
     void readsFileWithinSizeLimit() throws Exception {
         MinioClient minioClient = mock(MinioClient.class);
-        when(minioClient.getObject(any(GetObjectArgs.class)))
-                .thenReturn(new ByteArrayInputStream("hello".getBytes(StandardCharsets.UTF_8)));
+        GetObjectResponse response = mock(GetObjectResponse.class);
+        when(response.readNBytes(MAX_FILE_CONTENT_BYTES + 1))
+                .thenReturn("hello".getBytes(StandardCharsets.UTF_8));
+        when(minioClient.getObject(any(GetObjectArgs.class))).thenReturn(response);
 
         MinioWorkspaceService service = new MinioWorkspaceService(minioClient);
         ReflectionTestUtils.setField(service, "bucket", "workspace-test");
@@ -34,9 +36,10 @@ class MinioWorkspaceServiceTest {
     @Test
     void rejectsFileExceedingSizeLimit() throws Exception {
         MinioClient minioClient = mock(MinioClient.class);
-        byte[] oversizedContent = new byte[MAX_FILE_CONTENT_BYTES + 1];
-        when(minioClient.getObject(any(GetObjectArgs.class)))
-                .thenReturn(new ByteArrayInputStream(oversizedContent));
+        GetObjectResponse response = mock(GetObjectResponse.class);
+        when(response.readNBytes(MAX_FILE_CONTENT_BYTES + 1))
+                .thenReturn(new byte[MAX_FILE_CONTENT_BYTES + 1]);
+        when(minioClient.getObject(any(GetObjectArgs.class))).thenReturn(response);
 
         MinioWorkspaceService service = new MinioWorkspaceService(minioClient);
         ReflectionTestUtils.setField(service, "bucket", "workspace-test");
