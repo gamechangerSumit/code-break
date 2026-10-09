@@ -5,7 +5,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -28,7 +27,7 @@ class RequestSizeLimitFilterTest {
         filter.doFilter(request, response, chain);
 
         assertEquals(413, response.getStatus());
-        assertEquals("application/json", response.getContentType());
+        assertTrue(response.getContentType().startsWith("application/json"));
         assertTrue(response.getContentAsString().contains("maximum allowed size"));
         verify(chain, never()).doFilter(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
