@@ -37,14 +37,14 @@ class WorkspacePersistenceSchedulerTest {
 
         metadata = mock(WorkspaceFileMetadata.class);
 
-        when(redisWorkspaceService.getActiveProjects()).thenReturn(Set.of("7"));
-        when(redisWorkspaceService.isActive(7L)).thenReturn(true);
-        when(redisWorkspaceService.getDirtyFiles(7L)).thenReturn(Set.of("src/Main.java"));
-        when(redisWorkspaceService.getDirtyContent(7L, "src/Main.java"))
+        lenient().when(redisWorkspaceService.getActiveProjects()).thenReturn(Set.of("7"));
+        lenient().when(redisWorkspaceService.isActive(7L)).thenReturn(true);
+        lenient().when(redisWorkspaceService.getDirtyFiles(7L)).thenReturn(Set.of("src/Main.java"));
+        lenient().when(redisWorkspaceService.getDirtyContent(7L, "src/Main.java"))
                 .thenReturn("latest content");
-        when(fileMetadataRepository.findByProjectIdAndPath(7L, "src/Main.java"))
+        lenient().when(fileMetadataRepository.findByProjectIdAndPath(7L, "src/Main.java"))
                 .thenReturn(Optional.of(metadata));
-        when(metadata.getVersion()).thenReturn(3L);
+        lenient().when(metadata.getVersion()).thenReturn(3L);
     }
 
     @Test
@@ -83,7 +83,7 @@ class WorkspacePersistenceSchedulerTest {
 
     @Test
     void retainsDirtyStateWhenMetadataIsMissing() {
-        when(fileMetadataRepository.findByProjectIdAndPath(7L, "src/Main.java"))
+        lenient().when(fileMetadataRepository.findByProjectIdAndPath(7L, "src/Main.java"))
                 .thenReturn(Optional.empty());
 
         scheduler.flushDirtyFiles();
