@@ -65,7 +65,7 @@ class RequestSizeLimitFilterTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
         FilterChain chain = (wrappedRequest, wrappedResponse) -> {
             assertEquals("hello", new String(
-                    wrappedRequest.getInputStream().readAllBytes(),
+                    ((jakarta.servlet.http.HttpServletRequest) wrappedRequest).getInputStream().readAllBytes(),
                     StandardCharsets.UTF_8
             ));
         };
