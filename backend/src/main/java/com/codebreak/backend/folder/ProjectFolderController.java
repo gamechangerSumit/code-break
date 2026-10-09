@@ -1,5 +1,6 @@
 package com.codebreak.backend.folder;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,7 +29,7 @@ public class ProjectFolderController {
 
             @PathVariable Long projectId,
 
-            @RequestBody ProjectFolderRequest request,
+            @Valid @RequestBody ProjectFolderRequest request,
 
             Authentication authentication
 
@@ -126,6 +127,20 @@ public class ProjectFolderController {
             Authentication authentication
 
     ) {
+        if (paths != null && paths.size() > 500) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Folder import contains too many folders"
+            );
+        }
+        if (paths != null && paths.stream().anyMatch(
+                path -> path == null || path.isBlank() || path.length() > 1000
+        )) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Folder import contains an invalid path"
+            );
+        }
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
