@@ -1037,9 +1037,13 @@ public class WorkspaceService {
             ) {
 
                 log.warn(
-                        "Failed to delete workspace object from MinIO during project cleanup. projectId={}, path={}",
+                        "Aborting workspace cleanup because MinIO object deletion failed. projectId={}, path={}",
                         projectId,
                         file.getPath(),
+                        exception
+                );
+                throw new IllegalStateException(
+                        "Workspace cleanup could not delete file: " + file.getPath(),
                         exception
                 );
             }
