@@ -80,4 +80,16 @@ class WorkspaceControllerTest {
         )
         .andExpect(status().isBadRequest());
     }
+    @Test
+    void saveFileRejectsContentOverFiveMiBByUtf8Bytes() throws Exception {
+        String content = "é".repeat(2_621_441);
+        String escaped = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(content);
+        mockMvc.perform(
+                org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .put("/api/projects/1/workspace/file")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"path\":\"src/Test.java\",\"content\":" + escaped + "}")
+        ).andExpect(status().isBadRequest());
+    }
+
 }
