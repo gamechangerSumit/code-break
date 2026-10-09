@@ -292,9 +292,10 @@ public class WorkspacePersistenceScheduler {
         //   2. PostgreSQL metadata save succeeded
         // =================================================
 
-        redisWorkspaceService.clearDirty(
+        redisWorkspaceService.clearDirtyIfUnchanged(
                 projectId,
-                path
+                path,
+                content
         );
 
 
