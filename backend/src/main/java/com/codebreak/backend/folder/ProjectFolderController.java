@@ -127,6 +127,20 @@ public class ProjectFolderController {
             Authentication authentication
 
     ) {
+        if (paths != null && paths.size() > 500) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Folder import contains too many folders"
+            );
+        }
+        if (paths != null && paths.stream().anyMatch(
+                path -> path == null || path.isBlank() || path.length() > 1000
+        )) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Folder import contains an invalid path"
+            );
+        }
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
