@@ -1,5 +1,6 @@
 package com.codebreak.backend.folder;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,7 +29,7 @@ public class ProjectFolderController {
 
             @PathVariable Long projectId,
 
-            @RequestBody ProjectFolderRequest request,
+            @Valid @RequestBody ProjectFolderRequest request,
 
             Authentication authentication
 
