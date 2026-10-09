@@ -2,6 +2,9 @@ package com.codebreak.backend.workspace;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+
+import java.util.List;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -26,6 +29,16 @@ public class RedisWorkspaceService {
 
     private static final String ACTIVE_PROJECTS =
             "codebreak:workspace:active-projects";
+
+    private static final DefaultRedisScript<Long> CLEAR_DIRTY_IF_UNCHANGED =
+            new DefaultRedisScript<>(
+                    "if redis.call('GET', KEYS[1]) == ARGV[1] then " +
+                            "redis.call('DEL', KEYS[1]); " +
+                            "redis.call('SREM', KEYS[2], ARGV[2]); " +
+                            "return 1; " +
+                            "else return 0; end",
+                    Long.class
+            );
 
 
     /*
@@ -437,6 +450,44 @@ public class RedisWorkspaceService {
                         dirtySetKey(projectId),
                         normalizedPath
                 );
+    }
+
+
+    // =====================================================
+    // CLEAR DIRTY CONTENT ONLY IF IT HAS NOT CHANGED
+    // =====================================================
+
+    /**
+     * Atomically clears a persisted snapshot only when the Redis value
+     * still matches the content that was written to durable storage.
+     * This prevents an editor update racing with the persistence scheduler
+     * from being removed before the next flush.
+     */
+    public boolean clearDirtyIfUnchanged(
+            Long projectId,
+            String path,
+            String expectedContent
+    ) {
+        if (projectId == null || path == null || path.isBlank() || expectedContent == null) {
+            return false;
+        }
+
+        String normalizedPath = normalizePath(path);
+        if (normalizedPath.isBlank()) {
+            return false;
+        }
+
+        Long cleared = redisTemplate.execute(
+                CLEAR_DIRTY_IF_UNCHANGED,
+                List.of(
+                        dirtyKey(projectId, normalizedPath),
+                        dirtySetKey(projectId)
+                ),
+                expectedContent,
+                normalizedPath
+        );
+
+        return Long.valueOf(1L).equals(cleared);
     }
 
 
