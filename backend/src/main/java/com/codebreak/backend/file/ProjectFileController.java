@@ -1,5 +1,6 @@
 package com.codebreak.backend.file;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,7 +26,7 @@ public class ProjectFileController {
 
             @PathVariable Long projectId,
 
-            @RequestBody ProjectFileRequest request,
+            @Valid @RequestBody ProjectFileRequest request,
 
             Authentication authentication
 
@@ -86,7 +87,7 @@ public class ProjectFileController {
 
             @PathVariable Long projectId,
 
-            @RequestBody ProjectImportRequest request,
+            @Valid @RequestBody ProjectImportRequest request,
 
             Authentication authentication
 
@@ -121,7 +122,7 @@ public class ProjectFileController {
 
             @PathVariable Long fileId,
 
-            @RequestBody ProjectFileUpdateRequest request,
+            @Valid @RequestBody ProjectFileUpdateRequest request,
 
             Authentication authentication
 
