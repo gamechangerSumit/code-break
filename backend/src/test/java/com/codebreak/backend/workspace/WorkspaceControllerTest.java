@@ -66,6 +66,17 @@ class WorkspaceControllerTest {
     }
 
     @Test
+    void importRejectsFolderPathOverOneThousandCharacters() throws Exception {
+        String folder = "a".repeat(1001);
+        mockMvc.perform(
+                post("/api/projects/1/workspace/import")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(new com.fasterxml.jackson.databind.ObjectMapper()
+                                .writeValueAsString(java.util.Map.of("files", java.util.List.of(), "folders", java.util.List.of(folder))))
+        ).andExpect(status().isBadRequest());
+    }
+
+    @Test
     void saveFileRejectsBlankPath() throws Exception {
         mockMvc.perform(
                 org.springframework.test.web.servlet.request.MockMvcRequestBuilders
