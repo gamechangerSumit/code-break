@@ -14,7 +14,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.ByteArrayInputStream;
-import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.BufferedReader;
@@ -96,6 +95,11 @@ public class RequestSizeLimitFilter extends OncePerRequestFilter {
                 @Override
                 public int read() {
                     return input.read();
+                }
+
+                @Override
+                public int read(byte[] bytes, int offset, int length) {
+                    return input.read(bytes, offset, length);
                 }
 
                 @Override
