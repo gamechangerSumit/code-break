@@ -13,6 +13,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(AuthController.class)
@@ -75,6 +76,46 @@ class AuthControllerTest {
         )
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.error").value("Validation failed"));
+    }
+
+    @Test
+    void malformedJsonReturnsConsistentBadRequestPayload() throws Exception {
+        mockMvc.perform(
+                post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{invalid-json")
+        )
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error").value("Malformed request body"));
+    }
+
+    @Test
+    void unsupportedMethodReturnsConsistentErrorPayload() throws Exception {
+        mockMvc.perform(get("/api/auth/login"))
+        .andExpect(status().isMethodNotAllowed())
+        .andExpect(jsonPath("$.error").value("Method not allowed"));
+    }
+
+    @Test
+    void unexpectedServiceFailureDoesNotExposeInternalDetails() throws Exception {
+        when(authService.login(any(LoginRequest.class)))
+                .thenThrow(new IllegalStateException("private database detail"));
+
+        mockMvc.perform(
+                post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "username": "alice",
+                                  "password": "very-secure-password"
+                                }
+                                """)
+        )
+        .andExpect(status().isInternalServerError())
+        .andExpect(jsonPath("$.error").value("Internal server error"))
+        .andExpect(content().string(org.hamcrest.Matchers.not(
+                org.hamcrest.Matchers.containsString("private database detail")
+        )));
     }
 
     @Test
