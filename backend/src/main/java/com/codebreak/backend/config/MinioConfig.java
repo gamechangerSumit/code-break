@@ -27,10 +27,21 @@ public class MinioConfig {
     public MinioClient minioClient() {
         return MinioClient.builder()
                 .endpoint(endpoint)
-                .credentials(
-                        accessKey,
-                        secretKey
-                )
+                .credentials(accessKey, secretKey)
                 .build();
+    }
+
+    @Bean
+    public ApplicationRunner ensureMinioBucket(MinioClient minioClient) {
+        return args -> {
+            boolean bucketExists = minioClient.bucketExists(
+                    BucketExistsArgs.builder().bucket(bucket).build()
+            );
+            if (!bucketExists) {
+                minioClient.makeBucket(
+                        MakeBucketArgs.builder().bucket(bucket).build()
+                );
+            }
+        };
     }
 }
