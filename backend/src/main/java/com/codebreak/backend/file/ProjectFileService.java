@@ -4,13 +4,21 @@ import com.codebreak.backend.project.Project;
 import com.codebreak.backend.project.ProjectMemberService;
 import com.codebreak.backend.project.ProjectRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.nio.charset.StandardCharsets;
 
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class ProjectFileService {
+
+    private static final int MAX_FILE_CONTENT_BYTES = 5 * 1024 * 1024;
+    private static final long MAX_IMPORT_TOTAL_CONTENT_BYTES = 20L * 1024 * 1024;
 
     private final ProjectFileRepository fileRepository;
 
@@ -34,6 +42,7 @@ public class ProjectFileService {
                 username
         );
 
+        validateContent(request.content());
 
         Project project =
                 projectRepository
@@ -117,6 +126,7 @@ public class ProjectFileService {
     // IMPORT PROJECT FILES
     // =========================================
 
+    @Transactional
     public List<ProjectFile> importFiles(
             Long projectId,
             ProjectImportRequest request,
@@ -128,6 +138,7 @@ public class ProjectFileService {
                 username
         );
 
+        validateImportRequest(request);
 
         Project project =
                 projectRepository
@@ -271,6 +282,7 @@ public class ProjectFileService {
                 username
         );
 
+        validateContent(content);
 
         ProjectFile file =
                 fileRepository
@@ -346,6 +358,77 @@ public class ProjectFileService {
         fileRepository.delete(file);
     }
 
+
+
+    private void validateContent(String content) {
+        if (content != null
+                && content.getBytes(StandardCharsets.UTF_8).length > MAX_FILE_CONTENT_BYTES) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "File content exceeds the 5 MiB limit"
+            );
+        }
+    }
+
+    private void validateImportRequest(ProjectImportRequest request) {
+        if (request == null || request.files() == null || request.files().isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "At least one file is required for import"
+            );
+        }
+
+        if (request.files().size() > 500) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Project import contains too many files"
+            );
+        }
+
+        if (request.folders() != null && request.folders().size() > 500) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Project import contains too many folders"
+            );
+        }
+
+        long totalBytes = 0;
+        for (ProjectImportFile file : request.files()) {
+            if (file == null) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Project import contains an invalid file"
+                );
+            }
+            if (file.path() == null || file.path().isBlank() || file.path().length() > 1000) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Project import contains an invalid file path"
+                );
+            }
+            if (file.name() != null && file.name().length() > 255) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Imported file name is too long"
+                );
+            }
+            String content = file.content() == null ? "" : file.content();
+            int contentBytes = content.getBytes(StandardCharsets.UTF_8).length;
+            if (contentBytes > MAX_FILE_CONTENT_BYTES) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Imported file content exceeds the 5 MiB limit"
+                );
+            }
+            totalBytes += contentBytes;
+            if (totalBytes > MAX_IMPORT_TOTAL_CONTENT_BYTES) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Project import content exceeds the 20 MiB total limit"
+                );
+            }
+        }
+    }
 
     // =========================================
     // NORMALIZE PATH
