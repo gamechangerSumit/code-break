@@ -535,6 +535,7 @@ public class CollaborationController {
                         message.getFilePath()
                 );
 
+        validatePathLength(path);
 
         workspaceService.createFolder(
                 projectId,
@@ -585,6 +586,7 @@ public class CollaborationController {
                         message.getFilePath()
                 );
 
+        validatePathLength(path);
 
         workspaceService.deleteFile(
                 projectId,
@@ -635,6 +637,7 @@ public class CollaborationController {
                         message.getFilePath()
                 );
 
+        validatePathLength(path);
 
         workspaceService.deleteFolder(
                 projectId,
