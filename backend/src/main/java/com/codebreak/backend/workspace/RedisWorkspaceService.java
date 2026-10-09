@@ -208,8 +208,7 @@ public class RedisWorkspaceService {
             return;
         }
 
-        if (normalizedPath.length() > 1000 ||
-                normalizedPath.contains("\u0000")) {
+        if (normalizedPath.length() > 1000) {
             throw new IllegalArgumentException("Workspace file path is invalid");
         }
 
