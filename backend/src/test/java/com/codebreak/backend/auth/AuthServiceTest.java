@@ -69,6 +69,23 @@ class AuthServiceTest {
     }
 
     @Test
+    void registerRejectsUsernameThatIsTooShortAfterTrimming() {
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> authService.register(
+                        new RegisterRequest(
+                                " a ",
+                                "alice@example.com",
+                                "very-secure-password"
+                        )
+                )
+        );
+
+        assertEquals(400, exception.getStatusCode().value());
+        verifyNoInteractions(userRepository, passwordEncoder);
+    }
+
+    @Test
     void registerRejectsDuplicateUsername() {
         when(userRepository.existsByUsername("alice")).thenReturn(true);
 

@@ -7,6 +7,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Locale;
+
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
@@ -20,7 +23,14 @@ public class AuthService {
 
     public UserResponse register(RegisterRequest request) {
         String username = request.username().trim();
-        String email = request.email().trim().toLowerCase();
+        String email = request.email().trim().toLowerCase(Locale.ROOT);
+
+        if (username.length() < 3 || username.length() > 32) {
+            throw new ResponseStatusException(
+                    BAD_REQUEST,
+                    "Username must be between 3 and 32 characters after trimming"
+            );
+        }
 
         if (userRepository.existsByUsername(username)) {
             throw new ResponseStatusException(
