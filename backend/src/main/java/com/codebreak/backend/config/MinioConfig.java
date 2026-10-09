@@ -1,9 +1,13 @@
 package com.codebreak.backend.config;
 
+import io.minio.BucketExistsArgs;
+import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.ApplicationRunner;
+import org.springframework.context.annotation.Bean;
 
 @Configuration
 public class MinioConfig {
@@ -16,6 +20,9 @@ public class MinioConfig {
 
     @Value("${minio.secret-key}")
     private String secretKey;
+
+    @Value("${minio.bucket}")
+    private String bucket;
 
     @Bean
     public MinioClient minioClient() {
