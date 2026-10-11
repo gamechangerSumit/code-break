@@ -55,6 +55,27 @@ class JwtServiceTest {
         );
     }
 
+
+    @Test
+    void initializeRejectsExamplePlaceholderSecret() {
+        JwtService service = new JwtService();
+        ReflectionTestUtils.setField(
+                service,
+                "secret",
+                "replace-with-at-least-32-random-bytes-before-starting-the-backend"
+        );
+
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                service::initialize
+        );
+
+        assertEquals(
+                "JWT_SECRET must not use an example placeholder",
+                exception.getMessage()
+        );
+    }
+
     @Test
     void extractUsernameRejectsTamperedToken() {
         JwtService service = new JwtService();
