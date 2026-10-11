@@ -33,6 +33,7 @@ jobs:
       - name: Smoke-test full local stack
         run: |
           set -euo pipefail
+          curl() { command curl --connect-timeout 5 --max-time 20 "$@"; }
           cp .env.example .env
           sed -i 's/^JWT_SECRET=.*/JWT_SECRET=0123456789abcdef0123456789abcdef0123456789abcdef/' .env
           trap 'docker compose -f docker-compose.yml -f docker-compose.app.yml down -v || true; rm -f .env' EXIT
@@ -142,6 +143,54 @@ jobs:
           if [ "$(cat /tmp/codebreak-workspace-read.txt)" != "$workspace_content" ]; then
             echo "Workspace file content did not round-trip correctly"
             docker compose -f docker-compose.yml -f docker-compose.app.yml logs --no-color
+            exit 1
+          fi
+
+          collaborator_user="ci-member${GITHUB_RUN_ID}"
+          collaborator_email="ci-member-${GITHUB_RUN_ID}@example.test"
+          collaborator_registration=$(jq -n --arg username "$collaborator_user" --arg email "$collaborator_email" --arg password "$smoke_password" \
+            '{username:$username,email:$email,password:$password}')
+          collaborator_registration_status=$(curl --silent --show-error --output /tmp/codebreak-member-registration.json --write-out "%{http_code}" \
+            -X POST "$base_url/auth/register" -H "Content-Type: application/json" --data "$collaborator_registration")
+          if [ "$collaborator_registration_status" != "201" ]; then
+            cat /tmp/codebreak-member-registration.json
+            docker compose -f docker-compose.yml -f docker-compose.app.yml logs --no-color
+            echo "Expected collaborator registration to return 201, got $collaborator_registration_status"
+            exit 1
+          fi
+
+          collaborator_login=$(jq -n --arg username "$collaborator_user" --arg password "$smoke_password" \
+            '{username:$username,password:$password}')
+          collaborator_login_status=$(curl --silent --show-error --output /tmp/codebreak-member-login.json --write-out "%{http_code}" \
+            -X POST "$base_url/auth/login" -H "Content-Type: application/json" --data "$collaborator_login")
+          if [ "$collaborator_login_status" != "200" ]; then
+            cat /tmp/codebreak-member-login.json
+            docker compose -f docker-compose.yml -f docker-compose.app.yml logs --no-color
+            echo "Expected collaborator login to return 200, got $collaborator_login_status"
+            exit 1
+          fi
+          collaborator_token=$(jq -er '.token | select(type == "string" and length > 0)' /tmp/codebreak-member-login.json)
+
+          join_code=$(jq -er '.joinCode | select(type == "string" and length > 0)' /tmp/codebreak-project.json)
+          join_payload=$(jq -n --arg joinCode "$join_code" '{joinCode:$joinCode}')
+          join_status=$(curl --silent --show-error --output /tmp/codebreak-member-join.json --write-out "%{http_code}" \
+            -X POST "$base_url/projects/join" -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $collaborator_token" --data "$join_payload")
+          if [ "$join_status" != "201" ]; then
+            cat /tmp/codebreak-member-join.json
+            docker compose -f docker-compose.yml -f docker-compose.app.yml logs --no-color
+            echo "Expected collaborator join to return 201, got $join_status"
+            exit 1
+          fi
+          jq -e --arg username "$collaborator_user" '.username == $username and .role == "VIEWER"' /tmp/codebreak-member-join.json >/dev/null
+
+          viewer_write_status=$(curl --silent --show-error --output /tmp/codebreak-viewer-write.json --write-out "%{http_code}" \
+            -X PUT "$base_url/projects/$project_id/workspace/file" \
+            -H "Content-Type: application/json" -H "Authorization: Bearer $collaborator_token" --data "$workspace_payload")
+          if [ "$viewer_write_status" != "403" ]; then
+            cat /tmp/codebreak-viewer-write.json
+            docker compose -f docker-compose.yml -f docker-compose.app.yml logs --no-color
+            echo "Expected viewer workspace write to return 403, got $viewer_write_status"
             exit 1
           fi
 
