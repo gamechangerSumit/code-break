@@ -51,17 +51,6 @@ public class ProjectFileService {
 
         validateContent(request.content());
 
-        Project project =
-                projectRepository
-                        .findById(projectId)
-                        .orElseThrow(() ->
-                                new ResponseStatusException(
-                                        HttpStatus.NOT_FOUND,
-                                        "Project not found"
-                                )
-                        );
-
-
         if (
                 request.name() == null ||
                         request.name().isBlank()
@@ -90,6 +79,17 @@ public class ProjectFileService {
                 normalizePath(
                         request.path()
                 );
+
+
+        Project project =
+                projectRepository
+                        .findById(projectId)
+                        .orElseThrow(() ->
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "Project not found"
+                                )
+                        );
 
 
         if (
