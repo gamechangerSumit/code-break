@@ -58,3 +58,4 @@ CI also validates the backend's local Docker Compose configuration.
 - Configure exact allowed browser origins using CORS_ALLOWED_ORIGINS and WEBSOCKET_ALLOWED_ORIGINS.
 - The supplied Compose file is a **local-development dependency stack**, not a complete internet-facing production deployment. Use a TLS-terminating reverse proxy, managed secrets, and infrastructure/network policies for deployment.
 - Treat JWTs as credentials. Do not log or share them.
+- Local workspace scanning excludes `.env`, environment-specific `.env.*` files, common private keys and credential files by default; safe templates such as `.env.example` can be shared.
