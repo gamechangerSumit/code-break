@@ -3187,6 +3187,39 @@ useEffect(
         };
 
 
+    useEffect(() => {
+        const handleQuickOpenShortcut = (event: KeyboardEvent) => {
+            if (
+                (event.ctrlKey || event.metaKey) &&
+                event.key.toLowerCase() === "p" &&
+                authenticated &&
+                selectedProject
+            ) {
+                event.preventDefault();
+                setIsQuickOpenVisible(true);
+            }
+
+            if (event.key === "Escape") {
+                setIsQuickOpenVisible(false);
+            }
+        };
+
+        window.addEventListener("keydown", handleQuickOpenShortcut);
+        return () => window.removeEventListener("keydown", handleQuickOpenShortcut);
+    }, [authenticated, selectedProject]);
+
+    useEffect(() => {
+        if (isQuickOpenVisible) {
+            quickOpenInputRef.current?.focus();
+        } else {
+            setQuickOpenQuery("");
+        }
+    }, [isQuickOpenVisible]);
+
+    const quickOpenResults = files
+        .filter(file => file.path.toLowerCase().includes(quickOpenQuery.trim().toLowerCase()))
+        .slice(0, 50);
+
     // =================================================
     // LOGIN
     // =================================================
@@ -3261,37 +3294,9 @@ useEffect(
         };
 
 
-    useEffect(() => {
-        const handleQuickOpenShortcut = (event: KeyboardEvent) => {
-            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "p") {
-                event.preventDefault();
-                setIsQuickOpenVisible(true);
-            }
-
-            if (event.key === "Escape") {
-                setIsQuickOpenVisible(false);
-            }
-        };
-
-        window.addEventListener("keydown", handleQuickOpenShortcut);
-        return () => window.removeEventListener("keydown", handleQuickOpenShortcut);
-    }, []);
-
-    useEffect(() => {
-        if (isQuickOpenVisible) {
-            quickOpenInputRef.current?.focus();
-        } else {
-            setQuickOpenQuery("");
-        }
-    }, [isQuickOpenVisible]);
-
     // =================================================
     // UI
     // =================================================
-
-    const quickOpenResults = files
-        .filter(file => file.path.toLowerCase().includes(quickOpenQuery.trim().toLowerCase()))
-        .slice(0, 50);
 
     return (
         <div className="app">
