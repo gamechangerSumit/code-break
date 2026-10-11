@@ -39,6 +39,7 @@ public class ProjectService {
     // CREATE PROJECT
     // =========================================================
 
+    @Transactional
     public ProjectResponse createProject(
             ProjectRequest request,
             String username
