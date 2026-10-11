@@ -30,10 +30,11 @@ jobs:
           java-version: "21"
           cache: maven
 
-      - name: Validate local dependency stack
+      - name: Validate and build full local stack
         run: |
           cp .env.example .env
-          docker compose config --quiet
+          docker compose -f docker-compose.yml -f docker-compose.app.yml config --quiet
+          docker compose -f docker-compose.yml -f docker-compose.app.yml build backend frontend
           rm .env
 
       - name: Run tests
