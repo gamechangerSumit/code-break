@@ -2285,6 +2285,14 @@ button {
     font-weight: 600;
 }
 
+.register-password-hint {
+    display: block;
+    margin-top: 1px;
+    color: var(--cb-muted);
+    font-size: 10px;
+    line-height: 1.5;
+}
+
 .register-input-wrap {
     height: 45px;
     display: flex;
