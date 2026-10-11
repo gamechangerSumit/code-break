@@ -291,42 +291,42 @@ public class ProjectFolderService {
     private String normalizePath(
             String path
     ) {
-
-        String normalized =
-                path.trim()
-                        .replace("\\", "/");
-
-
-        while (
-                normalized.startsWith("/")
-        ) {
-
-            normalized =
-                    normalized.substring(1);
+        if (path == null || path.isBlank()) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,
+                    "Folder path is required"
+            );
         }
 
+        String normalized = path.trim()
+                .replace("\\", "/")
+                .replaceAll("/+", "/");
 
-        while (
-                normalized.endsWith("/")
-        ) {
-
-            normalized =
-                    normalized.substring(
-                            0,
-                            normalized.length() - 1
-                    );
+        while (normalized.startsWith("/")) {
+            normalized = normalized.substring(1);
         }
 
+        while (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
 
-        if (
-                normalized.contains("..")
-        ) {
-
-            throw new RuntimeException(
+        if (normalized.isBlank() || normalized.length() > 1000) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,
                     "Invalid folder path"
             );
         }
 
+        boolean containsTraversalSegment = java.util.Arrays.stream(
+                normalized.split("/")
+        ).anyMatch(segment -> segment.equals(".") || segment.equals(".."));
+
+        if (containsTraversalSegment) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,
+                    "Invalid folder path"
+            );
+        }
 
         return normalized;
     }
@@ -368,11 +368,7 @@ public class ProjectFolderService {
         return paths
                 .stream()
 
-                .map(path ->
-                        path
-                                .trim()
-                                .replace("\\", "/")
-                )
+                .map(this::normalizePath)
 
                 .filter(path ->
                         !path.isBlank()
