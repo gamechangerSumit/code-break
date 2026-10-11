@@ -1,7 +1,5 @@
 import {
-    Code2,
     FolderTree,
-    Settings2,
     Users,
 } from "lucide-react";
 
@@ -95,46 +93,7 @@ function ActivityBar({
             </div>
 
 
-            <div className="activity-bar-bottom">
 
-                <button
-                    type="button"
-                    className="activity-button"
-                    title="Code Break"
-                    aria-label="Code Break"
-                >
-
-                    <Code2
-                        size={19}
-                        strokeWidth={1.8}
-                    />
-
-                    <span className="activity-tooltip">
-                        Code Break
-                    </span>
-
-                </button>
-
-
-                <button
-                    type="button"
-                    className="activity-button"
-                    title="Settings"
-                    aria-label="Settings"
-                >
-
-                    <Settings2
-                        size={19}
-                        strokeWidth={1.8}
-                    />
-
-                    <span className="activity-tooltip">
-                        Settings
-                    </span>
-
-                </button>
-
-            </div>
 
         </aside>
     );
