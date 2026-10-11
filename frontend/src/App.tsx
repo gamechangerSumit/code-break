@@ -17,8 +17,6 @@ import {
     Save,
     Send,
     Search,
-    Bell,
-    Settings2,
     Users,
     X,
     Zap,
@@ -402,6 +400,10 @@ function App() {
         lineNumber: 1,
         column: 1,
     });
+
+    const [isQuickOpenVisible, setIsQuickOpenVisible] = useState(false);
+    const [quickOpenQuery, setQuickOpenQuery] = useState("");
+    const quickOpenInputRef = useRef<HTMLInputElement | null>(null);
 
 
     // =================================================
@@ -3259,9 +3261,37 @@ useEffect(
         };
 
 
+    useEffect(() => {
+        const handleQuickOpenShortcut = (event: KeyboardEvent) => {
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "p") {
+                event.preventDefault();
+                setIsQuickOpenVisible(true);
+            }
+
+            if (event.key === "Escape") {
+                setIsQuickOpenVisible(false);
+            }
+        };
+
+        window.addEventListener("keydown", handleQuickOpenShortcut);
+        return () => window.removeEventListener("keydown", handleQuickOpenShortcut);
+    }, []);
+
+    useEffect(() => {
+        if (isQuickOpenVisible) {
+            quickOpenInputRef.current?.focus();
+        } else {
+            setQuickOpenQuery("");
+        }
+    }, [isQuickOpenVisible]);
+
     // =================================================
     // UI
     // =================================================
+
+    const quickOpenResults = files
+        .filter(file => file.path.toLowerCase().includes(quickOpenQuery.trim().toLowerCase()))
+        .slice(0, 50);
 
     return (
         <div className="app">
@@ -3459,38 +3489,14 @@ useEffect(
                 <button
                     type="button"
                     className="topbar-icon-button"
-                    title="Search"
-                    aria-label="Search"
+                    title="Search files (Ctrl+P)"
+                    aria-label="Search files"
+                    onClick={() => setIsQuickOpenVisible(true)}
                 >
                     <Search
                         size={17}
                     />
                 </button>
-
-                <button
-                    type="button"
-                    className="topbar-icon-button notification-button"
-                    title="Notifications"
-                    aria-label="Notifications"
-                >
-                    <Bell
-                        size={16}
-                    />
-
-                    <span className="notification-dot" />
-                </button>
-
-                <button
-                    type="button"
-                    className="topbar-icon-button"
-                    title="Settings"
-                    aria-label="Settings"
-                >
-                    <Settings2
-                        size={16}
-                    />
-                </button>
-
 
                 <button
                     type="button"
@@ -3507,6 +3513,66 @@ useEffect(
 
             </header>
 
+
+            {isQuickOpenVisible && (
+                <div
+                    className="quick-open-overlay"
+                    onMouseDown={event => {
+                        if (event.target === event.currentTarget) {
+                            setIsQuickOpenVisible(false);
+                        }
+                    }}
+                >
+                    <section
+                        className="quick-open-dialog"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Search workspace files"
+                    >
+                        <div className="quick-open-heading">
+                            <Search size={17} />
+                            <span>Open workspace file</span>
+                            <kbd>ESC</kbd>
+                        </div>
+                        <input
+                            ref={quickOpenInputRef}
+                            className="quick-open-input"
+                            value={quickOpenQuery}
+                            onChange={event => setQuickOpenQuery(event.target.value)}
+                            placeholder="Type a file name or path..."
+                            aria-label="Search workspace files"
+                        />
+                        <div className="quick-open-results">
+                            {quickOpenResults.length === 0 ? (
+                                <div className="quick-open-empty">
+                                    {files.length === 0
+                                        ? "No files in this workspace yet."
+                                        : "No matching files."}
+                                </div>
+                            ) : (
+                                quickOpenResults.map(file => (
+                                    <button
+                                        type="button"
+                                        key={file.path}
+                                        className="quick-open-result"
+                                        onClick={() => {
+                                            handleSelectFile(file);
+                                            setIsQuickOpenVisible(false);
+                                        }}
+                                    >
+                                        <FileCode2 size={15} />
+                                        <span className="quick-open-result-name">{file.name}</span>
+                                        <span className="quick-open-result-path">{file.path}</span>
+                                    </button>
+                                ))
+                            )}
+                        </div>
+                        <div className="quick-open-footer">
+                            Search matches file paths. Press Ctrl+P / ⌘P to open this picker.
+                        </div>
+                    </section>
+                </div>
+            )}
 
             {/* =================================================
                 ERROR
