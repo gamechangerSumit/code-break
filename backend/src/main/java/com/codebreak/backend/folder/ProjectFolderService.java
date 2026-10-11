@@ -50,12 +50,12 @@ public class ProjectFolderService {
 
         if (
                 request.name() == null ||
-                        request.name().isBlank()
+                        request.name().isBlank() ||
+                        request.name().length() > 255
         ) {
-
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Folder name is required"
+                    "Folder name must be between 1 and 255 characters"
             );
         }
 
