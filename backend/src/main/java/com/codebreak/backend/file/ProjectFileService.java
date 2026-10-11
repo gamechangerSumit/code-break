@@ -42,25 +42,23 @@ public class ProjectFileService {
                 username
         );
 
+        if (request == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "File details are required"
+            );
+        }
+
         validateContent(request.content());
-
-        Project project =
-                projectRepository
-                        .findById(projectId)
-                        .orElseThrow(() ->
-                                new RuntimeException(
-                                        "Project not found"
-                                )
-                        );
-
 
         if (
                 request.name() == null ||
-                        request.name().isBlank()
+                        request.name().isBlank() ||
+                        request.name().length() > 255
         ) {
-
-            throw new RuntimeException(
-                    "File name is required"
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "File name must be between 1 and 255 characters"
             );
         }
 
@@ -70,7 +68,8 @@ public class ProjectFileService {
                         request.path().isBlank()
         ) {
 
-            throw new RuntimeException(
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
                     "File path is required"
             );
         }
@@ -82,6 +81,17 @@ public class ProjectFileService {
                 );
 
 
+        Project project =
+                projectRepository
+                        .findById(projectId)
+                        .orElseThrow(() ->
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "Project not found"
+                                )
+                        );
+
+
         if (
                 fileRepository
                         .findByProjectIdAndPath(
@@ -91,7 +101,8 @@ public class ProjectFileService {
                         .isPresent()
         ) {
 
-            throw new RuntimeException(
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
                     "A file already exists at this path"
             );
         }
@@ -144,7 +155,8 @@ public class ProjectFileService {
                 projectRepository
                         .findById(projectId)
                         .orElseThrow(() ->
-                                new RuntimeException(
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
                                         "Project not found"
                                 )
                         );
@@ -155,7 +167,8 @@ public class ProjectFileService {
                         request.files() == null
         ) {
 
-            throw new RuntimeException(
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
                     "No files provided"
             );
         }
@@ -171,7 +184,8 @@ public class ProjectFileService {
                                             importFile.path().isBlank()
                             ) {
 
-                                throw new RuntimeException(
+                                throw new ResponseStatusException(
+                                        HttpStatus.BAD_REQUEST,
                                         "Invalid file path"
                                 );
                             }
@@ -288,7 +302,8 @@ public class ProjectFileService {
                 fileRepository
                         .findById(fileId)
                         .orElseThrow(() ->
-                                new RuntimeException(
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
                                         "File not found"
                                 )
                         );
@@ -300,8 +315,9 @@ public class ProjectFileService {
                         .equals(projectId)
         ) {
 
-            throw new RuntimeException(
-                    "File does not belong to this project"
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "File not found in this project"
             );
         }
 
@@ -337,7 +353,8 @@ public class ProjectFileService {
                 fileRepository
                         .findById(fileId)
                         .orElseThrow(() ->
-                                new RuntimeException(
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
                                         "File not found"
                                 )
                         );
@@ -349,8 +366,9 @@ public class ProjectFileService {
                         .equals(projectId)
         ) {
 
-            throw new RuntimeException(
-                    "File does not belong to this project"
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "File not found in this project"
             );
         }
 
@@ -406,10 +424,11 @@ public class ProjectFileService {
                         "Project import contains an invalid file path"
                 );
             }
-            if (file.name() != null && file.name().length() > 255) {
+            if (file.name() == null || file.name().isBlank()
+                    || file.name().length() > 255) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
-                        "Imported file name is too long"
+                        "Imported file name must be between 1 and 255 characters"
                 );
             }
             String content = file.content() == null ? "" : file.content();
@@ -438,42 +457,35 @@ public class ProjectFileService {
             String path
     ) {
 
-        String normalized =
-                path.trim()
-                        .replace("\\", "/");
-
-
-        while (
-                normalized.startsWith("/")
-        ) {
-
-            normalized =
-                    normalized.substring(1);
-        }
-
-
-        while (
-                normalized.endsWith("/")
-        ) {
-
-            normalized =
-                    normalized.substring(
-                            0,
-                            normalized.length() - 1
-                    );
-        }
-
-
-        if (
-                normalized.isBlank() ||
-                        normalized.contains("..")
-        ) {
-
-            throw new RuntimeException(
+        if (path == null || path.isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
                     "Invalid file path"
             );
         }
 
+        String normalized = path.trim()
+                .replace("\\", "/")
+                .replaceAll("/+", "/");
+
+        while (normalized.startsWith("/")) {
+            normalized = normalized.substring(1);
+        }
+
+        while (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+
+        boolean containsTraversalSegment = java.util.Arrays.stream(
+                normalized.split("/")
+        ).anyMatch(segment -> segment.equals(".") || segment.equals(".."));
+
+        if (normalized.isBlank() || normalized.length() > 1000 || containsTraversalSegment) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Invalid file path"
+            );
+        }
 
         return normalized;
     }
