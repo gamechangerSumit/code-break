@@ -27,6 +27,7 @@ import {
 import ActivityBar from "./components/ActivityBar";
 
 import CodeEditor from "./editor/CodeEditor";
+import { getLanguageLabel, getMonacoLanguage } from "./editor/language";
 
 import FileExplorer, {
     type ExplorerFile,
@@ -396,6 +397,11 @@ function App() {
     ] = useState<ExplorerFile | null>(
         null
     );
+
+    const [cursorPosition, setCursorPosition] = useState({
+        lineNumber: 1,
+        column: 1,
+    });
 
 
     // =================================================
@@ -3752,6 +3758,10 @@ useEffect(
                                     selectedFile.content
                                 }
 
+                                language={getMonacoLanguage(selectedFile.path)}
+
+                                onCursorPositionChange={setCursorPosition}
+
                                 onChange={
                                     handleCodeChange
                                 }
@@ -3826,15 +3836,7 @@ useEffect(
                                 </span>
 
                                 <span>
-                                    0 Problems
-                                </span>
-
-                                <span>
-                                    0 Warnings
-                                </span>
-
-                                <span>
-                                    main*
+                                    {selectedFile.name}
                                 </span>
 
                             </div>
@@ -3842,7 +3844,7 @@ useEffect(
                             <div className="editor-status-right">
 
                                 <span>
-                                    Ln 1, Col 1
+                                    Ln {cursorPosition.lineNumber}, Col {cursorPosition.column}
                                 </span>
 
                                 <span>
@@ -3854,15 +3856,7 @@ useEffect(
                                 </span>
 
                                 <span>
-                                    Java 17
-                                </span>
-
-                                <span className="editor-status-prettier">
-                                    <Check
-                                        size={10}
-                                    />
-
-                                    Prettier • Ready
+                                    {getLanguageLabel(selectedFile.path)}
                                 </span>
 
                             </div>

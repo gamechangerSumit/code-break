@@ -7,15 +7,24 @@ import {
     useRef,
 } from "react";
 
+interface CursorPosition {
+    lineNumber: number;
+    column: number;
+}
+
 interface CodeEditorProps {
     value: string;
     onChange: (value: string) => void;
+    language?: string;
+    onCursorPositionChange?: (position: CursorPosition) => void;
     readOnly?: boolean;
 }
 
 export default function CodeEditor({
     value,
     onChange,
+    language = "plaintext",
+    onCursorPositionChange,
     readOnly = false,
 }: CodeEditorProps) {
 
@@ -24,6 +33,7 @@ export default function CodeEditor({
     >(null);
 
     const lastValueRef = useRef<string>("");
+    const cursorListenerRef = useRef<{ dispose: () => void } | null>(null);
 
     const safeValue =
         typeof value === "string"
@@ -51,8 +61,27 @@ export default function CodeEditor({
             editor.setValue(safeValue);
         }
 
+        cursorListenerRef.current?.dispose();
+        const initialPosition = editor.getPosition();
+        if (initialPosition) {
+            onCursorPositionChange?.({
+                lineNumber: initialPosition.lineNumber,
+                column: initialPosition.column,
+            });
+        }
+        cursorListenerRef.current = editor.onDidChangeCursorPosition(event => {
+            onCursorPositionChange?.({
+                lineNumber: event.position.lineNumber,
+                column: event.position.column,
+            });
+        });
+
         editor.focus();
     };
+
+    useEffect(() => () => {
+        cursorListenerRef.current?.dispose();
+    }, []);
 
     /**
      * Parent -> Monaco synchronization
@@ -113,7 +142,7 @@ export default function CodeEditor({
             <Editor
                 height="100%"
                 width="100%"
-                language="java"
+                language={language}
                 theme="vs-dark"
 
                 value={safeValue}
