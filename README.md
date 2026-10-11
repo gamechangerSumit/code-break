@@ -1,0 +1,60 @@
+# Code Break
+
+Code Break is a browser-based collaborative coding workspace. It combines a React/TypeScript editor UI with a Spring Boot API, JWT authentication, project membership, file/folder management, chat, WebSocket collaboration, and workspace persistence backed by PostgreSQL, Redis, and MinIO.
+
+## Stack
+
+- **Frontend:** React 19, TypeScript, Vite, Monaco Editor, STOMP/WebSocket
+- **Backend:** Java 21, Spring Boot, Spring Security, JWT, Spring Data JPA
+- **Storage:** PostgreSQL + Flyway migrations, Redis, MinIO
+- **Checks:** Maven tests, TypeScript production build, ESLint, Docker Compose config validation
+
+## Local development
+
+### 1. Start infrastructure
+
+    cd backend
+    cp .env.example .env
+
+Edit .env before starting services. Replace all placeholder credentials, set a random JWT_SECRET of at least 32 bytes, keep DATABASE_PASSWORD equal to POSTGRES_PASSWORD, and keep MINIO_ACCESS_KEY / MINIO_SECRET_KEY aligned with the MinIO root credentials.
+
+    docker compose up -d
+
+The dependency ports are bound to 127.0.0.1 only.
+
+### 2. Start the backend
+
+From backend/, with Java 21 installed:
+
+    ./mvnw spring-boot:run
+
+The API defaults to http://localhost:8088/api. Database migrations are managed by Flyway; Hibernate schema mode defaults to validate.
+
+### 3. Start the frontend
+
+In a separate terminal:
+
+    cd frontend
+    cp .env.example .env
+    pnpm install --frozen-lockfile
+    pnpm run dev
+
+The frontend defaults to http://localhost:5173 and connects to the local API and WebSocket endpoint. Adjust VITE_API_URL and VITE_WS_URL for a different backend address.
+
+More detailed backend instructions: [backend/README.md](backend/README.md).
+
+## Validation
+
+From the repository root:
+
+    cd backend && ./mvnw -B test
+    cd ../frontend && pnpm install --frozen-lockfile && pnpm run lint && pnpm run build
+
+CI also validates the backend's local Docker Compose configuration.
+
+## Security and deployment notes
+
+- Never commit .env files or use example placeholders as real credentials.
+- Configure exact allowed browser origins using CORS_ALLOWED_ORIGINS and WEBSOCKET_ALLOWED_ORIGINS.
+- The supplied Compose file is a **local-development dependency stack**, not a complete internet-facing production deployment. Use a TLS-terminating reverse proxy, managed secrets, and infrastructure/network policies for deployment.
+- Treat JWTs as credentials. Do not log or share them.
