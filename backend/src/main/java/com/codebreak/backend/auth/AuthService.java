@@ -104,6 +104,7 @@ public class AuthService {
                 jwtService.generateToken(user.getUsername())
         );
     }
+
     private static boolean passwordExceedsBcryptLimit(String password) {
         return password != null
                 && password.getBytes(StandardCharsets.UTF_8).length
