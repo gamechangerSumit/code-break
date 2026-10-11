@@ -1,75 +1,40 @@
-# React + TypeScript + Vite
+# Code Break frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The frontend is a React 19 + TypeScript single-page application built with Vite. Monaco Editor provides the coding surface; STOMP/WebSocket connects the UI to real-time project collaboration.
 
-Currently, two official plugins are available:
+## Requirements
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Node.js 22
+- pnpm 10
+- A running Code Break backend and its PostgreSQL, Redis and MinIO dependencies
 
-## React Compiler
+## Configure
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Copy the environment template:
 
-## Expanding the ESLint configuration
+    cp .env.example .env
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+Defaults target a local backend:
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- VITE_API_URL=http://localhost:8088/api
+- VITE_WS_URL=ws://localhost:8088/ws
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+Set both values to the corresponding API and WebSocket endpoints for your environment. Use wss:// for WebSockets over HTTPS.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Develop
 
-```
+    pnpm install --frozen-lockfile
+    pnpm run dev
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+Vite serves the app at http://localhost:5173 by default.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Quality checks
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+    pnpm run lint
+    pnpm run build
 
-```
+The build runs TypeScript project checks before producing the optimized Vite bundle. CI runs both lint and build checks.
+
+## Browser note
+
+Local workspace folder access uses the File System Access API, which is best supported by Chromium-based browsers such as Chrome and Edge. Browser permissions are granted by the user when selecting a folder.
