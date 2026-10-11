@@ -1,6 +1,6 @@
 # Code Break
 
-Code Break is a browser-based collaborative coding workspace. It combines a React/TypeScript editor UI with a Spring Boot API, JWT authentication, project membership, file/folder management, chat, WebSocket collaboration, and workspace persistence backed by PostgreSQL, Redis, and MinIO.
+Code Break is a browser-based collaborative coding workspace. It combines a React/TypeScript editor UI with a Spring Boot API, JWT authentication, project membership, file/folder management, chat, WebSocket collaboration, and workspace persistence backed by PostgreSQL, Redis, and MinIO. The editor supports file-extension-based syntax highlighting and a workspace quick-open picker (Ctrl+P / Cmd+P).
 
 ## Stack
 
@@ -68,4 +68,5 @@ CI validates the Compose configuration, builds and starts the full Docker stack,
 - Configure exact allowed browser origins using CORS_ALLOWED_ORIGINS and WEBSOCKET_ALLOWED_ORIGINS.
 - The supplied Compose file is a **local-development dependency stack**, not a complete internet-facing production deployment. Use a TLS-terminating reverse proxy, managed secrets, and infrastructure/network policies for deployment.
 - Treat JWTs as credentials. Do not log or share them.
+- Passwords must be at least 12 characters and no more than 72 UTF-8 bytes because authentication currently uses BCrypt.
 - Local workspace scanning excludes `.env`, environment-specific `.env.*` files, common private keys and credential files by default; safe templates such as `.env.example` can be shared.

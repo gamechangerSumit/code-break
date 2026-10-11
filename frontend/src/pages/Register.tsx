@@ -47,6 +47,11 @@ export default function Register({
             return;
         }
 
+        if (new TextEncoder().encode(password).length > 72) {
+            setError("Password must not exceed 72 UTF-8 bytes.");
+            return;
+        }
+
         if (password !== confirmPassword) {
             setError("Passwords do not match.");
             return;
@@ -235,6 +240,10 @@ export default function Register({
                                 )}
                             </button>
                         </div>
+
+                        <small className="register-password-hint">
+                            Use at least 12 characters and no more than 72 UTF-8 bytes.
+                        </small>
                     </label>
 
                     <label className="register-field">
