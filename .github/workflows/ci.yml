@@ -34,6 +34,7 @@ jobs:
         run: |
           set -euo pipefail
           cp .env.example .env
+          sed -i 's/^JWT_SECRET=.*/JWT_SECRET=0123456789abcdef0123456789abcdef0123456789abcdef/' .env
           trap 'docker compose -f docker-compose.yml -f docker-compose.app.yml down -v || true; rm -f .env' EXIT
           docker compose -f docker-compose.yml -f docker-compose.app.yml config --quiet
           docker compose -f docker-compose.yml -f docker-compose.app.yml build backend frontend
