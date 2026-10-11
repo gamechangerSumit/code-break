@@ -7,6 +7,7 @@ import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
 
 import java.util.Arrays;
 
@@ -56,6 +57,17 @@ public class WebSocketConfig
         registry
                 .addEndpoint("/ws")
                 .setAllowedOrigins(allowedOrigins);
+    }
+
+    @Override
+    public void configureWebSocketTransport(
+            WebSocketTransportRegistration registration
+    ) {
+        // STOMP frames must stay bounded even when clients bypass application-level limits.
+        registration
+                .setMessageSizeLimit(64 * 1024)
+                .setSendBufferSizeLimit(512 * 1024)
+                .setSendTimeLimit(15_000);
     }
 
     @Override
