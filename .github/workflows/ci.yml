@@ -58,6 +58,20 @@ jobs:
             exit 1
           fi
 
+          response_headers=$(curl --silent --show-error --head http://localhost:5173/)
+          for expected_header in \
+            "X-Content-Type-Options: nosniff" \
+            "X-Frame-Options: DENY" \
+            "Referrer-Policy: strict-origin-when-cross-origin" \
+            "Permissions-Policy: camera=(), microphone=(), geolocation=()"; do
+            if ! printf '%s\n' "$response_headers" | grep -Fqi "$expected_header"; then
+              printf '%s\n' "$response_headers"
+              echo "Missing expected frontend security header: $expected_header"
+              docker compose -f docker-compose.yml -f docker-compose.app.yml logs --no-color
+              exit 1
+            fi
+          done
+
           base_url=http://localhost:5173/api
           smoke_user="ci${GITHUB_RUN_ID}"
           smoke_email="ci-${GITHUB_RUN_ID}@example.test"
