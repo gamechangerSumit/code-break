@@ -46,6 +46,23 @@ class ProjectFileServiceTest {
         verifyNoInteractions(projectRepository, fileRepository);
     }
 
+
+    @Test
+    void createFileRejectsTraversalPathAsBadRequest() {
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> fileService.createFile(
+                        42L,
+                        new ProjectFileRequest("Main.java", "src/../secret.txt", ""),
+                        "alice"
+                )
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+        verify(projectMemberService).requireWriteAccess(42L, "alice");
+        verifyNoInteractions(projectRepository, fileRepository);
+    }
+
     @Test
     void createFileRejectsNullRequestAsBadRequest() {
         ResponseStatusException exception = assertThrows(
