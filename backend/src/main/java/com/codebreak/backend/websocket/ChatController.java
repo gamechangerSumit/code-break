@@ -15,6 +15,8 @@ import java.security.Principal;
 @RequiredArgsConstructor
 public class ChatController {
 
+    static final int MAX_CHAT_MESSAGE_LENGTH = 4_000;
+
     private final ProjectMemberService projectMemberService;
 
     private final SimpMessagingTemplate messagingTemplate;
@@ -42,7 +44,8 @@ public class ChatController {
                         principal == null ||
                         message.projectId() == null ||
                         message.content() == null ||
-                        message.content().isBlank()
+                        message.content().isBlank() ||
+                        message.content().length() > MAX_CHAT_MESSAGE_LENGTH
         ) {
 
             return;
