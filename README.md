@@ -60,7 +60,7 @@ From the repository root:
     cd backend && ./mvnw -B test
     cd ../frontend && pnpm install --frozen-lockfile && pnpm run lint && pnpm run build
 
-CI also validates the backend's local Docker Compose configuration.
+CI validates the Compose configuration, builds and starts the full Docker stack, smoke-tests registration/login, authenticated project creation, workspace file save/read, project joining, and viewer write restrictions, then runs backend tests and frontend lint/build.
 
 ## Security and deployment notes
 
