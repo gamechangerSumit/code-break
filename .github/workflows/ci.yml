@@ -56,14 +56,70 @@ jobs:
             exit 1
           fi
 
-          status=$(curl --silent --show-error --output /dev/null --write-out "%{http_code}" \
-            -X POST http://localhost:5173/api/auth/login \
-            -H "Content-Type: application/json" \
-            --data '{"username":"missing-user","password":"not-a-real-password"}')
+          base_url=http://localhost:5173/api
+          smoke_user="ci${GITHUB_RUN_ID}"
+          smoke_email="ci-${GITHUB_RUN_ID}@example.test"
+          smoke_password="CodeBreak-smoke-2026!"
 
-          if [ "$status" != "401" ]; then
+          unauthenticated_status=$(curl --silent --show-error --output /dev/null --write-out "%{http_code}" \
+            "$base_url/projects")
+          if [ "$unauthenticated_status" != "401" ]; then
             docker compose -f docker-compose.yml -f docker-compose.app.yml logs --no-color
-            echo "Expected login smoke test to return 401, got $status"
+            echo "Expected unauthenticated project request to return 401, got $unauthenticated_status"
+            exit 1
+          fi
+
+          registration=$(jq -n --arg username "$smoke_user" --arg email "$smoke_email" --arg password "$smoke_password" \
+            '{username:$username,email:$email,password:$password}')
+          registration_status=$(curl --silent --show-error --output /tmp/codebreak-registration.json --write-out "%{http_code}" \
+            -X POST "$base_url/auth/register" -H "Content-Type: application/json" --data "$registration")
+          if [ "$registration_status" != "201" ]; then
+            cat /tmp/codebreak-registration.json
+            docker compose -f docker-compose.yml -f docker-compose.app.yml logs --no-color
+            echo "Expected registration to return 201, got $registration_status"
+            exit 1
+          fi
+
+          login_payload=$(jq -n --arg username "$smoke_user" --arg password "$smoke_password" \
+            '{username:$username,password:$password}')
+          login_status=$(curl --silent --show-error --output /tmp/codebreak-login.json --write-out "%{http_code}" \
+            -X POST "$base_url/auth/login" -H "Content-Type: application/json" --data "$login_payload")
+          if [ "$login_status" != "200" ]; then
+            cat /tmp/codebreak-login.json
+            docker compose -f docker-compose.yml -f docker-compose.app.yml logs --no-color
+            echo "Expected login to return 200, got $login_status"
+            exit 1
+          fi
+          token=$(jq -er '.token | select(type == "string" and length > 0)' /tmp/codebreak-login.json)
+
+          project_payload='{"name":"CI smoke project","description":"Disposable end-to-end smoke test"}'
+          project_status=$(curl --silent --show-error --output /tmp/codebreak-project.json --write-out "%{http_code}" \
+            -X POST "$base_url/projects" -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $token" --data "$project_payload")
+          if [ "$project_status" != "201" ]; then
+            cat /tmp/codebreak-project.json
+            docker compose -f docker-compose.yml -f docker-compose.app.yml logs --no-color
+            echo "Expected authenticated project creation to return 201, got $project_status"
+            exit 1
+          fi
+          jq -e '.id and .joinCode and .name == "CI smoke project"' /tmp/codebreak-project.json >/dev/null
+
+          projects_status=$(curl --silent --show-error --output /tmp/codebreak-projects.json --write-out "%{http_code}" \
+            "$base_url/projects" -H "Authorization: Bearer $token")
+          if [ "$projects_status" != "200" ]; then
+            cat /tmp/codebreak-projects.json
+            docker compose -f docker-compose.yml -f docker-compose.app.yml logs --no-color
+            echo "Expected authenticated project listing to return 200, got $projects_status"
+            exit 1
+          fi
+          jq -e 'any(.[]; .name == "CI smoke project")' /tmp/codebreak-projects.json >/dev/null
+
+          invalid_login_status=$(curl --silent --show-error --output /dev/null --write-out "%{http_code}" \
+            -X POST "$base_url/auth/login" -H "Content-Type: application/json" \
+            --data '{"username":"missing-user","password":"not-a-real-password"}')
+          if [ "$invalid_login_status" != "401" ]; then
+            docker compose -f docker-compose.yml -f docker-compose.app.yml logs --no-color
+            echo "Expected invalid login to return 401, got $invalid_login_status"
             exit 1
           fi
 
