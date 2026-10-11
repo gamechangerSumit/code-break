@@ -53,12 +53,12 @@ public class ProjectFileService {
 
         if (
                 request.name() == null ||
-                        request.name().isBlank()
+                        request.name().isBlank() ||
+                        request.name().length() > 255
         ) {
-
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "File name is required"
+                    "File name must be between 1 and 255 characters"
             );
         }
 
@@ -424,10 +424,11 @@ public class ProjectFileService {
                         "Project import contains an invalid file path"
                 );
             }
-            if (file.name() != null && file.name().length() > 255) {
+            if (file.name() == null || file.name().isBlank()
+                    || file.name().length() > 255) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
-                        "Imported file name is too long"
+                        "Imported file name must be between 1 and 255 characters"
                 );
             }
             String content = file.content() == null ? "" : file.content();
