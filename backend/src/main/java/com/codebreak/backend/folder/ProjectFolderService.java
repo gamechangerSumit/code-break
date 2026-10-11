@@ -346,6 +346,16 @@ public class ProjectFolderService {
         );
 
 
+        if (paths == null || paths.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> normalizedPaths = paths.stream()
+                .map(this::normalizePath)
+                .distinct()
+                .sorted()
+                .toList();
+
         Project project =
                 projectRepository
                         .findById(projectId)
@@ -355,29 +365,8 @@ public class ProjectFolderService {
                                 )
                         );
 
-
-        if (
-                paths == null ||
-                        paths.isEmpty()
-        ) {
-
-            return List.of();
-        }
-
-
-        return paths
+        return normalizedPaths
                 .stream()
-
-                .map(this::normalizePath)
-
-                .filter(path ->
-                        !path.isBlank()
-                )
-
-                .distinct()
-
-                .sorted()
-
                 .map(path -> {
 
                     ProjectFolder existing =
