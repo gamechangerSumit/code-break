@@ -7,6 +7,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
@@ -17,11 +18,20 @@ import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 @RequiredArgsConstructor
 public class AuthService {
 
+    private static final int MAX_BCRYPT_PASSWORD_BYTES = 72;
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
     public UserResponse register(RegisterRequest request) {
+        if (passwordExceedsBcryptLimit(request.password())) {
+            throw new ResponseStatusException(
+                    BAD_REQUEST,
+                    "Password must not exceed 72 UTF-8 bytes"
+            );
+        }
+
         String username = request.username().trim();
         String email = request.email().trim().toLowerCase(Locale.ROOT);
 
@@ -62,6 +72,13 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
+        if (passwordExceedsBcryptLimit(request.password())) {
+            throw new ResponseStatusException(
+                    UNAUTHORIZED,
+                    "Invalid username or password"
+            );
+        }
+
         String username = request.username().trim();
 
         User user = userRepository
@@ -86,5 +103,11 @@ public class AuthService {
         return new AuthResponse(
                 jwtService.generateToken(user.getUsername())
         );
+    }
+
+    private static boolean passwordExceedsBcryptLimit(String password) {
+        return password != null
+                && password.getBytes(StandardCharsets.UTF_8).length
+                > MAX_BCRYPT_PASSWORD_BYTES;
     }
 }

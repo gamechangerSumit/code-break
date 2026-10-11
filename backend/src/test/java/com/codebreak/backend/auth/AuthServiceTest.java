@@ -86,6 +86,36 @@ class AuthServiceTest {
     }
 
     @Test
+    void registerRejectsPasswordsOverBcryptUtf8ByteLimit() {
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> authService.register(
+                        new RegisterRequest(
+                                "alice",
+                                "alice@example.com",
+                                "😀".repeat(19)
+                        )
+                )
+        );
+
+        assertEquals(400, exception.getStatusCode().value());
+        verifyNoInteractions(userRepository, passwordEncoder);
+    }
+
+    @Test
+    void loginRejectsPasswordsOverBcryptUtf8ByteLimitBeforeLookup() {
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> authService.login(
+                        new LoginRequest("alice", "😀".repeat(19))
+                )
+        );
+
+        assertEquals(401, exception.getStatusCode().value());
+        verifyNoInteractions(userRepository, passwordEncoder, jwtService);
+    }
+
+    @Test
     void registerRejectsDuplicateUsername() {
         when(userRepository.existsByUsername("alice")).thenReturn(true);
 
