@@ -17,6 +17,23 @@
 
 The Compose stack publishes dependency ports only on `127.0.0.1`; they are not intended to be exposed directly to the internet. The backend and frontend are run separately in this local-development workflow. The Compose file starts infrastructure dependencies only.
 
+
+## Run the full application in Docker
+
+After setting the credentials in `.env`, from this directory run:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.app.yml up --build
+```
+
+Open `http://localhost:5173`. The overlay builds and starts the backend and Nginx frontend alongside the existing PostgreSQL, Redis and MinIO services. Nginx proxies API and WebSocket traffic to the backend. All published service ports remain bound to localhost.
+
+Stop the stack with `Ctrl+C`, then run:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.app.yml down
+```
+
 ## Environment notes
 
 - Do not commit your `.env` file or reuse local-development credentials in a deployed environment.
