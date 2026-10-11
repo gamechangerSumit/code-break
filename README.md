@@ -22,6 +22,16 @@ Edit .env before starting services. Replace all placeholder credentials, set a r
 
 The dependency ports are bound to 127.0.0.1 only.
 
+### Run the entire stack in Docker
+
+After editing `.env` as described above, run this from `backend/`:
+
+    docker compose -f docker-compose.yml -f docker-compose.app.yml up --build
+
+Open http://localhost:5173. The frontend container serves the app and proxies `/api` and `/ws` to the backend. The frontend port and infrastructure ports are bound to localhost only. To stop the stack, press Ctrl+C and run:
+
+    docker compose -f docker-compose.yml -f docker-compose.app.yml down
+
 ### 2. Start the backend
 
 From backend/, with Java 21 installed:
