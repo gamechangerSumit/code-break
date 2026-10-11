@@ -37,7 +37,10 @@ jobs:
           trap 'docker compose -f docker-compose.yml -f docker-compose.app.yml down -v || true; rm -f .env' EXIT
           docker compose -f docker-compose.yml -f docker-compose.app.yml config --quiet
           docker compose -f docker-compose.yml -f docker-compose.app.yml build backend frontend
-          docker compose -f docker-compose.yml -f docker-compose.app.yml up -d
+          if ! docker compose -f docker-compose.yml -f docker-compose.app.yml up -d; then
+            docker compose -f docker-compose.yml -f docker-compose.app.yml logs --no-color
+            exit 1
+          fi
 
           ready=false
           for attempt in $(seq 1 40); do
