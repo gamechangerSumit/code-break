@@ -7,6 +7,7 @@ import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
 
 import java.util.Arrays;
 
@@ -56,6 +57,16 @@ public class WebSocketConfig
         registry
                 .addEndpoint("/ws")
                 .setAllowedOrigins(allowedOrigins);
+    }
+
+    @Override
+    public void configureWebSocketTransport(
+            WebSocketTransportRegistration registration
+    ) {
+        // Keep the frame bound above the 20 MiB legacy workspace-content cap, with JSON overhead.
+        registration.setMessageSizeLimit(21 * 1024 * 1024);
+        registration.setSendBufferSizeLimit(512 * 1024);
+        registration.setSendTimeLimit(15_000);
     }
 
     @Override
