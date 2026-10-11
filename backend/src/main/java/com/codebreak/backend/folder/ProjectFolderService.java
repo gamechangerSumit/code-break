@@ -4,7 +4,9 @@ import com.codebreak.backend.project.Project;
 import com.codebreak.backend.project.ProjectMemberService;
 import com.codebreak.backend.project.ProjectRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -38,13 +40,20 @@ public class ProjectFolderService {
                 username
         );
 
+        if (request == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Folder details are required"
+            );
+        }
 
         if (
                 request.name() == null ||
                         request.name().isBlank()
         ) {
 
-            throw new RuntimeException(
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
                     "Folder name is required"
             );
         }
@@ -55,7 +64,8 @@ public class ProjectFolderService {
                         request.path().isBlank()
         ) {
 
-            throw new RuntimeException(
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
                     "Folder path is required"
             );
         }
@@ -65,7 +75,8 @@ public class ProjectFolderService {
                 projectRepository
                         .findById(projectId)
                         .orElseThrow(() ->
-                                new RuntimeException(
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
                                         "Project not found"
                                 )
                         );
@@ -89,7 +100,8 @@ public class ProjectFolderService {
                         )
         ) {
 
-            throw new RuntimeException(
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
                     "A folder already exists at this path"
             );
         }
@@ -112,7 +124,8 @@ public class ProjectFolderService {
                                     request.parentId()
                             )
                             .orElseThrow(() ->
-                                    new RuntimeException(
+                                    new ResponseStatusException(
+                                            HttpStatus.NOT_FOUND,
                                             "Parent folder not found"
                                     )
                             );
@@ -124,8 +137,9 @@ public class ProjectFolderService {
                             .equals(projectId)
             ) {
 
-                throw new RuntimeException(
-                        "Parent folder does not belong to this project"
+                throw new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Parent folder not found in this project"
                 );
             }
         }
@@ -218,7 +232,8 @@ public class ProjectFolderService {
                 folderRepository
                         .findById(folderId)
                         .orElseThrow(() ->
-                                new RuntimeException(
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
                                         "Folder not found"
                                 )
                         );
@@ -230,8 +245,9 @@ public class ProjectFolderService {
                         .equals(projectId)
         ) {
 
-            throw new RuntimeException(
-                    "Folder does not belong to this project"
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "Folder not found in this project"
             );
         }
 
@@ -248,7 +264,8 @@ public class ProjectFolderService {
                         .isEmpty()
         ) {
 
-            throw new RuntimeException(
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
                     "Folder contains child folders"
             );
         }
@@ -360,7 +377,8 @@ public class ProjectFolderService {
                 projectRepository
                         .findById(projectId)
                         .orElseThrow(() ->
-                                new RuntimeException(
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
                                         "Project not found"
                                 )
                         );
