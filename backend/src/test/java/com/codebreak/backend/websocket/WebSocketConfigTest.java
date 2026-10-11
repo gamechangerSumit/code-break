@@ -16,16 +16,9 @@ class WebSocketConfigTest {
         WebSocketTransportRegistration registration =
                 mock(WebSocketTransportRegistration.class);
 
-        when(registration.setMessageSizeLimit(21 * 1024 * 1024))
-                .thenReturn(registration);
-        when(registration.setSendBufferSizeLimit(512 * 1024))
-                .thenReturn(registration);
-        when(registration.setSendTimeLimit(15_000))
-                .thenReturn(registration);
-
         config.configureWebSocketTransport(registration);
 
-        verify(registration).setMessageSizeLimit(64 * 1024);
+        verify(registration).setMessageSizeLimit(21 * 1024 * 1024);
         verify(registration).setSendBufferSizeLimit(512 * 1024);
         verify(registration).setSendTimeLimit(15_000);
     }
