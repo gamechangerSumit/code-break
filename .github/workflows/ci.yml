@@ -30,6 +30,12 @@ jobs:
           java-version: "21"
           cache: maven
 
+      - name: Validate local dependency stack
+        run: |
+          cp .env.example .env
+          docker compose config --quiet
+          rm .env
+
       - name: Run tests
         run: mvn -B test
 
