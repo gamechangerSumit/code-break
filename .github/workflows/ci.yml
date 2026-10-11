@@ -115,6 +115,36 @@ jobs:
           fi
           jq -e 'any(.[]; .name == "CI smoke project")' /tmp/codebreak-projects.json >/dev/null
 
+          project_id=$(jq -er '.id | select(type == "number")' /tmp/codebreak-project.json)
+          workspace_path="src/Main.java"
+          workspace_content='public class Main { public static void main(String[] args) { System.out.println("hello"); } }'
+          workspace_payload=$(jq -n --arg path "$workspace_path" --arg content "$workspace_content" \
+            '{path:$path,content:$content}')
+          workspace_save_status=$(curl --silent --show-error --output /tmp/codebreak-workspace-save.json --write-out "%{http_code}" \
+            -X PUT "$base_url/projects/$project_id/workspace/file" \
+            -H "Content-Type: application/json" -H "Authorization: Bearer $token" --data "$workspace_payload")
+          if [ "$workspace_save_status" != "200" ]; then
+            cat /tmp/codebreak-workspace-save.json
+            docker compose -f docker-compose.yml -f docker-compose.app.yml logs --no-color
+            echo "Expected workspace file save to return 200, got $workspace_save_status"
+            exit 1
+          fi
+
+          workspace_read_status=$(curl --silent --show-error --output /tmp/codebreak-workspace-read.txt --write-out "%{http_code}" \
+            --get --data-urlencode "path=$workspace_path" "$base_url/projects/$project_id/workspace/file" \
+            -H "Authorization: Bearer $token")
+          if [ "$workspace_read_status" != "200" ]; then
+            cat /tmp/codebreak-workspace-read.txt
+            docker compose -f docker-compose.yml -f docker-compose.app.yml logs --no-color
+            echo "Expected workspace file read to return 200, got $workspace_read_status"
+            exit 1
+          fi
+          if [ "$(cat /tmp/codebreak-workspace-read.txt)" != "$workspace_content" ]; then
+            echo "Workspace file content did not round-trip correctly"
+            docker compose -f docker-compose.yml -f docker-compose.app.yml logs --no-color
+            exit 1
+          fi
+
           invalid_login_status=$(curl --silent --show-error --output /dev/null --write-out "%{http_code}" \
             -X POST "$base_url/auth/login" -H "Content-Type: application/json" \
             --data '{"username":"missing-user","password":"not-a-real-password"}')
