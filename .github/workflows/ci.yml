@@ -181,7 +181,7 @@ jobs:
             echo "Expected collaborator join to return 201, got $join_status"
             exit 1
           fi
-          jq -e '.username == "'"$collaborator_user"'" and .role == "VIEWER"' /tmp/codebreak-member-join.json >/dev/null
+          jq -e --arg username "$collaborator_user" '.username == $username and .role == "VIEWER"' /tmp/codebreak-member-join.json >/dev/null
 
           viewer_write_status=$(curl --silent --show-error --output /tmp/codebreak-viewer-write.json --write-out "%{http_code}" \
             -X PUT "$base_url/projects/$project_id/workspace/file" \
