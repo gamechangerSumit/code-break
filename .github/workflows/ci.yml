@@ -30,12 +30,39 @@ jobs:
           java-version: "21"
           cache: maven
 
-      - name: Validate and build full local stack
+      - name: Smoke-test full local stack
         run: |
+          set -euo pipefail
           cp .env.example .env
+          trap 'docker compose -f docker-compose.yml -f docker-compose.app.yml down -v || true; rm -f .env' EXIT
           docker compose -f docker-compose.yml -f docker-compose.app.yml config --quiet
           docker compose -f docker-compose.yml -f docker-compose.app.yml build backend frontend
-          rm .env
+          docker compose -f docker-compose.yml -f docker-compose.app.yml up -d
+
+          ready=false
+          for attempt in $(seq 1 40); do
+            if curl --silent --show-error --fail http://localhost:5173/ >/dev/null; then
+              ready=true
+              break
+            fi
+            sleep 5
+          done
+
+          if [ "$ready" != "true" ]; then
+            docker compose -f docker-compose.yml -f docker-compose.app.yml logs --no-color
+            exit 1
+          fi
+
+          status=$(curl --silent --show-error --output /dev/null --write-out "%{http_code}" \
+            -X POST http://localhost:5173/api/auth/login \
+            -H "Content-Type: application/json" \
+            --data '{"username":"missing-user","password":"not-a-real-password"}')
+
+          if [ "$status" != "401" ]; then
+            docker compose -f docker-compose.yml -f docker-compose.app.yml logs --no-color
+            echo "Expected login smoke test to return 401, got $status"
+            exit 1
+          fi
 
       - name: Run tests
         run: mvn -B test
