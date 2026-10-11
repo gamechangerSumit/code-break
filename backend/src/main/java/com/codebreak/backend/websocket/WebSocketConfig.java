@@ -63,9 +63,9 @@ public class WebSocketConfig
     public void configureWebSocketTransport(
             WebSocketTransportRegistration registration
     ) {
-        // STOMP frames must stay bounded even when clients bypass application-level limits.
+        // Keep the frame bound above the 20 MiB legacy workspace-content cap, with JSON overhead.
         registration
-                .setMessageSizeLimit(64 * 1024)
+                .setMessageSizeLimit(21 * 1024 * 1024)
                 .setSendBufferSizeLimit(512 * 1024)
                 .setSendTimeLimit(15_000);
     }
