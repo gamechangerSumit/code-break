@@ -9,10 +9,12 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -49,6 +51,23 @@ class ProjectFolderServiceTest {
                 )
         );
 
+        verify(projectMemberService).requireWriteAccess(42L, "alice");
+        verifyNoInteractions(projectRepository, folderRepository);
+    }
+
+
+    @Test
+    void createFolderReportsInvalidInputAsBadRequest() {
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> folderService.createFolder(
+                        42L,
+                        new ProjectFolderRequest(" ", "src", null),
+                        "alice"
+                )
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
         verify(projectMemberService).requireWriteAccess(42L, "alice");
         verifyNoInteractions(projectRepository, folderRepository);
     }
