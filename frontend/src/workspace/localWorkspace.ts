@@ -72,7 +72,7 @@ export async function openLocalFolder(
         ) {
             throw error;
         }
-        throw new Error("Unable to open the selected folder.");
+        throw new Error("Unable to open the selected folder.", { cause: error });
     }
 
     workspaceHandle = handle;
