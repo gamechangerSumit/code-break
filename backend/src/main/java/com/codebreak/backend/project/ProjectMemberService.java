@@ -3,6 +3,7 @@ package com.codebreak.backend.project;
 import com.codebreak.backend.user.User;
 import com.codebreak.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -17,7 +18,7 @@ public class ProjectMemberService {
     private final ProjectMemberRepository projectMemberRepository;
     private final UserRepository userRepository;
     private final ProjectRepository projectRepository;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final ObjectProvider<SimpMessagingTemplate> messagingTemplateProvider;
 
 
     // =====================================================
@@ -372,7 +373,7 @@ public class ProjectMemberService {
         // BROADCAST ROLE CHANGE
         // =============================================
 
-        messagingTemplate.convertAndSend(
+        messagingTemplateProvider.getObject().convertAndSend(
                 "/topic/project/" +
                         projectId +
                         "/members",
