@@ -28,7 +28,47 @@ const IGNORED_DIRECTORIES = new Set([
 ]);
 
 const IGNORED_FILES = new Set([".DS_Store", "Thumbs.db"]);
+const SAFE_ENV_TEMPLATES = new Set([
+    ".env.example",
+    ".env.sample",
+    ".env.template",
+]);
+const SENSITIVE_FILE_NAMES = new Set([
+    "id_rsa",
+    "id_ed25519",
+    "id_ecdsa",
+    "credentials",
+    "credentials.json",
+    "secrets.json",
+]);
+const SENSITIVE_KEY_EXTENSIONS = [
+    ".pem",
+    ".key",
+    ".p12",
+    ".pfx",
+    ".jks",
+    ".keystore",
+];
 const MAX_FILE_SIZE = 2 * 1024 * 1024;
+
+function isSensitiveWorkspaceEntry(name: string): boolean {
+    const normalized = name.toLowerCase();
+
+    if (
+        normalized === ".env" ||
+        (
+            normalized.startsWith(".env.") &&
+            !SAFE_ENV_TEMPLATES.has(normalized)
+        )
+    ) {
+        return true;
+    }
+
+    return SENSITIVE_FILE_NAMES.has(normalized) ||
+        SENSITIVE_KEY_EXTENSIONS.some(extension =>
+            normalized.endsWith(extension)
+        );
+}
 
 export function isFileSystemAccessSupported(): boolean {
     if (typeof window === "undefined") return false;
@@ -156,9 +196,13 @@ async function readDirectory(
     folders: LocalWorkspaceFolder[]
 ): Promise<void> {
     for await (const entry of directory.values()) {
+        if (isSensitiveWorkspaceEntry(entry.name)) {
+            continue;
+        }
+
         if (
             entry.name.startsWith(".") &&
-            entry.name !== ".env"
+            !SAFE_ENV_TEMPLATES.has(entry.name.toLowerCase())
         ) {
             continue;
         }
