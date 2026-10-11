@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
+import java.util.Locale;
 
 @Service
 public class JwtService {
@@ -28,6 +29,16 @@ public class JwtService {
         if (secret == null || secret.isBlank()) {
             throw new IllegalStateException(
                     "JWT_SECRET must be configured"
+            );
+        }
+
+        String normalizedSecret = secret.trim().toLowerCase(Locale.ROOT);
+        if (normalizedSecret.startsWith("replace-with-")
+                || normalizedSecret.equals("changeme")
+                || normalizedSecret.equals("change-me")
+                || normalizedSecret.equals("your-secret")) {
+            throw new IllegalStateException(
+                    "JWT_SECRET must not use an example placeholder"
             );
         }
 
