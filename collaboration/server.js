@@ -53,10 +53,28 @@ const server = Server.configure({
     };
   },
 
-  async onLoadDocument({ documentName }) {
+  async onLoadDocument({ documentName, context }) {
     const document = new Y.Doc();
     const state = await redis.get(stateKey(documentName));
-    if (state) Y.applyUpdate(document, Buffer.from(state, "base64"));
+    if (state) {
+      Y.applyUpdate(document, Buffer.from(state, "base64"));
+      return document;
+    }
+
+    // Seed a new CRDT document from the latest pending Redis content first,
+    // then fall back to the persisted workspace object in Spring/MinIO.
+    const { projectId, filePath } = parseDocumentName(documentName);
+    const dirtyKey = `codebreak:workspace:${projectId}:dirty:${filePath}`;
+    let initialContent = await redis.get(dirtyKey);
+    if (initialContent === null && context?.token) {
+      const query = new URLSearchParams({ path: filePath });
+      const response = await fetch(
+        `${backendUrl}/api/projects/${projectId}/workspace/file?${query.toString()}`,
+        { headers: { Authorization: `Bearer ${context.token}` } },
+      );
+      if (response.ok) initialContent = await response.text();
+    }
+    if (initialContent) document.getText("monaco").insert(0, initialContent);
     return document;
   },
 
