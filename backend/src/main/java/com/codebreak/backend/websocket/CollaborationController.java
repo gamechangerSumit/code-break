@@ -728,53 +728,7 @@ public class CollaborationController {
     private String normalizePath(
             String path
     ) {
-
-        if (path == null) {
-            return "";
-        }
-
-
-        String normalized =
-                path
-                        .trim()
-                        .replace(
-                                "\\",
-                                "/"
-                        );
-
-
-        while (
-                normalized.startsWith("/")
-        ) {
-            normalized =
-                    normalized.substring(1);
-        }
-
-
-        while (
-                normalized.endsWith("/")
-        ) {
-            normalized =
-                    normalized.substring(
-                            0,
-                            normalized.length() - 1
-                    );
-        }
-
-
-        if (
-                normalized.isBlank() ||
-                        normalized.contains("..") ||
-                        normalized.contains("//")
-        ) {
-
-            throw new IllegalArgumentException(
-                    "Invalid workspace path"
-            );
-        }
-
-
-        return normalized;
+        return com.codebreak.backend.workspace.WorkspacePath.normalize(path);
     }
 
 
