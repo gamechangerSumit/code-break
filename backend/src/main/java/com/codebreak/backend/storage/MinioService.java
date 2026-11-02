@@ -12,6 +12,9 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class MinioService {
 
+    private static final int MAX_INITIALIZATION_ATTEMPTS = 30;
+    private static final long RETRY_DELAY_MILLIS = 2_000L;
+
     private final MinioClient minioClient;
 
     @Value("${minio.bucket}")
@@ -19,44 +22,51 @@ public class MinioService {
 
     @PostConstruct
     public void initializeBucket() {
+        Exception lastFailure = null;
 
-        try {
-
-            boolean exists =
-                    minioClient.bucketExists(
-                            BucketExistsArgs.builder()
-                                    .bucket(bucket)
-                                    .build()
-                    );
-
-            if (!exists) {
-
-                minioClient.makeBucket(
-                        MakeBucketArgs.builder()
+        for (int attempt = 1; attempt <= MAX_INITIALIZATION_ATTEMPTS; attempt++) {
+            try {
+                boolean exists = minioClient.bucketExists(
+                        BucketExistsArgs.builder()
                                 .bucket(bucket)
                                 .build()
                 );
 
-                System.out.println(
-                        "[MINIO] Bucket created: "
-                                + bucket
-                );
+                if (!exists) {
+                    minioClient.makeBucket(
+                            MakeBucketArgs.builder()
+                                    .bucket(bucket)
+                                    .build()
+                    );
+                }
 
-            } else {
+                System.out.println("[OBJECT STORAGE] Bucket ready: " + bucket);
+                return;
+            } catch (Exception exception) {
+                lastFailure = exception;
 
-                System.out.println(
-                        "[MINIO] Bucket already exists: "
-                                + bucket
-                );
+                if (attempt == MAX_INITIALIZATION_ATTEMPTS) {
+                    break;
+                }
+
+                try {
+                    Thread.sleep(RETRY_DELAY_MILLIS);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException(
+                            "Interrupted while waiting for object storage bucket: " + bucket,
+                            interrupted
+                    );
+                }
             }
-
-        } catch (Exception exception) {
-
-            throw new IllegalStateException(
-                    "Unable to initialize MinIO bucket: "
-                            + bucket,
-                    exception
-            );
         }
+
+        throw new IllegalStateException(
+                "Unable to initialize object storage bucket after "
+                        + MAX_INITIALIZATION_ATTEMPTS
+                        + " attempts: "
+                        + bucket,
+                lastFailure
+        );
     }
 }
