@@ -6,10 +6,10 @@ import {
 } from "./projectToolsApi";
 import "./ProjectToolsPanel.css";
 
-interface Props { projectId: number; filePath: string | null; readOnly: boolean; }
+interface Props { projectId: number; filePath: string | null; code: string; readOnly: boolean; }
 type Tab = "history" | "activity" | "invite" | "ai";
 
-export default function ProjectToolsPanel({ projectId, filePath, readOnly }: Props) {
+export default function ProjectToolsPanel({ projectId, filePath, code, readOnly }: Props) {
     const [tab, setTab] = useState<Tab>("history");
     const [versions, setVersions] = useState<WorkspaceVersion[]>([]);
     const [activity, setActivity] = useState<ProjectActivity[]>([]);
@@ -49,7 +49,7 @@ export default function ProjectToolsPanel({ projectId, filePath, readOnly }: Pro
         if (!aiPrompt.trim()) return;
         setBusy(true); setError(""); setAiAnswer("");
         try {
-            const result = await requestAiAssistance(projectId, token, { prompt: aiPrompt, code: "", filePath: filePath ?? "" });
+            const result = await requestAiAssistance(projectId, token, { prompt: aiPrompt, code, filePath: filePath ?? "" });
             setAiAnswer(result.answer);
         } catch (e) { setError(e instanceof Error ? e.message : "AI request failed"); }
         finally { setBusy(false); }
