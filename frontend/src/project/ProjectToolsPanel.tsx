@@ -7,7 +7,7 @@ import {
 import "./ProjectToolsPanel.css";
 
 interface Props { projectId: number; filePath: string | null; code: string; readOnly: boolean; }
-type Tab = "history" | "activity" | "invite" | "ai" | "run";
+type Tab = "history" | "activity" | "invite" | "ai" | "run" | "preview";
 
 export default function ProjectToolsPanel({ projectId, filePath, code, readOnly }: Props) {
     const [tab, setTab] = useState<Tab>("history");
@@ -90,6 +90,7 @@ export default function ProjectToolsPanel({ projectId, filePath, code, readOnly 
             <button className={tab === "invite" ? "active" : ""} onClick={() => setTab("invite")}><Link2 size={13}/> Invite</button>
             <button className={tab === "ai" ? "active" : ""} onClick={() => setTab("ai")}><Sparkles size={13}/> AI</button>
             <button className={tab === "run" ? "active" : ""} onClick={() => setTab("run")}><span>▶</span> Run</button>
+            <button className={tab === "preview" ? "active" : ""} onClick={() => setTab("preview")}>Preview</button>
         </div>
         {error && <p className="project-tools-error">{error}</p>}
         {tab === "history" && <div className="project-tools-body">
@@ -121,6 +122,10 @@ export default function ProjectToolsPanel({ projectId, filePath, code, readOnly 
             <textarea className="project-tools-ai-prompt" value={stdin} onChange={event => setStdin(event.target.value)} rows={2} placeholder="Standard input (optional)" />
             <button disabled={busy || !languageForFile() || !code.trim() || readOnly} onClick={() => void runCode()}>{busy ? "Running..." : "▶ Run code"}</button>
             {runOutput && <pre className="project-tools-ai-answer">{runOutput}</pre>}
+        </div>}
+        {tab === "preview" && <div className="project-tools-body">
+            <p className="project-tools-empty">HTML files render in a sandboxed preview. Scripts run in an isolated iframe without same-origin access.</p>
+            {filePath?.toLowerCase().endsWith(".html") ? <iframe className="project-tools-preview" title="Live HTML preview" sandbox="allow-scripts" referrerPolicy="no-referrer" srcDoc={code} /> : <p className="project-tools-empty">Select an HTML file to preview it.</p>}
         </div>}
     </section>;
 }
