@@ -206,7 +206,15 @@ export default function VideoCallPanel({ projectId, username }: Props) {
                 const sender = peer.getSenders().find(item => item.track?.kind === "video");
                 if (sender) void sender.replaceTrack(screenTrack);
             });
-            screenTrack.onended = () => { setSharing(false); };
+            screenTrack.onended = () => {
+                const cameraTrack = localStreamRef.current?.getVideoTracks()[0];
+                if (cameraTrack) peersRef.current.forEach(peer => {
+                    const sender = peer.getSenders().find(item => item.track?.kind === "video");
+                    if (sender) void sender.replaceTrack(cameraTrack);
+                });
+                screenStreamRef.current = null;
+                setSharing(false);
+            };
             setSharing(true);
         } catch (e) { setError(e instanceof Error ? e.message : "Screen sharing failed"); }
     };
