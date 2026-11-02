@@ -1,6 +1,7 @@
 package com.codebreak.backend.history;
 
 import com.codebreak.backend.project.ProjectMemberService;
+import com.codebreak.backend.activity.ProjectActivityService;
 import com.codebreak.backend.workspace.WorkspaceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -16,6 +17,7 @@ public class WorkspaceVersionService {
     private final WorkspaceVersionRepository repository;
     private final WorkspaceService workspaceService;
     private final ProjectMemberService memberService;
+    private final ProjectActivityService activity;
 
     @Transactional(readOnly = true)
     public List<VersionResponse> list(Long projectId, String path, String username) {
@@ -36,6 +38,7 @@ public class WorkspaceVersionService {
                 .content(content).createdBy(username)
                 .message(message == null || message.isBlank() ? "Manual snapshot" : message.trim())
                 .build());
+        activity.record(projectId, username, "VERSION_SNAPSHOT", "Created a snapshot of " + cleanPath);
         return VersionResponse.from(saved);
     }
 
@@ -58,7 +61,22 @@ public class WorkspaceVersionService {
                 .projectId(projectId).filePath(version.getFilePath()).versionNumber(next)
                 .content(version.getContent()).createdBy(username)
                 .message("Restored from version " + version.getVersionNumber()).build());
+        activity.record(projectId, username, "VERSION_RESTORED", "Restored " + version.getFilePath() + " from version " + version.getVersionNumber());
         return VersionResponse.from(restored);
+    }
+
+    @Transactional(readOnly = true)
+    public VersionComparison compare(Long projectId, Long leftId, Long rightId, String username) {
+        memberService.requireReadAccess(projectId, username);
+        WorkspaceVersion left = repository.findByIdAndProjectId(leftId, projectId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Left version not found"));
+        WorkspaceVersion right = repository.findByIdAndProjectId(rightId, projectId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Right version not found"));
+        if (!left.getFilePath().equals(right.getFilePath())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Versions must belong to the same file");
+        }
+        return new VersionComparison(VersionResponse.from(left), VersionResponse.from(right),
+                left.getContent(), right.getContent());
     }
 
     private String normalize(String path) {
@@ -77,4 +95,5 @@ public class WorkspaceVersionService {
         }
     }
     public record VersionContent(VersionResponse version, String content) {}
+    public record VersionComparison(VersionResponse left, VersionResponse right, String leftContent, String rightContent) {}
 }
