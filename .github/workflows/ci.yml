@@ -80,8 +80,8 @@ jobs:
     needs: [frontend, backend]
     steps:
       - uses: actions/checkout@v4
-      - name: Validate EC2 deployment scripts
-        run: bash -n deploy/ec2-bootstrap.sh deploy/ec2-deploy.sh
+      - name: Validate deployment and backup scripts
+        run: bash -n deploy/ec2-bootstrap.sh deploy/ec2-deploy.sh deploy/backup.sh deploy/restore-postgres.sh
       - name: Validate Compose configuration
         run: docker compose --env-file backend/.env.example -f backend/docker-compose.yml config --quiet
       - name: Build and start complete stack
