@@ -10,8 +10,6 @@ import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Controller
 @RequiredArgsConstructor
@@ -37,8 +35,16 @@ public class CollaborationController {
      * For multiple backend instances a distributed Redis lock
      * or CRDT/OT layer should be introduced later.
      */
-    private final Map<String, Object> fileLocks =
-            new ConcurrentHashMap<>();
+    private static final int FILE_LOCK_STRIPES = 256;
+    private final Object[] fileLocks = createFileLocks();
+
+    private static Object[] createFileLocks() {
+        Object[] locks = new Object[FILE_LOCK_STRIPES];
+        for (int index = 0; index < locks.length; index++) {
+            locks[index] = new Object();
+        }
+        return locks;
+    }
 
 
     // =====================================================
@@ -95,11 +101,7 @@ public class CollaborationController {
                         filePath;
 
 
-        Object lock =
-                fileLocks.computeIfAbsent(
-                        lockKey,
-                        ignored -> new Object()
-                );
+        Object lock = fileLocks[Math.floorMod(lockKey.hashCode(), FILE_LOCK_STRIPES)];
 
 
         synchronized (lock) {
