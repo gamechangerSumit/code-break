@@ -1319,10 +1319,7 @@ function App() {
     const handleCodeChange =
         useCallback(
             (value: string, changes: CodeEditorChange[], yjsSynced = false) => {
-                if (
-                    currentRole === "VIEWER" ||
-                    !selectedFile
-                ) {
+                if (!selectedFile || (currentRole === "VIEWER" && !yjsSynced)) {
                     return;
                 }
 
@@ -1344,7 +1341,7 @@ function App() {
 
                 setSelectedFile(nextFile);
                 setIsDirty(true);
-                if (!yjsSynced) sendChange(value, changes);
+                if (!yjsSynced && currentRole !== "VIEWER") sendChange(value, changes);
             },
             [
                 currentRole,
@@ -1356,10 +1353,10 @@ function App() {
 
     const handleSplitCodeChange = useCallback(
         (path: string, value: string, changes: CodeEditorChange[], yjsSynced = false) => {
-            if (currentRole === "VIEWER") return;
+            if (currentRole === "VIEWER" && !yjsSynced) return;
             const nextFile = makeExplorerFile(path, value);
             syncFiles(filesRef.current.map(file => file.path === path ? nextFile : file));
-            if (!yjsSynced) sendChange(value, changes, path);
+            if (!yjsSynced && currentRole !== "VIEWER") sendChange(value, changes, path);
             setIsDirty(true);
         },
         [currentRole, syncFiles, sendChange],
