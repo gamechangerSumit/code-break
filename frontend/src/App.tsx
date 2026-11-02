@@ -13,6 +13,7 @@ import {
     Code2,
     FileCode2,
     FolderOpen,
+    History,
     LogOut,
     MessageSquare,
     Save,
@@ -35,6 +36,7 @@ import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 
 import MembersPanel from "./project/MembersPanel";
+import HistoryPanel from "./project/HistoryPanel";
 import {
     getProjectMembers,
     type Project,
@@ -250,6 +252,9 @@ function App() {
 
     const [error, setError] =
         useState("");
+
+    const [historyOpen, setHistoryOpen] =
+        useState(false);
 
     const filesRef =
         useRef<ExplorerFile[]>([]);
@@ -2276,9 +2281,37 @@ function App() {
                                         </>
                                     )}
                                 </span>
+                                <button
+                                    type="button"
+                                    className="editor-history-button"
+                                    onClick={() => setHistoryOpen(true)}
+                                    title="Open version history"
+                                >
+                                    <History size={13} />
+                                    History
+                                </button>
                             </div>
                         )}
                     </div>
+
+                    {historyOpen && selectedFile && (
+                        <HistoryPanel
+                            projectId={selectedProject.id}
+                            filePath={selectedFile.path}
+                            currentContent={selectedFile.content ?? ""}
+                            token={token ?? ""}
+                            readOnly={currentRole === "VIEWER"}
+                            onClose={() => setHistoryOpen(false)}
+                            onRestored={(content) => {
+                                const restored = makeExplorerFile(selectedFile.path, content);
+                                syncFiles(filesRef.current.map((file) =>
+                                    file.path === selectedFile.path ? restored : file
+                                ));
+                                setSelectedFile(restored);
+                                setIsDirty(false);
+                            }}
+                        />
+                    )}
 
                     {selectedFile && (
                         <div className="editor-breadcrumb">
