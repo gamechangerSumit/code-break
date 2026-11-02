@@ -679,6 +679,31 @@ export default function CodeEditor({
                     quickSuggestions:
                         true,
 
+                    suggestOnTriggerCharacters:
+                        true,
+
+                    formatOnPaste:
+                        true,
+
+                    formatOnType:
+                        true,
+
+                    autoClosingBrackets:
+                        "always",
+
+                    autoClosingQuotes:
+                        "always",
+
+                    inlineSuggest: {
+                        enabled: true,
+                    },
+
+                    codeLens:
+                        true,
+
+                    linkedEditing:
+                        true,
+
                     parameterHints: {
                         enabled:
                             true,
