@@ -38,6 +38,7 @@ jobs:
           sed -i 's/^JWT_SECRET=.*/JWT_SECRET=0123456789abcdef0123456789abcdef0123456789abcdef/' .env
           trap 'docker compose -f docker-compose.yml -f docker-compose.app.yml down -v || true; rm -f .env' EXIT
           docker compose -f docker-compose.yml -f docker-compose.app.yml config --quiet
+          docker compose -f docker-compose.yml -f docker-compose.app.yml -f docker-compose.prod.yml config --quiet
           docker compose -f docker-compose.yml -f docker-compose.app.yml build backend frontend
           if ! docker compose -f docker-compose.yml -f docker-compose.app.yml up -d; then
             docker compose -f docker-compose.yml -f docker-compose.app.yml logs --no-color
