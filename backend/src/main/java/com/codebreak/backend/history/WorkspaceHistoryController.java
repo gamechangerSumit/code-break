@@ -26,7 +26,6 @@ public class WorkspaceHistoryController {
     public List<SnapshotSummary> list(
             @PathVariable Long projectId,
             @RequestParam String path,
-            @RequestAttribute(name = "username", required = false) String ignored,
             org.springframework.security.core.Authentication authentication
     ) {
         String username = requireUsername(authentication);
@@ -47,6 +46,9 @@ public class WorkspaceHistoryController {
         String username = requireUsername(authentication);
         members.requireWriteAccess(projectId, username);
         String normalized = normalizePath(path);
+        if (request != null && request.message() != null && request.message().length() > 240) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Snapshot note must be 240 characters or fewer");
+        }
         String content = workspace.getFileContent(projectId, normalized, username);
         if (content == null) content = "";
         if (content.length() > MAX_SNAPSHOT_CHARS) {
