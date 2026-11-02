@@ -392,6 +392,51 @@ public class RedisWorkspaceService {
 
 
     // =====================================================
+    // COMPARE AND CLEAR ONE DIRTY FILE
+    //
+    // A persistence flush must not delete a newer edit that
+    // arrived after the scheduler read the previous value.
+    // The Lua script compares and removes atomically.
+    // =====================================================
+
+    public boolean compareAndClearDirty(
+            Long projectId,
+            String path,
+            String expectedContent
+    ) {
+
+        if (projectId == null || path == null || path.isBlank()) {
+            return false;
+        }
+
+        String normalizedPath = normalizePath(path);
+        String valueKey = dirtyKey(projectId, normalizedPath);
+        String setKey = dirtySetKey(projectId);
+
+        org.springframework.data.redis.core.script.DefaultRedisScript<Long> script =
+                new org.springframework.data.redis.core.script.DefaultRedisScript<>();
+
+        script.setScriptText(
+                "if redis.call('GET', KEYS[1]) == ARGV[1] then " +
+                "redis.call('DEL', KEYS[1]); " +
+                "redis.call('SREM', KEYS[2], ARGV[2]); " +
+                "return 1; " +
+                "else return 0; end"
+        );
+        script.setResultType(Long.class);
+
+        Long result = redisTemplate.execute(
+                script,
+                java.util.List.of(valueKey, setKey),
+                expectedContent == null ? "" : expectedContent,
+                normalizedPath
+        );
+
+        return Long.valueOf(1L).equals(result);
+    }
+
+
+    // =====================================================
     // CLEAR ONE DIRTY FILE
     // =====================================================
 
