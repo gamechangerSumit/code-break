@@ -1,19 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
-import { Bell, Copy, History, Link2, RefreshCw } from "lucide-react";
+import { Bell, Copy, History, Link2, RefreshCw, Sparkles } from "lucide-react";
 import {
     createProjectInvitation, createSnapshot, listProjectActivity, listVersions,
-    restoreVersion, type ProjectActivity, type WorkspaceVersion,
+    restoreVersion, requestAiAssistance, type ProjectActivity, type WorkspaceVersion,
 } from "./projectToolsApi";
 import "./ProjectToolsPanel.css";
 
 interface Props { projectId: number; filePath: string | null; readOnly: boolean; }
-type Tab = "history" | "activity" | "invite";
+type Tab = "history" | "activity" | "invite" | "ai";
 
 export default function ProjectToolsPanel({ projectId, filePath, readOnly }: Props) {
     const [tab, setTab] = useState<Tab>("history");
     const [versions, setVersions] = useState<WorkspaceVersion[]>([]);
     const [activity, setActivity] = useState<ProjectActivity[]>([]);
     const [inviteUrl, setInviteUrl] = useState("");
+    const [aiPrompt, setAiPrompt] = useState("");
+    const [aiAnswer, setAiAnswer] = useState("");
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
     const token = localStorage.getItem("token") ?? "";
@@ -43,6 +45,15 @@ export default function ProjectToolsPanel({ projectId, filePath, readOnly }: Pro
         catch (e) { setError(e instanceof Error ? e.message : "Restore failed"); }
         finally { setBusy(false); }
     };
+    const askAi = async () => {
+        if (!aiPrompt.trim()) return;
+        setBusy(true); setError(""); setAiAnswer("");
+        try {
+            const result = await requestAiAssistance(projectId, token, { prompt: aiPrompt, code: "", filePath: filePath ?? "" });
+            setAiAnswer(result.answer);
+        } catch (e) { setError(e instanceof Error ? e.message : "AI request failed"); }
+        finally { setBusy(false); }
+    };
     const invite = async () => {
         setBusy(true);
         try {
@@ -57,6 +68,7 @@ export default function ProjectToolsPanel({ projectId, filePath, readOnly }: Pro
             <button className={tab === "history" ? "active" : ""} onClick={() => setTab("history")}><History size={13}/> History</button>
             <button className={tab === "activity" ? "active" : ""} onClick={() => setTab("activity")}><Bell size={13}/> Activity</button>
             <button className={tab === "invite" ? "active" : ""} onClick={() => setTab("invite")}><Link2 size={13}/> Invite</button>
+            <button className={tab === "ai" ? "active" : ""} onClick={() => setTab("ai")}><Sparkles size={13}/> AI</button>
         </div>
         {error && <p className="project-tools-error">{error}</p>}
         {tab === "history" && <div className="project-tools-body">
@@ -75,6 +87,12 @@ export default function ProjectToolsPanel({ projectId, filePath, readOnly }: Pro
             <p className="project-tools-empty">Create a single-use invitation link. It expires after 7 days.</p>
             <button disabled={busy || readOnly} onClick={() => void invite()}><Link2 size={13}/> Create invitation</button>
             {inviteUrl && <div className="project-tools-invite"><input readOnly value={inviteUrl}/><button aria-label="Copy invite link" onClick={() => void navigator.clipboard.writeText(inviteUrl)}><Copy size={13}/></button></div>}
+        </div>}
+        {tab === "ai" && <div className="project-tools-body">
+            <p className="project-tools-empty">Ask for explanations, debugging ideas, refactors or test suggestions. Configure AI_API_KEY on the server to enable this feature.</p>
+            <textarea className="project-tools-ai-prompt" value={aiPrompt} onChange={event => setAiPrompt(event.target.value)} rows={3} maxLength={12000} placeholder="What should I improve or debug?" />
+            <button disabled={busy || !aiPrompt.trim()} onClick={() => void askAi()}><Sparkles size={13}/> {busy ? "Thinking..." : "Ask AI"}</button>
+            {aiAnswer && <pre className="project-tools-ai-answer">{aiAnswer}</pre>}
         </div>}
     </section>;
 }
