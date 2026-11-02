@@ -3,6 +3,8 @@ package com.codebreak.backend.websocket;
 import com.codebreak.backend.auth.JwtService;
 import com.codebreak.backend.project.ProjectMemberService;
 
+import org.springframework.beans.factory.ObjectProvider;
+
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.messaging.Message;
@@ -31,7 +33,7 @@ public class WebSocketAuthInterceptor
 
     private final JwtService jwtService;
 
-    private final ProjectMemberService projectMemberService;
+    private final ObjectProvider<ProjectMemberService> projectMemberService;
 
 
     @Override
@@ -210,7 +212,7 @@ public class WebSocketAuthInterceptor
 
                 try {
                     Long projectId = Long.parseLong(parts[3]);
-                    projectMemberService.requireReadAccess(projectId, user.getName());
+                    projectMemberService.getObject().requireReadAccess(projectId, user.getName());
                 } catch (NumberFormatException exception) {
                     throw new AccessDeniedException("Invalid project subscription", exception);
                 }
