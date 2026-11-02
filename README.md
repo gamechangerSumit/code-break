@@ -44,6 +44,10 @@ pnpm dev
 
 Vite serves the frontend at `http://localhost:5173`; the local API and WebSocket defaults point to port 8088. Optional frontend overrides are documented in `frontend/.env.example`.
 
+## Product roadmap
+
+See [ROADMAP.md](ROADMAP.md) for the current feature inventory, live-collaboration additions, and prioritized next steps. Roadmap items are explicitly marked as not yet shipped.
+
 ## Validation
 
 The GitHub Actions workflow runs frontend dependency installation, ESLint, the production Vite build, and backend Maven tests (with PostgreSQL).

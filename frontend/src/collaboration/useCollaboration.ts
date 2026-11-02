@@ -136,6 +136,18 @@ export interface RoleChangedMessage {
         string;
 }
 
+export interface PresenceUser {
+    username: string;
+    filePath: string | null;
+    lineNumber: number;
+    column: number;
+    selectionStartLine: number;
+    selectionStartColumn: number;
+    selectionEndLine: number;
+    selectionEndColumn: number;
+    color: string;
+}
+
 
 // =====================================================
 // PROPS
@@ -198,6 +210,8 @@ export function useCollaboration({
         connectionVersion,
         setConnectionVersion,
     ] = useState(0);
+
+    const [presenceUsers, setPresenceUsers] = useState<PresenceUser[]>([]);
 
 
     const clientRef =
@@ -436,6 +450,8 @@ export function useCollaboration({
 
             client.onConnect =
                 () => {
+
+                    setPresenceUsers([]);
 
                     setIsConnected(
                         true
@@ -820,6 +836,30 @@ export function useCollaboration({
                         roleSubscription
                     );
 
+                    const presenceSubscription = client.subscribe(
+                        `/topic/project/${projectId}/presence`,
+                        (message: IMessage) => {
+                            try {
+                                const payload = JSON.parse(message.body) as {
+                                    users?: PresenceUser[];
+                                };
+                                setPresenceUsers(
+                                    Array.isArray(payload.users)
+                                        ? payload.users
+                                        : []
+                                );
+                            } catch (error) {
+                                console.error("[WS] Invalid presence message:", error);
+                            }
+                        }
+                    );
+
+                    subscriptionsRef.current.push(presenceSubscription);
+
+                    client.publish({
+                        destination: "/app/presence/join",
+                        body: JSON.stringify({ projectId }),
+                    });
 
                     /*
                      * Initial snapshot is requested only AFTER
@@ -836,9 +876,8 @@ export function useCollaboration({
             client.onDisconnect =
                 () => {
 
-                    setIsConnected(
-                        false
-                    );
+                    setIsConnected(false);
+                    setPresenceUsers([]);
                 };
 
 
@@ -871,6 +910,13 @@ export function useCollaboration({
 
 
             return () => {
+
+                if (client.connected) {
+                    client.publish({
+                        destination: "/app/presence/leave",
+                        body: JSON.stringify({ projectId }),
+                    });
+                }
 
                 subscriptionsRef.current
                     .forEach(
@@ -975,6 +1021,39 @@ export function useCollaboration({
             },
             []
         );
+
+
+    // =================================================
+    // SEND LIVE CURSOR / SELECTION
+    // =================================================
+
+    const sendCursor = useCallback(
+        (cursor: {
+            filePath: string;
+            lineNumber: number;
+            column: number;
+            selectionStartLine: number;
+            selectionStartColumn: number;
+            selectionEndLine: number;
+            selectionEndColumn: number;
+        }) => {
+            const client = clientRef.current;
+            const currentProjectId = projectIdRef.current;
+
+            if (!client || !client.connected || !currentProjectId) {
+                return;
+            }
+
+            client.publish({
+                destination: "/app/cursor",
+                body: JSON.stringify({
+                    projectId: currentProjectId,
+                    ...cursor,
+                }),
+            });
+        },
+        []
+    );
 
 
     // =================================================
@@ -1281,6 +1360,8 @@ export function useCollaboration({
     return {
 
         sendChange,
+        sendCursor,
+        presenceUsers,
 
         sendWorkspaceFile,
 

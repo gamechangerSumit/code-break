@@ -726,6 +726,8 @@ function App() {
         sendWorkspaceFolderDelete,
         sendWorkspaceRename,
         requestWorkspaceSnapshot,
+        sendCursor,
+        presenceUsers,
         isConnected,
     } = useCollaboration({
         projectId:
@@ -2317,12 +2319,34 @@ function App() {
                     <div className="editor">
                         {selectedFile ? (
                             <CodeEditor
+                                filePath={selectedFile.path}
                                 value={
                                     selectedFile.content
                                 }
                                 onChange={
                                     handleCodeChange
                                 }
+                                onCursorChange={(cursor) => {
+                                    sendCursor({
+                                        filePath: selectedFile.path,
+                                        ...cursor,
+                                    });
+                                }}
+                                remoteCursors={presenceUsers
+                                    .filter((user) =>
+                                        user.username !== username &&
+                                        user.filePath === selectedFile.path
+                                    )
+                                    .map(({ username: remoteUsername, lineNumber, column, selectionStartLine, selectionStartColumn, selectionEndLine, selectionEndColumn, color }) => ({
+                                        username: remoteUsername,
+                                        lineNumber,
+                                        column,
+                                        selectionStartLine,
+                                        selectionStartColumn,
+                                        selectionEndLine,
+                                        selectionEndColumn,
+                                        color,
+                                    }))}
                                 readOnly={
                                     currentRole ===
                                     "VIEWER"
@@ -2372,6 +2396,10 @@ function App() {
                                     {isConnected
                                         ? "Connected • Live"
                                         : "Connecting..."}
+                                </span>
+
+                                <span>
+                                    {presenceUsers.length} online
                                 </span>
 
                                 <span>

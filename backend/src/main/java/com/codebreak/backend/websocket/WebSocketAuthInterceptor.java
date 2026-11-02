@@ -1,6 +1,9 @@
 package com.codebreak.backend.websocket;
 
 import com.codebreak.backend.auth.JwtService;
+import com.codebreak.backend.project.ProjectMemberService;
+
+import org.springframework.beans.factory.ObjectProvider;
 
 import lombok.RequiredArgsConstructor;
 
@@ -11,6 +14,7 @@ import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 
 import org.springframework.messaging.support.ChannelInterceptor;
+import org.springframework.security.access.AccessDeniedException;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 
@@ -28,6 +32,8 @@ public class WebSocketAuthInterceptor
 
 
     private final JwtService jwtService;
+
+    private final ObjectProvider<ProjectMemberService> projectMemberService;
 
 
     @Override
@@ -87,7 +93,7 @@ public class WebSocketAuthInterceptor
                         "[WS AUTH] Authorization header missing"
                 );
 
-                return message;
+                throw new AccessDeniedException("WebSocket authentication is required");
 
             }
 
@@ -102,7 +108,7 @@ public class WebSocketAuthInterceptor
                         "[WS AUTH] Invalid Authorization format"
                 );
 
-                return message;
+                throw new AccessDeniedException("Invalid WebSocket authorization format");
 
             }
 
@@ -121,7 +127,7 @@ public class WebSocketAuthInterceptor
                         "[WS AUTH] Empty JWT"
                 );
 
-                return message;
+                throw new AccessDeniedException("WebSocket token is empty");
 
             }
 
@@ -144,7 +150,7 @@ public class WebSocketAuthInterceptor
                             "[WS AUTH] JWT username missing"
                     );
 
-                    return message;
+                    throw new AccessDeniedException("JWT username is missing");
 
                 }
 
@@ -177,13 +183,40 @@ public class WebSocketAuthInterceptor
                     Exception exception
             ) {
 
-                System.err.println(
-                        "[WS AUTH] Invalid JWT: "
-                                + exception.getMessage()
-                );
+                throw new AccessDeniedException("Invalid WebSocket token", exception);
 
             }
 
+        }
+
+
+        // =========================================
+        // PROJECT TOPIC SUBSCRIPTIONS
+        // A connected user must be a member before receiving
+        // any private project collaboration or chat events.
+        // =========================================
+
+        if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
+            Principal user = accessor.getUser();
+            String destination = accessor.getDestination();
+
+            if (user == null) {
+                throw new AccessDeniedException("WebSocket authentication is required");
+            }
+
+            if (destination != null && destination.startsWith("/topic/project/")) {
+                String[] parts = destination.split("/");
+                if (parts.length < 4) {
+                    throw new AccessDeniedException("Invalid project subscription");
+                }
+
+                try {
+                    Long projectId = Long.parseLong(parts[3]);
+                    projectMemberService.getObject().requireReadAccess(projectId, user.getName());
+                } catch (NumberFormatException exception) {
+                    throw new AccessDeniedException("Invalid project subscription", exception);
+                }
+            }
         }
 
 
