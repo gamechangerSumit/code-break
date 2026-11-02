@@ -224,6 +224,8 @@ function App() {
     const [selectedFile, setSelectedFile] =
         useState<ExplorerFile | null>(null);
 
+    const [openTabs, setOpenTabs] = useState<string[]>([]);
+
     const [currentRole, setCurrentRole] =
         useState<ProjectRole | null>(null);
 
@@ -1889,6 +1891,7 @@ function App() {
             (file: ExplorerFile) => {
                 setError("");
                 setSelectedFile(file);
+                setOpenTabs(current => current.includes(file.path) ? current : [...current, file.path]);
                 setIsDirty(false);
             },
             [],
@@ -1908,6 +1911,7 @@ function App() {
             setFiles([]);
             setFolders([]);
             setSelectedFile(null);
+            setOpenTabs([]);
             setCurrentRole(null);
             setChatMessages([]);
             setWorkspaceName(null);
@@ -2216,6 +2220,33 @@ function App() {
                 </div>
 
                 <section className="editor-container">
+                    <div className="editor-tabs" role="tablist" aria-label="Open files">
+                        {openTabs.map(tabPath => {
+                            const tabFile = files.find(file => file.path === tabPath);
+                            if (!tabFile) return null;
+                            return <button
+                                key={tabPath}
+                                type="button"
+                                role="tab"
+                                aria-selected={selectedFile?.path === tabPath}
+                                className={selectedFile?.path === tabPath ? "editor-file-tab active" : "editor-file-tab"}
+                                onClick={() => handleSelectFile(tabFile)}
+                            >
+                                <FileCode2 size={12} />
+                                <span>{tabFile.name}</span>
+                                <span className="editor-file-tab-close" onClick={event => {
+                                    event.stopPropagation();
+                                    const nextTabs = openTabs.filter(item => item !== tabPath);
+                                    setOpenTabs(nextTabs);
+                                    if (selectedFile?.path === tabPath) {
+                                        const nextFile = files.find(file => file.path === nextTabs[nextTabs.length - 1]);
+                                        setSelectedFile(nextFile ?? null);
+                                        setIsDirty(false);
+                                    }
+                                }}>×</span>
+                            </button>;
+                        })}
+                    </div>
                     <div className="editor-tab">
                         <div className="editor-tab-left">
                             {selectedFile ? (
