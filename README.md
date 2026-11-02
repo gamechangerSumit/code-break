@@ -148,6 +148,6 @@ This deployment remains a single-node baseline. It can be vertically resized, bu
 
 ### Current capability boundaries
 
-- The integrated terminal/interactive PTY is not included yet. Code execution is a separate, bounded Judge0-compatible submission flow; configure a private runner before enabling it.
+- The integrated workspace terminal provides safe commands (`pwd`, `ls`, `cat`, `grep`, `echo`, `run`, `clear`) over project files. It is deliberately not an arbitrary OS shell or interactive PTY; commands that execute source use the bounded Judge0-compatible runner. Configure a private runner before enabling execution.
 - WebRTC calling uses STUN by default. Configure a TURN relay for reliable connectivity across symmetric NATs and restrictive enterprise networks.
 - Backups are local to the EC2/EBS deployment by default. Add off-host encrypted copies and routinely test recovery before treating them as disaster recovery.
