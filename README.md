@@ -121,3 +121,27 @@ Never use `down -v` on a live deployment unless you intentionally want to delete
 ### Production operations
 
 This is a single-EC2 deployment baseline, not a highly available architecture. Configure automated EBS snapshots and application-level PostgreSQL/object-storage backups, test restores, monitor disk/RAM/CPU, and keep the OS and images patched. For higher availability, move PostgreSQL and object storage to managed/redundant services, add centralized secrets management and monitoring, and scale the application behind a load balancer. Review database migration strategy before changing `SPRING_JPA_HIBERNATE_DDL_AUTO` from its current default.
+
+
+### Optional platform capabilities
+
+The project tools panel includes workspace history, project activity, invitations, AI assistance, code execution, HTML preview, GitHub repository browsing, and peer-to-peer calls.
+
+Configure optional integrations in `backend/.env` before starting the stack:
+
+- `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL`: AI coding assistant. The provider key stays on the backend.
+- `CODE_RUNNER_URL`, `CODE_RUNNER_API_KEY`: private Judge0-compatible runner. Keep the runner on a private network; the backend applies language allowlisting and per-submission CPU/memory/time limits. No public code runner is bundled.
+- `GITHUB_TOKEN_ENCRYPTION_KEY`: generate with `openssl rand -base64 32`. GitHub personal access tokens are encrypted at rest with AES-256-GCM. Use fine-grained tokens with minimum required scopes.
+- `GRAFANA_ADMIN_PASSWORD`: generated automatically by the EC2 deployment script if left as the example placeholder.
+
+### Monitoring and backups
+
+The EC2 deployment script enables the optional `monitoring` and `backup` Compose profiles. Prometheus scrapes the backend's internal Actuator endpoint. Grafana and Prometheus bind only to EC2 loopback ports 3000 and 9090; access them through an SSH tunnel, for example:
+
+```bash
+ssh -L 3000:127.0.0.1:3000 -L 9090:127.0.0.1:9090 ubuntu@EC2_PUBLIC_IP
+```
+
+The backup service runs daily, keeps 14 days of PostgreSQL custom-format dumps, and copies RustFS bucket objects to a persistent backup volume. Backups on the same EC2/EBS failure domain are not disaster recovery: configure encrypted EBS snapshots or copy backups to a separate AWS account/region, and test restores. A PostgreSQL restore helper is available at `deploy/backup/restore-postgres.sh`.
+
+This deployment remains a single-node baseline. It can be vertically resized, but it is not horizontally scalable or highly available: the current STOMP simple broker and JVM collaboration locks are single-instance. Do not add backend replicas until Yjs/CRDT synchronization, shared broker, shared session/state design, and multi-instance integration tests are complete. For production growth, use an ALB, multiple stateless app instances, a managed PostgreSQL service, Redis with HA, redundant object storage, a shared message broker, and a TURN service for WebRTC.
