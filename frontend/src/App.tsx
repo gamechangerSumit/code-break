@@ -360,8 +360,20 @@ function App() {
                  * copy, from right to left so earlier offsets stay valid.
                  * Retain the legacy full-content format for older clients.
                  */
-                let nextContent = message.content;
-                if (Array.isArray(message.changes) && message.changes.length > 0) {
+                // The backend currently broadcasts its authoritative merged
+                // document alongside the deltas. Prefer that snapshot: applying
+                // offsets to a stale client copy can corrupt concurrent edits.
+                // Delta-only messages remain supported for compatible transports.
+                let nextContent =
+                    typeof message.content === "string"
+                        ? message.content
+                        : existingFile?.content ?? "";
+
+                if (
+                    typeof message.content !== "string" &&
+                    Array.isArray(message.changes) &&
+                    message.changes.length > 0
+                ) {
                     const baseContent = existingFile?.content ?? "";
                     const changes = [...message.changes].sort(
                         (a, b) => a.rangeOffset - b.rangeOffset,
