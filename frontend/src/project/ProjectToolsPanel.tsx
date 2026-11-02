@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Bell, Copy, History, Link2, RefreshCw, Sparkles } from "lucide-react";
 import {
     createProjectInvitation, createSnapshot, listProjectActivity, listVersions,
-    restoreVersion, compareVersions, requestAiAssistance, executeProjectCode, connectGithub, listGithubRepositories, disconnectGithub, importGithubRepository, getGithubConnection, type GithubRepository, type ProjectActivity, type WorkspaceVersion, type VersionComparison,
+    restoreVersion, compareVersions, requestAiAssistance, executeProjectCode, connectGithub, listGithubRepositories, disconnectGithub, importGithubRepository, getGithubConnection, pushGithubWorkspace, type GithubRepository, type ProjectActivity, type WorkspaceVersion, type VersionComparison,
 } from "./projectToolsApi";
 import "./ProjectToolsPanel.css";
 import VideoCallPanel from "./VideoCallPanel";
@@ -25,6 +25,8 @@ export default function ProjectToolsPanel({ projectId, filePath, code, readOnly,
     const [githubUser, setGithubUser] = useState("");
     const [githubRepos, setGithubRepos] = useState<GithubRepository[]>([]);
     const [githubImportStatus, setGithubImportStatus] = useState("");
+    const [githubCommitMessage, setGithubCommitMessage] = useState("Update from Code Break");
+    const [githubPushStatus, setGithubPushStatus] = useState("");
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
     const token = localStorage.getItem("token") ?? "";
@@ -137,6 +139,15 @@ export default function ProjectToolsPanel({ projectId, filePath, code, readOnly,
         } catch (e) { setError(e instanceof Error ? e.message : "Repository import failed"); }
         finally { setBusy(false); }
     };
+    const pushRepository = async (repo: GithubRepository) => {
+        if (!window.confirm(`Push the current workspace files to ${repo.fullName} on ${repo.defaultBranch}?`)) return;
+        setBusy(true); setError(""); setGithubPushStatus("");
+        try {
+            const result = await pushGithubWorkspace(projectId, token, repo.fullName, repo.defaultBranch, githubCommitMessage);
+            setGithubPushStatus(`Pushed ${result.pushedFiles} files to ${result.repository} (${result.branch}) · ${result.commitSha.slice(0, 8)}`);
+        } catch (e) { setError(e instanceof Error ? e.message : "GitHub push failed"); }
+        finally { setBusy(false); }
+    };
     const disconnectGithubAccount = async () => {
         setBusy(true);
         try { await disconnectGithub(token); setGithubUser(""); setGithubRepos([]); }
@@ -215,11 +226,15 @@ export default function ProjectToolsPanel({ projectId, filePath, code, readOnly,
                 <strong>Connected as @{githubUser}</strong>
                 <button disabled={busy} onClick={() => void loadGithubRepos()}><RefreshCw size={12}/> Load repositories</button>
                 <button disabled={busy} onClick={() => void disconnectGithubAccount()}>Disconnect</button>
+                <input className="project-tools-ai-prompt" value={githubCommitMessage} onChange={event => setGithubCommitMessage(event.target.value)} maxLength={200} placeholder="Commit message" />
+                <p className="project-tools-empty">Push updates/adds workspace files. It does not delete files already present in the remote repository.</p>
                 {githubRepos.map(repo => <div className="project-tools-repo-row" key={repo.fullName}>
                     <a className="project-tools-repo" href={repo.url} target="_blank" rel="noreferrer">{repo.fullName}{repo.isPrivate ? " · private" : ""}</a>
                     <button disabled={busy || readOnly} onClick={() => void importRepository(repo)}>Import</button>
+                    <button disabled={busy || readOnly || !githubCommitMessage.trim()} onClick={() => void pushRepository(repo)}>Push</button>
                 </div>)}
                 {githubImportStatus && <p className="project-tools-empty">{githubImportStatus}</p>}
+                {githubPushStatus && <p className="project-tools-empty">{githubPushStatus}</p>}
             </>}
         </div>}
         {tab === "call" && <VideoCallPanel projectId={projectId} username={username} />}
