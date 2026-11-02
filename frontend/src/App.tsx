@@ -2340,6 +2340,17 @@ function App() {
                                         </>
                                     )}
                                 </span>
+                                <select
+                                    className="editor-split-select"
+                                    aria-label="Open side-by-side editor"
+                                    value={splitFilePath ?? ""}
+                                    onChange={event => setSplitFilePath(event.target.value || null)}
+                                >
+                                    <option value="">Split editor…</option>
+                                    {files.filter(file => file.path !== selectedFile.path).map(file =>
+                                        <option key={file.path} value={file.path}>{file.path}</option>
+                                    )}
+                                </select>
                             </div>
                         )}
                     </div>
