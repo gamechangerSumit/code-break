@@ -32,6 +32,11 @@ export default function ProjectToolsPanel({ projectId, filePath, code, readOnly 
     }, [projectId, filePath, tab, token]);
 
     useEffect(() => { void refresh(); }, [refresh]);
+    useEffect(() => {
+        if (tab !== "activity") return;
+        const timer = window.setInterval(() => { void refresh(); }, 15000);
+        return () => window.clearInterval(timer);
+    }, [tab, refresh]);
 
     const snapshot = async () => {
         if (!filePath) return;
