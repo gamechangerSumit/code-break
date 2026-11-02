@@ -26,7 +26,9 @@ import {
 } from "lucide-react";
 
 import ActivityBar from "./components/ActivityBar";
-import CodeEditor from "./editor/CodeEditor";
+import CodeEditor, {
+    type CodeEditorChange,
+} from "./editor/CodeEditor";
 import FileExplorer, {
     type ExplorerFile,
 } from "./explorer/FileExplorer";
@@ -1299,7 +1301,10 @@ function App() {
 
     const handleCodeChange =
         useCallback(
-            (value: string) => {
+            (
+                value: string,
+                changes: CodeEditorChange[],
+            ) => {
                 if (
                     currentRole === "VIEWER" ||
                     !selectedFile
@@ -1325,7 +1330,7 @@ function App() {
 
                 setSelectedFile(nextFile);
                 setIsDirty(true);
-                sendChange(value);
+                sendChange(value, changes);
             },
             [
                 currentRole,
