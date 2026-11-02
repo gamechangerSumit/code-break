@@ -2533,6 +2533,7 @@ function App() {
                         filePath={selectedFile?.path ?? null}
                         code={selectedFile?.content ?? ""}
                         readOnly={currentRole === "VIEWER"}
+                        username={username}
                     />
 
                     <section className="chat-panel">
