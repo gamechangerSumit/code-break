@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Bell, Clock3, Copy, History, Link2, RefreshCw } from "lucide-react";
+import { Bell, Copy, History, Link2, RefreshCw } from "lucide-react";
 import {
     createProjectInvitation, createSnapshot, listProjectActivity, listVersions,
     restoreVersion, type ProjectActivity, type WorkspaceVersion,
