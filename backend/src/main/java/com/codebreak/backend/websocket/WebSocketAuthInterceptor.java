@@ -148,7 +148,7 @@ public class WebSocketAuthInterceptor
                             "[WS AUTH] JWT username missing"
                     );
 
-                    return message;
+                    throw new AccessDeniedException("JWT username is missing");
 
                 }
 
