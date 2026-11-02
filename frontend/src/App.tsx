@@ -36,6 +36,7 @@ import Dashboard from "./pages/Dashboard";
 
 import MembersPanel from "./project/MembersPanel";
 import ProjectToolsPanel from "./project/ProjectToolsPanel";
+import { acceptProjectInvitation } from "./project/projectToolsApi";
 import {
     getProjectMembers,
     type Project,
@@ -256,6 +257,23 @@ function App() {
 
     const filesRef =
         useRef<ExplorerFile[]>([]);
+
+    useEffect(() => {
+        if (!authenticated) return;
+        const match = window.location.pathname.match(/^\\/invite\\/([A-Za-z0-9_-]+)$/);
+        if (!match) return;
+        const invitationToken = match[1];
+        const accessToken = localStorage.getItem("token");
+        if (!accessToken) return;
+        window.history.replaceState({}, "", "/");
+        void acceptProjectInvitation(invitationToken, accessToken)
+            .then(() => {
+                setError("Invitation accepted. Open the new project from your dashboard.");
+            })
+            .catch((err: unknown) => {
+                setError(err instanceof Error ? err.message : "Could not accept invitation.");
+            });
+    }, [authenticated]);
 
     const foldersRef =
         useRef<string[]>([]);
