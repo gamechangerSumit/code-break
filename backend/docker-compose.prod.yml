@@ -1,4 +1,10 @@
 services:
+  frontend:
+    build:
+      args:
+        VITE_API_URL: /api
+        VITE_WS_URL: wss://${APP_DOMAIN:?Set APP_DOMAIN to the public DNS name}/ws
+
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
