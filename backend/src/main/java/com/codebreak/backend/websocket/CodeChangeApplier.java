@@ -3,6 +3,7 @@ package com.codebreak.backend.websocket;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Validates and applies one Monaco edit batch against a single document version.
@@ -10,7 +11,8 @@ import java.util.List;
  */
 public final class CodeChangeApplier {
 
-    private static final int MAX_CHANGES_PER_MESSAGE = 1000;
+    static final int MAX_CHANGES_PER_MESSAGE = 1000;
+    static final int MAX_DOCUMENT_BYTES = 2 * 1024 * 1024;
 
     private CodeChangeApplier() {
     }
@@ -20,6 +22,9 @@ public final class CodeChangeApplier {
             List<CollaborationMessage.CodeChange> incomingChanges
     ) {
         String source = currentContent == null ? "" : currentContent;
+        if (source.getBytes(StandardCharsets.UTF_8).length > MAX_DOCUMENT_BYTES) {
+            throw new IllegalArgumentException("Document exceeds the maximum size");
+        }
 
         if (incomingChanges == null || incomingChanges.isEmpty()) {
             return source;
@@ -64,6 +69,14 @@ public final class CodeChangeApplier {
             previousEnd = (int) end;
         }
 
+        long insertedBytes = 0;
+        for (CollaborationMessage.CodeChange change : ascending) {
+            insertedBytes += change.getText().getBytes(StandardCharsets.UTF_8).length;
+            if (insertedBytes > MAX_DOCUMENT_BYTES) {
+                throw new IllegalArgumentException("Edit payload exceeds the maximum size");
+            }
+        }
+
         // Apply from right to left so original offsets remain valid.
         List<CollaborationMessage.CodeChange> descending =
                 new ArrayList<>(incomingChanges);
@@ -81,6 +94,9 @@ public final class CodeChangeApplier {
                     + result.substring(end);
         }
 
+        if (result.getBytes(StandardCharsets.UTF_8).length > MAX_DOCUMENT_BYTES) {
+            throw new IllegalArgumentException("Resulting document exceeds the maximum size");
+        }
         return result;
     }
 }
