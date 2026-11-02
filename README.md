@@ -125,7 +125,7 @@ This is a single-EC2 deployment baseline, not a highly available architecture. C
 
 ### Optional platform capabilities
 
-The project tools panel includes workspace history, project activity, invitations, AI assistance, code execution, HTML preview, GitHub repository browsing, and peer-to-peer calls.
+The project tools panel includes workspace history and side-by-side version comparison, project activity, invitations, AI assistance, sandboxed code execution, sandboxed HTML preview, GitHub repository import/push, and peer-to-peer calls. Monaco documents synchronize through a dedicated Yjs/Hocuspocus CRDT service with Redis-backed state persistence; the previous STOMP edit path remains a fallback while a CRDT session connects.
 
 Configure optional integrations in `backend/.env` before starting the stack:
 
@@ -144,4 +144,10 @@ ssh -L 3000:127.0.0.1:3000 -L 9090:127.0.0.1:9090 ubuntu@EC2_PUBLIC_IP
 
 The backup service runs daily, keeps 14 days of PostgreSQL custom-format dumps, and copies RustFS bucket objects to a persistent backup volume. Backups on the same EC2/EBS failure domain are not disaster recovery: configure encrypted EBS snapshots or copy backups to a separate AWS account/region, and test restores. A PostgreSQL restore helper is available at `deploy/backup/restore-postgres.sh`.
 
-This deployment remains a single-node baseline. It can be vertically resized, but it is not horizontally scalable or highly available: the current STOMP simple broker and JVM collaboration locks are single-instance. Do not add backend replicas until Yjs/CRDT synchronization, shared broker, shared session/state design, and multi-instance integration tests are complete. For production growth, use an ALB, multiple stateless app instances, a managed PostgreSQL service, Redis with HA, redundant object storage, a shared message broker, and a TURN service for WebRTC.
+This deployment remains a single-node baseline. It can be vertically resized, but it is not yet horizontally scalable or highly available: the current STOMP simple broker and JVM collaboration locks are single-instance, and the Yjs service currently uses one Hocuspocus instance with Redis-backed persistence rather than a multi-node pub/sub topology. Do not add backend replicas until a shared STOMP broker, shared session/state design, Yjs server fan-out/sharding, and multi-instance integration tests are complete. For production growth, use an ALB, multiple stateless app instances, a managed PostgreSQL service, Redis with HA, redundant object storage, a shared message broker, and a TURN service for WebRTC.
+
+### Current capability boundaries
+
+- The integrated terminal/interactive PTY is not included yet. Code execution is a separate, bounded Judge0-compatible submission flow; configure a private runner before enabling it.
+- WebRTC calling uses STUN by default. Configure a TURN relay for reliable connectivity across symmetric NATs and restrictive enterprise networks.
+- Backups are local to the EC2/EBS deployment by default. Add off-host encrypted copies and routinely test recovery before treating them as disaster recovery.
