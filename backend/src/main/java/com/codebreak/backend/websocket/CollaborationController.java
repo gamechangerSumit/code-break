@@ -248,122 +248,67 @@ public class CollaborationController {
         }
 
 
-        String result =
-                currentContent;
+        if (incomingChanges.size() > 1000) {
+            throw new IllegalArgumentException("Too many edits in one message");
+        }
 
-
-        /*
-         * Monaco offsets are based on the document state at the
-         * time the change event was generated.
-         *
-         * Applying changes from right to left prevents earlier
-         * replacements from shifting the offsets of later ones.
-         */
         List<CollaborationMessage.CodeChange> changes =
-                new ArrayList<>(
-                        incomingChanges
-                );
+                new ArrayList<>(incomingChanges);
 
-
-        changes.sort(
+        // Validate the complete batch against the same original document
+        // before applying anything. Monaco offsets all refer to that version.
+        List<CollaborationMessage.CodeChange> ascending =
+                new ArrayList<>(changes);
+        ascending.sort(
                 Comparator.comparing(
                         CollaborationMessage.CodeChange::getRangeOffset,
-                        Comparator.nullsLast(
-                                Comparator.reverseOrder()
-                        )
+                        Comparator.nullsLast(Comparator.naturalOrder())
                 )
         );
 
-
-        for (
-                CollaborationMessage.CodeChange change
-                : changes
-        ) {
-
-            if (change == null) {
-                continue;
+        int previousEnd = -1;
+        int previousOffset = -1;
+        for (CollaborationMessage.CodeChange change : ascending) {
+            if (change == null ||
+                    change.getRangeOffset() == null ||
+                    change.getRangeLength() == null ||
+                    change.getText() == null) {
+                throw new IllegalArgumentException("Incomplete edit operation");
             }
 
+            int offset = change.getRangeOffset();
+            int length = change.getRangeLength();
+            long end = (long) offset + length;
 
-            Integer offsetValue =
-                    change.getRangeOffset();
-
-            Integer lengthValue =
-                    change.getRangeLength();
-
-
-            int offset =
-                    offsetValue == null
-                            ? 0
-                            : offsetValue;
-
-
-            int length =
-                    lengthValue == null
-                            ? 0
-                            : lengthValue;
-
-
-            String text =
-                    change.getText() == null
-                            ? ""
-                            : change.getText();
-
-
-            if (offset < 0) {
-                throw new IllegalArgumentException(
-                        "Invalid edit offset"
-                );
+            if (offset < 0 || length < 0 || end > currentContent.length()) {
+                throw new IllegalArgumentException("Edit range is outside document");
             }
 
-
-            if (length < 0) {
-                throw new IllegalArgumentException(
-                        "Invalid edit length"
-                );
+            if (offset < previousEnd ||
+                    (offset == previousOffset && length == 0)) {
+                throw new IllegalArgumentException("Overlapping edit operations");
             }
 
+            previousOffset = offset;
+            previousEnd = (int) end;
+        }
 
-            if (
-                    offset >
-                            result.length()
-            ) {
+        // Apply right-to-left so edits do not shift the remaining offsets.
+        changes.sort(
+                Comparator.comparing(
+                        CollaborationMessage.CodeChange::getRangeOffset,
+                        Comparator.reverseOrder()
+                )
+        );
 
-                throw new IllegalArgumentException(
-                        "Edit offset is outside document"
-                );
-            }
+        String result = currentContent;
+        for (CollaborationMessage.CodeChange change : changes) {
+            int offset = change.getRangeOffset();
+            int end = offset + change.getRangeLength();
 
-
-            long endLong =
-                    (long) offset +
-                            length;
-
-
-            if (
-                    endLong >
-                            result.length()
-            ) {
-
-                throw new IllegalArgumentException(
-                        "Edit range is outside document"
-                );
-            }
-
-
-            int end =
-                    (int) endLong;
-
-
-            result =
-                    result.substring(
-                            0,
-                            offset
-                    ) +
-                            text +
-                            result.substring(
-                                    end
-                            );
+            result = result.substring(0, offset)
+                    + change.getText()
+                    + result.substring(end);
         }
 
 
