@@ -399,15 +399,15 @@ export default function CodeEditor({
         const initialContent = latestValueRef.current;
         yjsSyncedRef.current = false;
 
-        provider.on("synced", ({ state }) => {
-            if (!state) return;
+        provider.on("synced", (event: { state: boolean }) => {
+            if (!event.state) return;
             if (text.length === 0 && initialContent.length > 0) {
                 text.insert(0, initialContent);
             }
             yjsSyncedRef.current = true;
         });
-        provider.on("status", ({ status }) => {
-            if (status !== "connected") yjsSyncedRef.current = false;
+        provider.on("status", (event: { status: string }) => {
+            if (event.status !== "connected") yjsSyncedRef.current = false;
         });
 
         return () => {
