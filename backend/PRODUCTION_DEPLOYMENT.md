@@ -22,7 +22,7 @@ Edit `.env` and set all credentials to unique, strong values. In particular:
 - `APP_DOMAIN`: public hostname only, e.g. `codebreak.example.com` (no scheme or path).
 - `APP_ORIGIN`: `https://` followed by the exact public hostname.
 - `CORS_ALLOWED_ORIGINS` and `WEBSOCKET_ALLOWED_ORIGINS`: the same exact HTTPS origin.
-- `VITE_WS_URL`: `wss://` followed by the hostname and `/ws`.
+- The production Compose override builds the frontend with `VITE_WS_URL=wss://<hostname>/ws` and `VITE_API_URL=/api` automatically.
 - `JWT_SECRET`: cryptographically random value of at least 32 bytes.
 - `POSTGRES_PASSWORD`, `DATABASE_PASSWORD`: identical strong database password.
 - `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` and `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY`: keep the root and application credentials aligned as required by the Compose configuration.
