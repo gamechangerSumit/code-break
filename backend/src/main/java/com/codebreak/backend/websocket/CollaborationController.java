@@ -9,8 +9,6 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -240,82 +238,8 @@ public class CollaborationController {
             String currentContent,
             List<CollaborationMessage.CodeChange> incomingChanges
     ) {
-
-        if (incomingChanges == null ||
-                incomingChanges.isEmpty()) {
-
-            return currentContent;
-        }
-
-
-        if (incomingChanges.size() > 1000) {
-            throw new IllegalArgumentException("Too many edits in one message");
-        }
-
-        List<CollaborationMessage.CodeChange> changes =
-                new ArrayList<>(incomingChanges);
-
-        // Validate the complete batch against the same original document
-        // before applying anything. Monaco offsets all refer to that version.
-        for (CollaborationMessage.CodeChange change : changes) {
-            if (change == null ||
-                    change.getRangeOffset() == null ||
-                    change.getRangeLength() == null ||
-                    change.getText() == null) {
-                throw new IllegalArgumentException("Incomplete edit operation");
-            }
-        }
-
-        List<CollaborationMessage.CodeChange> ascending =
-                new ArrayList<>(changes);
-        ascending.sort(
-                Comparator.comparing(
-                        CollaborationMessage.CodeChange::getRangeOffset
-                )
-        );
-
-        int previousEnd = -1;
-        int previousOffset = -1;
-        for (CollaborationMessage.CodeChange change : ascending) {
-            int offset = change.getRangeOffset();
-            int length = change.getRangeLength();
-            long end = (long) offset + length;
-
-            if (offset < 0 || length < 0 || end > currentContent.length()) {
-                throw new IllegalArgumentException("Edit range is outside document");
-            }
-
-            if (offset < previousEnd ||
-                    (offset == previousOffset && length == 0)) {
-                throw new IllegalArgumentException("Overlapping edit operations");
-            }
-
-            previousOffset = offset;
-            previousEnd = (int) end;
-        }
-
-        // Apply right-to-left so edits do not shift the remaining offsets.
-        changes.sort(
-                Comparator.comparing(
-                        CollaborationMessage.CodeChange::getRangeOffset,
-                        Comparator.reverseOrder()
-                )
-        );
-
-        String result = currentContent;
-        for (CollaborationMessage.CodeChange change : changes) {
-            int offset = change.getRangeOffset();
-            int end = offset + change.getRangeLength();
-
-            result = result.substring(0, offset)
-                    + change.getText()
-                    + result.substring(end);
-        }
-
-
-        return result;
+        return CodeChangeApplier.apply(currentContent, incomingChanges);
     }
-
 
     // =====================================================
     // WORKSPACE STRUCTURE EVENTS
