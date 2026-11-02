@@ -51,7 +51,7 @@ In a separate terminal:
 
 The frontend defaults to http://localhost:5173 and connects to the local API and WebSocket endpoint. Adjust VITE_API_URL and VITE_WS_URL for a different backend address.
 
-More detailed backend instructions: [backend/README.md](backend/README.md).
+More detailed backend instructions: [backend/README.md](backend/README.md). For a single-host HTTPS deployment with automatic certificates, see [backend/PRODUCTION_DEPLOYMENT.md](backend/PRODUCTION_DEPLOYMENT.md).
 
 ## Validation
 

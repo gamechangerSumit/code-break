@@ -1,0 +1,27 @@
+services:
+  frontend:
+    build:
+      args:
+        VITE_API_URL: /api
+        VITE_WS_URL: wss://${APP_DOMAIN:?Set APP_DOMAIN to the public DNS name}/ws
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN to the public DNS name}
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL for certificate notices}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - codebreak_caddy_data:/data
+      - codebreak_caddy_config:/config
+    depends_on:
+      - frontend
+
+volumes:
+  codebreak_caddy_data:
+  codebreak_caddy_config:
