@@ -86,11 +86,11 @@ jobs:
         run: docker compose --env-file backend/.env.example -f backend/docker-compose.yml config --quiet
       - name: Build and start complete stack
         run: docker compose --env-file backend/.env.example -f backend/docker-compose.yml up -d --build
-      - name: Verify frontend becomes reachable
+      - name: Verify backend readiness and HTTPS frontend
         run: |
           for attempt in $(seq 1 60); do
-            if curl --fail --silent http://localhost/ >/dev/null; then
-              echo "Frontend is responding."
+            if docker compose --env-file backend/.env.example -f backend/docker-compose.yml exec -T backend curl --fail --silent http://127.0.0.1:8088/actuator/health/readiness >/dev/null && curl --insecure --fail --silent https://localhost/ >/dev/null; then
+              echo "Backend readiness and HTTPS frontend are responding."
               exit 0
             fi
             sleep 5
