@@ -71,7 +71,8 @@ public class AiAssistantController {
         if (!(first instanceof Map<?, ?> choice) || !(choice.get("message") instanceof Map<?, ?> message)) {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "AI provider response was invalid");
         }
-        return new AssistantResponse(String.valueOf(message.getOrDefault("content", "")), model);
+        Object answer = message.get("content");
+        return new AssistantResponse(answer == null ? "" : String.valueOf(answer), model);
     }
 
     private String safe(String value) { return value == null ? "" : value; }
