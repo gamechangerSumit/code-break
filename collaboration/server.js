@@ -53,6 +53,20 @@ const server = Server.configure({
     };
   },
 
+  async onTokenSync({ token, documentName, connection }) {
+    if (!token || token.length > 8192) throw new Error("Authentication required");
+    const { projectId, filePath } = parseDocumentName(documentName);
+    const response = await fetch(
+      `${backendUrl}/api/projects/${projectId}/collaboration-access`,
+      { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } },
+    );
+    if (!response.ok) throw new Error("Workspace access has expired or was revoked");
+    const access = await response.json();
+    if (!access || !access.username) throw new Error("Invalid workspace access response");
+    connection.readOnly = access.canWrite !== true;
+    return { projectId, filePath, username: access.username, canWrite: access.canWrite === true, token };
+  },
+
   async onLoadDocument({ documentName, context }) {
     const document = new Y.Doc();
     const state = await redis.get(stateKey(documentName));
