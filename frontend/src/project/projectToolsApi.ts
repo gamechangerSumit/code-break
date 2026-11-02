@@ -38,3 +38,9 @@ export async function createProjectInvitation(projectId: number, token: string) 
 export async function listProjectActivity(projectId: number, token: string) {
     return parse<ProjectActivity[]>(await fetch(`${root}/projects/${projectId}/activity`, { headers: headers(token, false) }));
 }
+
+export async function requestAiAssistance(projectId: number, token: string, payload: { prompt: string; code?: string; filePath?: string }) {
+    return parse<{ answer: string; model: string }>(await fetch(`${root}/ai/projects/${projectId}/assist`, {
+        method: "POST", headers: headers(token), body: JSON.stringify(payload),
+    }));
+}
