@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Bell, Copy, History, Link2, RefreshCw, Sparkles } from "lucide-react";
 import {
     createProjectInvitation, createSnapshot, listProjectActivity, listVersions,
-    restoreVersion, requestAiAssistance, executeProjectCode, connectGithub, listGithubRepositories, disconnectGithub, importGithubRepository, getGithubConnection, type GithubRepository, type ProjectActivity, type WorkspaceVersion,
+    restoreVersion, compareVersions, requestAiAssistance, executeProjectCode, connectGithub, listGithubRepositories, disconnectGithub, importGithubRepository, getGithubConnection, type GithubRepository, type ProjectActivity, type WorkspaceVersion, type VersionComparison,
 } from "./projectToolsApi";
 import "./ProjectToolsPanel.css";
 import VideoCallPanel from "./VideoCallPanel";
@@ -13,6 +13,8 @@ type Tab = "history" | "activity" | "invite" | "ai" | "run" | "preview" | "githu
 export default function ProjectToolsPanel({ projectId, filePath, code, readOnly, username }: Props) {
     const [tab, setTab] = useState<Tab>("history");
     const [versions, setVersions] = useState<WorkspaceVersion[]>([]);
+    const [comparisonIds, setComparisonIds] = useState<number[]>([]);
+    const [comparison, setComparison] = useState<VersionComparison | null>(null);
     const [activity, setActivity] = useState<ProjectActivity[]>([]);
     const [inviteUrl, setInviteUrl] = useState("");
     const [aiPrompt, setAiPrompt] = useState("");
@@ -52,6 +54,20 @@ export default function ProjectToolsPanel({ projectId, filePath, code, readOnly,
         return () => window.clearInterval(timer);
     }, [tab, refresh]);
 
+    const selectForComparison = async (version: WorkspaceVersion) => {
+        setComparison(null);
+        if (comparisonIds.length === 0 || comparisonIds.length >= 2) {
+            setComparisonIds([version.id]);
+            return;
+        }
+        if (comparisonIds[0] === version.id) return;
+        const next = [...comparisonIds, version.id];
+        setComparisonIds(next);
+        setBusy(true); setError("");
+        try { setComparison(await compareVersions(projectId, next[0], next[1], token)); }
+        catch (e) { setError(e instanceof Error ? e.message : "Could not compare versions"); }
+        finally { setBusy(false); }
+    };
     const snapshot = async () => {
         if (!filePath) return;
         setBusy(true);
@@ -153,7 +169,15 @@ export default function ProjectToolsPanel({ projectId, filePath, code, readOnly,
                 <button disabled={!filePath || readOnly || busy} onClick={() => void snapshot()}><History size={12}/> Snapshot</button></div>
             {versions.length === 0 ? <p className="project-tools-empty">No saved snapshots for this file yet.</p> : versions.map(v =>
                 <div className="project-tools-item" key={v.id}><div><strong>Version {v.versionNumber}</strong><small>{v.createdBy} · {new Date(v.createdAt).toLocaleString()}</small><small>{v.message}</small></div>
-                    <button disabled={readOnly || busy} onClick={() => void restore(v)}>Restore</button></div>)}
+                    <div className="project-tools-version-actions">
+                        <button disabled={busy} onClick={() => void selectForComparison(v)}>{comparisonIds.includes(v.id) ? "Selected" : "Compare"}</button>
+                        <button disabled={readOnly || busy} onClick={() => void restore(v)}>Restore</button>
+                    </div></div>)}
+            {comparisonIds.length > 0 && <button className="project-tools-refresh" onClick={() => { setComparisonIds([]); setComparison(null); }}>Clear comparison</button>}
+            {comparison && <div className="project-tools-diff">
+                <div><strong>Version {comparison.left.versionNumber}</strong><pre>{comparison.leftContent}</pre></div>
+                <div><strong>Version {comparison.right.versionNumber}</strong><pre>{comparison.rightContent}</pre></div>
+            </div>}
         </div>}
         {tab === "activity" && <div className="project-tools-body">
             {activity.length === 0 ? <p className="project-tools-empty">No project activity yet.</p> : activity.map(item =>
