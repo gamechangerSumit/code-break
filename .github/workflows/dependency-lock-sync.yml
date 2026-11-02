@@ -1,0 +1,46 @@
+name: Sync frontend dependency lockfile
+
+on:
+  push:
+    branches: ["feature/platform-capabilities"]
+    paths:
+      - "frontend/package.json"
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  sync-lockfile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          token: ${{ github.token }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Resolve and persist pnpm lockfile
+        working-directory: frontend
+        run: pnpm install --no-frozen-lockfile
+      - name: Commit updated lockfile
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/pnpm-lock.yaml
+          if git diff --cached --quiet; then
+            echo "Lockfile is already up to date."
+            exit 0
+          fi
+          git commit -m "chore: update frontend dependency lockfile"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+      - name: Trigger CI with the updated lockfile
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run ci.yml --ref "${GITHUB_REF_NAME}"
