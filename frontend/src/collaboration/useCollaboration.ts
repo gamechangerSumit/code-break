@@ -1,3 +1,5 @@
+import { WS_URL } from "../config";
+
 import {
     useCallback,
     useEffect,
@@ -403,7 +405,7 @@ export function useCollaboration({
                 new Client({
 
                     brokerURL:
-                        "ws://localhost:8088/ws",
+                        WS_URL,
 
                     connectHeaders: {
                         Authorization:

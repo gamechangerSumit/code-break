@@ -4,12 +4,13 @@ import {
     useRef,
 } from "react";
 
+import { WS_URL } from "../config";
+
 import {
     Client,
     type IMessage,
 } from "@stomp/stompjs";
 
-const WS_URL = "ws://localhost:8088/ws";
 
 export interface ChatMessage {
     projectId: number;

@@ -1,6 +1,9 @@
 package com.codebreak.backend.websocket;
 
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Value;
+
+import java.util.Arrays;
 
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 
@@ -21,6 +24,9 @@ public class WebSocketConfig
 
     private final WebSocketAuthInterceptor
             webSocketAuthInterceptor;
+
+    @Value("${app.cors.allowed-origins:http://localhost:5173}")
+    private String allowedOrigins;
 
 
     public WebSocketConfig(
@@ -88,7 +94,10 @@ public class WebSocketConfig
                 )
 
                 .setAllowedOriginPatterns(
-                        "*"
+                        Arrays.stream(allowedOrigins.split(","))
+                                .map(String::trim)
+                                .filter(origin -> !origin.isEmpty())
+                                .toArray(String[]::new)
                 );
 
     }
