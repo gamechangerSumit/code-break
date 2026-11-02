@@ -36,6 +36,8 @@ interface CodeEditorProps {
 
     value: string;
 
+    filePath?: string;
+
     onChange: (
         value: string,
         changes: CodeEditorChange[]
@@ -56,8 +58,46 @@ interface CodeEditorProps {
 }
 
 
+function languageFromPath(path: string): string {
+    const extension = path.split(".").pop()?.toLowerCase() ?? "";
+    const languages: Record<string, string> = {
+        c: "c",
+        cc: "cpp",
+        cpp: "cpp",
+        cs: "csharp",
+        css: "css",
+        go: "go",
+        h: "cpp",
+        hpp: "cpp",
+        html: "html",
+        java: "java",
+        js: "javascript",
+        jsx: "javascript",
+        json: "json",
+        kt: "kotlin",
+        md: "markdown",
+        mjs: "javascript",
+        php: "php",
+        py: "python",
+        rb: "ruby",
+        rs: "rust",
+        scss: "scss",
+        sh: "shell",
+        sql: "sql",
+        svg: "xml",
+        ts: "typescript",
+        tsx: "typescript",
+        txt: "plaintext",
+        xml: "xml",
+        yaml: "yaml",
+        yml: "yaml",
+    };
+    return languages[extension] ?? "plaintext";
+}
+
 export default function CodeEditor({
     value,
+    filePath = "",
     onChange,
     readOnly = false,
     remoteCursors = [],
@@ -479,7 +519,7 @@ export default function CodeEditor({
             <Editor
                 height="100%"
                 width="100%"
-                language="java"
+                language={languageFromPath(filePath)}
                 theme="vs-dark"
 
                 defaultValue={
