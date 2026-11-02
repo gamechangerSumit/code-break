@@ -142,6 +142,11 @@ jobs:
         run: docker compose --env-file backend/.env.example -f backend/docker-compose.yml config --quiet
       - name: Build and start complete stack
         run: docker compose --profile monitoring --profile backup --env-file backend/.env.example -f backend/docker-compose.yml up -d --build
+      - name: Diagnose failed containers
+        if: failure()
+        run: |
+          docker compose --profile monitoring --profile backup --env-file backend/.env.example -f backend/docker-compose.yml ps
+          docker compose --profile monitoring --profile backup --env-file backend/.env.example -f backend/docker-compose.yml logs --tail=200 collaboration backend caddy
       - name: Verify frontend becomes reachable
         run: |
           for attempt in $(seq 1 60); do
