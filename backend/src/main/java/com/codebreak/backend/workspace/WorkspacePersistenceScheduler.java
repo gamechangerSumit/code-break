@@ -292,10 +292,19 @@ public class WorkspacePersistenceScheduler {
         //   2. PostgreSQL metadata save succeeded
         // =================================================
 
-        redisWorkspaceService.clearDirty(
+        boolean cleared = redisWorkspaceService.compareAndClearDirty(
                 projectId,
-                path
+                path,
+                content
         );
+
+        if (!cleared) {
+            System.out.println(
+                    "[WORKSPACE FLUSH] Newer edit detected; queued for next flush: " +
+                            "Project=" + projectId +
+                            " Path=" + path
+            );
+        }
 
 
         System.out.println(
