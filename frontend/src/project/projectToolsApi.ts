@@ -1,0 +1,40 @@
+import { API_URL } from "../config";
+
+const root = `${API_URL}/api`;
+function headers(token: string, json = true): HeadersInit {
+    return { Authorization: `Bearer ${token}`, ...(json ? { "Content-Type": "application/json" } : {}) };
+}
+async function parse<T>(response: Response): Promise<T> {
+    if (!response.ok) throw new Error((await response.text()) || `Request failed (${response.status})`);
+    if (response.status === 204) return undefined as T;
+    return response.json() as Promise<T>;
+}
+export interface WorkspaceVersion {
+    id: number; filePath: string; versionNumber: number; createdBy: string;
+    message: string; createdAt: string;
+}
+export interface ProjectActivity {
+    id: number; actor: string; type: string; message: string; createdAt: string;
+}
+export async function listVersions(projectId: number, path: string, token: string) {
+    const query = new URLSearchParams({ path });
+    return parse<WorkspaceVersion[]>(await fetch(`${root}/projects/${projectId}/versions?${query}`, { headers: headers(token, false) }));
+}
+export async function createSnapshot(projectId: number, path: string, token: string) {
+    return parse<WorkspaceVersion>(await fetch(`${root}/projects/${projectId}/versions`, {
+        method: "POST", headers: headers(token), body: JSON.stringify({ path, message: "Manual snapshot" }),
+    }));
+}
+export async function restoreVersion(projectId: number, versionId: number, token: string) {
+    return parse<WorkspaceVersion>(await fetch(`${root}/projects/${projectId}/versions/${versionId}/restore`, {
+        method: "POST", headers: headers(token),
+    }));
+}
+export async function createProjectInvitation(projectId: number, token: string) {
+    return parse<{ token: string; expiresAt: string }>(await fetch(`${root}/projects/${projectId}/invitations`, {
+        method: "POST", headers: headers(token),
+    }));
+}
+export async function listProjectActivity(projectId: number, token: string) {
+    return parse<ProjectActivity[]>(await fetch(`${root}/projects/${projectId}/activity`, { headers: headers(token, false) }));
+}
