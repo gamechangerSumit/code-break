@@ -18,7 +18,7 @@
     "@stomp/stompjs": "^7.3.0",
     "@tailwindcss/vite": "^4.3.3",
     "lucide-react": "^1.40.0",
-    "monaco-editor": "^0.56.0",
+    "monaco-editor": "0.55.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-resizable-panels": "^4.12.3",
