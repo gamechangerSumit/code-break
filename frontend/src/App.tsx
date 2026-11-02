@@ -647,10 +647,34 @@ function App() {
                     return;
                 }
 
-                const nextFiles =
+                const snapshotFiles =
                     buildExplorerFiles(
                         snapshot.files ?? [],
                     );
+
+                /*
+                 * Workspace snapshots contain file metadata, not file
+                 * contents. Preserve content already loaded in the
+                 * editor instead of replacing it with empty strings.
+                 *
+                 * A snapshot can arrive after the selected file content
+                 * request has completed (for example after a websocket
+                 * reconnect). Clearing that content here made the editor
+                 * appear blank until the user reopened the file.
+                 */
+                const existingContentByPath = new Map(
+                    filesRef.current.map((file) => [
+                        file.path,
+                        file.content,
+                    ]),
+                );
+
+                const nextFiles = snapshotFiles.map((file) =>
+                    makeExplorerFile(
+                        file.path,
+                        existingContentByPath.get(file.path) ?? file.content,
+                    ),
+                );
 
                 const nextFolders =
                     buildExplorerFolders(
