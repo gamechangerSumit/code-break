@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Bell, Copy, History, Link2, RefreshCw, Sparkles } from "lucide-react";
 import {
     createProjectInvitation, createSnapshot, listProjectActivity, listVersions,
-    restoreVersion, requestAiAssistance, executeProjectCode, connectGithub, listGithubRepositories, disconnectGithub, type GithubRepository, type ProjectActivity, type WorkspaceVersion,
+    restoreVersion, requestAiAssistance, executeProjectCode, connectGithub, listGithubRepositories, disconnectGithub, importGithubRepository, type GithubRepository, type ProjectActivity, type WorkspaceVersion,
 } from "./projectToolsApi";
 import "./ProjectToolsPanel.css";
 import VideoCallPanel from "./VideoCallPanel";
@@ -22,6 +22,7 @@ export default function ProjectToolsPanel({ projectId, filePath, code, readOnly,
     const [githubToken, setGithubToken] = useState("");
     const [githubUser, setGithubUser] = useState("");
     const [githubRepos, setGithubRepos] = useState<GithubRepository[]>([]);
+    const [githubImportStatus, setGithubImportStatus] = useState("");
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
     const token = localStorage.getItem("token") ?? "";
@@ -99,6 +100,14 @@ export default function ProjectToolsPanel({ projectId, filePath, code, readOnly,
         catch (e) { setError(e instanceof Error ? e.message : "Could not load GitHub repositories"); }
         finally { setBusy(false); }
     };
+    const importRepository = async (repo: GithubRepository) => {
+        setBusy(true); setError(""); setGithubImportStatus("");
+        try {
+            const result = await importGithubRepository(projectId, token, repo.fullName, repo.defaultBranch);
+            setGithubImportStatus(`Imported ${result.importedFiles} files (${Math.round(result.bytes / 1024)} KB) from ${result.repository}. Refresh the explorer to view them.`);
+        } catch (e) { setError(e instanceof Error ? e.message : "Repository import failed"); }
+        finally { setBusy(false); }
+    };
     const disconnectGithubAccount = async () => {
         setBusy(true);
         try { await disconnectGithub(token); setGithubUser(""); setGithubRepos([]); }
@@ -169,7 +178,11 @@ export default function ProjectToolsPanel({ projectId, filePath, code, readOnly,
                 <strong>Connected as @{githubUser}</strong>
                 <button disabled={busy} onClick={() => void loadGithubRepos()}><RefreshCw size={12}/> Load repositories</button>
                 <button disabled={busy} onClick={() => void disconnectGithubAccount()}>Disconnect</button>
-                {githubRepos.map(repo => <a className="project-tools-repo" key={repo.fullName} href={repo.url} target="_blank" rel="noreferrer">{repo.fullName}{repo.isPrivate ? " · private" : ""}</a>)}
+                {githubRepos.map(repo => <div className="project-tools-repo-row" key={repo.fullName}>
+                    <a className="project-tools-repo" href={repo.url} target="_blank" rel="noreferrer">{repo.fullName}{repo.isPrivate ? " · private" : ""}</a>
+                    <button disabled={busy || readOnly} onClick={() => void importRepository(repo)}>Import</button>
+                </div>)}
+                {githubImportStatus && <p className="project-tools-empty">{githubImportStatus}</p>}
             </>}
         </div>}
         {tab === "call" && <VideoCallPanel projectId={projectId} username={username} />}
