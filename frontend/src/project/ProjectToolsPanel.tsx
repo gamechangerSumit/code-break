@@ -2,12 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 import { Bell, Copy, History, Link2, RefreshCw, Sparkles } from "lucide-react";
 import {
     createProjectInvitation, createSnapshot, listProjectActivity, listVersions,
-    restoreVersion, requestAiAssistance, executeProjectCode, type ProjectActivity, type WorkspaceVersion,
+    restoreVersion, requestAiAssistance, executeProjectCode, connectGithub, listGithubRepositories, disconnectGithub, type GithubRepository, type ProjectActivity, type WorkspaceVersion,
 } from "./projectToolsApi";
 import "./ProjectToolsPanel.css";
 
 interface Props { projectId: number; filePath: string | null; code: string; readOnly: boolean; }
-type Tab = "history" | "activity" | "invite" | "ai" | "run" | "preview";
+type Tab = "history" | "activity" | "invite" | "ai" | "run" | "preview" | "github";
 
 export default function ProjectToolsPanel({ projectId, filePath, code, readOnly }: Props) {
     const [tab, setTab] = useState<Tab>("history");
@@ -18,6 +18,9 @@ export default function ProjectToolsPanel({ projectId, filePath, code, readOnly 
     const [aiAnswer, setAiAnswer] = useState("");
     const [stdin, setStdin] = useState("");
     const [runOutput, setRunOutput] = useState("");
+    const [githubToken, setGithubToken] = useState("");
+    const [githubUser, setGithubUser] = useState("");
+    const [githubRepos, setGithubRepos] = useState<GithubRepository[]>([]);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
     const token = localStorage.getItem("token") ?? "";
@@ -79,6 +82,28 @@ export default function ProjectToolsPanel({ projectId, filePath, code, readOnly 
         } catch (e) { setError(e instanceof Error ? e.message : "AI request failed"); }
         finally { setBusy(false); }
     };
+    const connectGithubAccount = async () => {
+        if (!githubToken.trim()) return;
+        setBusy(true); setError("");
+        try {
+            const connection = await connectGithub(githubToken, token);
+            setGithubUser(connection.githubUsername); setGithubToken("");
+            setGithubRepos(await listGithubRepositories(token));
+        } catch (e) { setError(e instanceof Error ? e.message : "GitHub connection failed"); }
+        finally { setBusy(false); }
+    };
+    const loadGithubRepos = async () => {
+        setBusy(true); setError("");
+        try { setGithubRepos(await listGithubRepositories(token)); }
+        catch (e) { setError(e instanceof Error ? e.message : "Could not load GitHub repositories"); }
+        finally { setBusy(false); }
+    };
+    const disconnectGithubAccount = async () => {
+        setBusy(true);
+        try { await disconnectGithub(token); setGithubUser(""); setGithubRepos([]); }
+        catch (e) { setError(e instanceof Error ? e.message : "Disconnect failed"); }
+        finally { setBusy(false); }
+    };
     const invite = async () => {
         setBusy(true);
         try {
@@ -96,6 +121,7 @@ export default function ProjectToolsPanel({ projectId, filePath, code, readOnly 
             <button className={tab === "ai" ? "active" : ""} onClick={() => setTab("ai")}><Sparkles size={13}/> AI</button>
             <button className={tab === "run" ? "active" : ""} onClick={() => setTab("run")}><span>▶</span> Run</button>
             <button className={tab === "preview" ? "active" : ""} onClick={() => setTab("preview")}>Preview</button>
+            <button className={tab === "github" ? "active" : ""} onClick={() => setTab("github")}>GitHub</button>
         </div>
         {error && <p className="project-tools-error">{error}</p>}
         {tab === "history" && <div className="project-tools-body">
@@ -131,6 +157,18 @@ export default function ProjectToolsPanel({ projectId, filePath, code, readOnly 
         {tab === "preview" && <div className="project-tools-body">
             <p className="project-tools-empty">HTML files render in a sandboxed preview. Scripts run in an isolated iframe without same-origin access.</p>
             {filePath?.toLowerCase().endsWith(".html") ? <iframe className="project-tools-preview" title="Live HTML preview" sandbox="allow-scripts" referrerPolicy="no-referrer" srcDoc={code} /> : <p className="project-tools-empty">Select an HTML file to preview it.</p>}
+        </div>}
+        {tab === "github" && <div className="project-tools-body">
+            <p className="project-tools-empty">Connect a GitHub fine-grained personal access token. It is encrypted at rest on the backend; use minimum repository read permissions. Do not paste tokens into chat.</p>
+            {!githubUser ? <>
+                <input className="project-tools-ai-prompt" type="password" autoComplete="off" value={githubToken} onChange={event => setGithubToken(event.target.value)} placeholder="github_pat_..." />
+                <button disabled={busy || !githubToken.trim()} onClick={() => void connectGithubAccount()}>Connect GitHub</button>
+            </> : <>
+                <strong>Connected as @{githubUser}</strong>
+                <button disabled={busy} onClick={() => void loadGithubRepos()}><RefreshCw size={12}/> Load repositories</button>
+                <button disabled={busy} onClick={() => void disconnectGithubAccount()}>Disconnect</button>
+                {githubRepos.map(repo => <a className="project-tools-repo" key={repo.fullName} href={repo.url} target="_blank" rel="noreferrer">{repo.fullName}{repo.isPrivate ? " · private" : ""}</a>)}
+            </>}
         </div>}
     </section>;
 }
