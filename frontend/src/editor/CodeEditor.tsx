@@ -509,7 +509,7 @@ export default function CodeEditor({
                             outline: 1px solid ${color}88;
                         }
                     `;
-                }).join("\\n")}
+                }).join("\n")}
             </style>
 
             <Editor
