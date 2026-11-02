@@ -411,7 +411,7 @@ export default function CodeEditor({
             provider.destroy();
             document.destroy();
         };
-    }, [editorReady, projectId, filePath, collaborationUrl, accessToken]);
+    }, [editorReady, projectId, filePath, collaborationUrl, accessToken, readOnly]);
 
     // =====================================================
     // REMOTE CURSOR DECORATIONS
