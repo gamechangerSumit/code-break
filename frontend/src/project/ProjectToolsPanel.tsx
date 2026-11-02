@@ -60,6 +60,10 @@ export default function ProjectToolsPanel({ projectId, filePath, code, readOnly,
     const languageForFile = () => {
         const extension = filePath?.split(".").pop()?.toLowerCase();
         if (extension === "py") return "python";
+        if (extension === "c") return "c";
+        if (extension === "go") return "go";
+        if (extension === "rs") return "rust";
+        if (["sh", "bash"].includes(extension ?? "")) return "bash";
         if (extension === "java") return "java";
         if (["cpp", "cc", "cxx"].includes(extension ?? "")) return "cpp";
         if (["js", "mjs", "cjs"].includes(extension ?? "")) return "javascript";
@@ -160,7 +164,7 @@ export default function ProjectToolsPanel({ projectId, filePath, code, readOnly,
         </div>}
         {tab === "run" && <div className="project-tools-body">
             <p className="project-tools-empty">Runs code in a separately hosted, resource-limited Judge0-compatible sandbox. Supported here: Python, Java, C++ and JavaScript.</p>
-            <small>{languageForFile() ? `Detected language: ${languageForFile()}` : "Open a .py, .java, .cpp or .js file to run it."}</small>
+            <small>{languageForFile() ? `Detected language: ${languageForFile()}` : "Open a supported source file (.py, .java, .cpp, .js, .c, .go, .rs or .sh)."}</small>
             <textarea className="project-tools-ai-prompt" value={stdin} onChange={event => setStdin(event.target.value)} rows={2} placeholder="Standard input (optional)" />
             <button disabled={busy || !languageForFile() || !code.trim() || readOnly} onClick={() => void runCode()}>{busy ? "Running..." : "▶ Run code"}</button>
             {runOutput && <pre className="project-tools-ai-answer">{runOutput}</pre>}
