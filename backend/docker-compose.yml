@@ -35,6 +35,26 @@ services:
       - app-internal
       - data-internal
 
+  collaboration:
+    build:
+      context: ../collaboration
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: 1234
+      REDIS_URL: redis://redis:6379
+      BACKEND_INTERNAL_URL: http://backend:8088
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    expose:
+      - "1234"
+    networks:
+      - app-internal
+      - data-internal
+
   frontend:
     build:
       context: ../frontend
@@ -69,6 +89,8 @@ services:
     depends_on:
       frontend:
         condition: service_healthy
+      collaboration:
+        condition: service_started
     networks:
       - app-internal
 
