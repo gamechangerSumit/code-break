@@ -19,6 +19,8 @@ public class ProjectInvitation {
     private String createdBy;
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
+    @Version
+    private Long lockVersion;
     @Column(name = "accepted_at")
     private LocalDateTime acceptedAt;
     @Column(name = "created_at", nullable = false)
