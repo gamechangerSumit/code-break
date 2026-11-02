@@ -109,6 +109,10 @@ public class SecurityConfig {
                         .permitAll()
 
 
+                        // Internal-only operational endpoints; backend has no public host port.
+                        .requestMatchers("/actuator/health/**", "/actuator/prometheus")
+                        .permitAll()
+
                         // WebSocket handshake
                         .requestMatchers(
                                 "/ws/**"
