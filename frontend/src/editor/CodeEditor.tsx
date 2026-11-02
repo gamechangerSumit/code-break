@@ -146,18 +146,15 @@ export default function CodeEditor({
     const onChangeRef =
         useRef(onChange);
 
+    const onCursorChangeRef = useRef(onCursorChange);
 
-    useEffect(
-        () => {
+    useEffect(() => {
+        onChangeRef.current = onChange;
+    }, [onChange]);
 
-            onChangeRef.current =
-                onChange;
-
-        },
-        [
-            onChange,
-        ]
-    );
+    useEffect(() => {
+        onCursorChangeRef.current = onCursorChange;
+    }, [onCursorChange]);
 
 
     // =====================================================
@@ -416,13 +413,12 @@ export default function CodeEditor({
                     stickiness: 1,
                     hoverMessage: { value: cursor.username },
                 },
-                color,
             };
         });
 
         decorationsRef.current = editorInstance.deltaDecorations(
             decorationsRef.current,
-            decorations.map(({ color, ...decoration }) => decoration)
+            decorations
         );
 
         return () => {
