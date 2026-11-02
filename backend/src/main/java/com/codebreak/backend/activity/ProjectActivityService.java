@@ -3,6 +3,7 @@ package com.codebreak.backend.activity;
 import com.codebreak.backend.project.ProjectMemberService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
@@ -10,12 +11,16 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ProjectActivityService {
     private final ProjectActivityRepository repository;
+    private final SimpMessagingTemplate messagingTemplate;
     private final ProjectMemberService members;
 
     @Transactional
     public void record(Long projectId, String actor, String type, String message) {
-        repository.save(ProjectActivity.builder().projectId(projectId).actor(actor)
+        ProjectActivity saved = repository.save(ProjectActivity.builder().projectId(projectId).actor(actor)
                 .type(type).message(message).build());
+        messagingTemplate.convertAndSend("/topic/project/" + projectId + "/activity",
+                new ActivityResponse(saved.getId(), saved.getActor(), saved.getType(),
+                        saved.getMessage(), saved.getCreatedAt()));
     }
 
     @Transactional(readOnly = true)
