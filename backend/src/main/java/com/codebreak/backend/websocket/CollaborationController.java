@@ -9,6 +9,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @Controller
@@ -25,7 +26,7 @@ public class CollaborationController {
 
 
     /**
-     * Per-project/per-file JVM locks.
+     * Bounded striped JVM locks selected by project and file path.
      *
      * This prevents two websocket messages for the same file
      * from reading the same old content and overwriting each other.
@@ -167,6 +168,11 @@ public class CollaborationController {
                         message.getContent();
             }
 
+
+            if (mergedContent.getBytes(StandardCharsets.UTF_8).length
+                    > CodeChangeApplier.MAX_DOCUMENT_BYTES) {
+                return;
+            }
 
             // =============================================
             // SAVE TEMPORARY AUTHORITATIVE STATE
