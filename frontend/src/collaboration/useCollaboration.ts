@@ -389,6 +389,8 @@ export function useCollaboration({
     useEffect(
         () => {
 
+            setPresenceUsers([]);
+
             if (!projectId) {
 
                 setIsConnected(
