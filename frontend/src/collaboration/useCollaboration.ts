@@ -963,7 +963,8 @@ export function useCollaboration({
         useCallback(
             (
                 content: string,
-                changes: CodeChange[] = []
+                changes: CodeChange[] = [],
+                targetFilePath?: string
             ) => {
 
                 const client =
@@ -973,7 +974,7 @@ export function useCollaboration({
                     projectIdRef.current;
 
                 const currentFilePath =
-                    filePathRef.current;
+                    targetFilePath ?? filePathRef.current;
 
 
                 if (
