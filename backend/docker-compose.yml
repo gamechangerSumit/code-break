@@ -1,19 +1,21 @@
 services:
   backend:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: unless-stopped
     environment:
       SERVER_PORT: 8088
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/codebreak
       SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in backend/.env}
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       MINIO_ENDPOINT: http://rustfs:9000
       MINIO_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:?Set RUSTFS_ACCESS_KEY in backend/.env}
       MINIO_SECRET_KEY: ${RUSTFS_SECRET_KEY:?Set RUSTFS_SECRET_KEY in backend/.env}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in backend/.env}
-      APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-http://localhost}
+      APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:?Set APP_CORS_ALLOWED_ORIGINS in backend/.env}
     depends_on:
       postgres:
         condition: service_healthy
@@ -23,14 +25,46 @@ services:
         condition: service_started
     expose:
       - "8088"
+    networks:
+      - app-internal
+      - data-internal
 
   frontend:
-    build: ../frontend
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
       - backend
+    expose:
+      - "80"
+    networks:
+      - app-internal
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in backend/.env}
     ports:
       - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ../deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - codebreak_caddy_data:/data
+      - codebreak_caddy_config:/config
+    depends_on:
+      frontend:
+        condition: service_healthy
+    networks:
+      - app-internal
 
   postgres:
     image: postgres:16-alpine
@@ -38,9 +72,7 @@ services:
     environment:
       POSTGRES_DB: codebreak
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-    ports:
-      - "5432:5432"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in backend/.env}
     volumes:
       - codebreak_postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -48,12 +80,12 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - data-internal
 
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    ports:
-      - "6379:6379"
     volumes:
       - codebreak_redis_data:/data
     command: redis-server --appendonly yes
@@ -62,6 +94,8 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    networks:
+      - data-internal
 
   rustfs:
     image: rustfs/rustfs:latest
@@ -73,14 +107,20 @@ services:
       RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:?Set RUSTFS_ACCESS_KEY in backend/.env}
       RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:?Set RUSTFS_SECRET_KEY in backend/.env}
       RUSTFS_OBS_LOGGER_LEVEL: error
-    ports:
-      - "9000:9000"
-      - "9001:9001"
     volumes:
       - codebreak_rustfs_data:/data
     command: ["/data"]
+    networks:
+      - data-internal
 
 volumes:
   codebreak_postgres_data:
   codebreak_redis_data:
   codebreak_rustfs_data:
+  codebreak_caddy_data:
+  codebreak_caddy_config:
+
+networks:
+  app-internal:
+  data-internal:
+    internal: true

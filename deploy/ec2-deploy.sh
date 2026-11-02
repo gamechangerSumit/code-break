@@ -17,16 +17,27 @@ fi
 set_env() {
   local key="$1"
   local value="$2"
-  if grep -qE "^\${key}=" backend/.env; then
-    sed -i "s|^\${key}=.*|\${key}=\${value}|" backend/.env
+  if grep -q "^${key}=" backend/.env; then
+    sed -i "s|^${key}=.*|${key}=${value}|" backend/.env
   else
-    printf '%s=%s\\n' "${key}" "${value}" >> backend/.env
+    printf '%s=%s\n' "${key}" "${value}" >> backend/.env
   fi
 }
 
 read_env() {
   local key="$1"
-  sed -n "s/^\${key}=//p" backend/.env | tail -n 1
+  sed -n "s/^${key}=//p" backend/.env | tail -n 1
+}
+
+ensure_secret() {
+  local key="$1"
+  local bytes="$2"
+  local value
+  value="$(read_env "${key}")"
+  if [[ -z "${value}" || "${value}" == replace-* ]]; then
+    value="$(openssl rand -hex "${bytes}")"
+  fi
+  set_env "${key}" "${value}"
 }
 
 DOMAIN_VALUE="${DOMAIN:-$(read_env DOMAIN)}"
@@ -37,10 +48,10 @@ if [[ -z "${DOMAIN_VALUE}" || "${DOMAIN_VALUE}" == "localhost" || "${DOMAIN_VALU
 fi
 
 set_env DOMAIN "${DOMAIN_VALUE}"
-set_env POSTGRES_PASSWORD "$(read_env POSTGRES_PASSWORD | grep -q '^replace-' && openssl rand -hex 32 || read_env POSTGRES_PASSWORD)"
-set_env JWT_SECRET "$(read_env JWT_SECRET | grep -q '^replace-' && openssl rand -hex 48 || read_env JWT_SECRET)"
-set_env RUSTFS_ACCESS_KEY "$(read_env RUSTFS_ACCESS_KEY | grep -q '^replace-' && openssl rand -hex 16 || read_env RUSTFS_ACCESS_KEY)"
-set_env RUSTFS_SECRET_KEY "$(read_env RUSTFS_SECRET_KEY | grep -q '^replace-' && openssl rand -hex 32 || read_env RUSTFS_SECRET_KEY)"
+ensure_secret POSTGRES_PASSWORD 32
+ensure_secret JWT_SECRET 48
+ensure_secret RUSTFS_ACCESS_KEY 16
+ensure_secret RUSTFS_SECRET_KEY 32
 set_env APP_CORS_ALLOWED_ORIGINS "https://${DOMAIN_VALUE}"
 chmod 600 backend/.env
 
