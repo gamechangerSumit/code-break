@@ -18,6 +18,9 @@ public class CallSignalingController {
     public void signal(CallSignal signal, Principal principal) {
         if (signal == null || principal == null || signal.projectId() == null ||
                 signal.type() == null || signal.type().isBlank()) return;
+        if (!java.util.Set.of("CALL_READY", "CALL_OFFER", "CALL_ANSWER", "ICE_CANDIDATE", "CALL_END").contains(signal.type()) ||
+                (signal.sdp() != null && signal.sdp().length() > 100_000) ||
+                (signal.candidate() != null && signal.candidate().length() > 4_096)) return;
         String username = principal.getName();
         members.requireReadAccess(signal.projectId(), username);
         CallSignal outgoing = new CallSignal(signal.projectId(), signal.type(), username,
