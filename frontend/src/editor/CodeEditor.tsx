@@ -393,6 +393,7 @@ export default function CodeEditor({
         const binding = new MonacoBinding(text, model, new Set([editorInstance]), provider.awareness);
         const initialContent = latestValueRef.current;
         yjsSyncedRef.current = false;
+        const tokenSyncTimer = window.setInterval(() => { void provider.sendToken(); }, 120000);
 
         provider.on("synced", (event: { state: boolean }) => {
             if (!event.state) return;
@@ -407,6 +408,7 @@ export default function CodeEditor({
 
         return () => {
             yjsSyncedRef.current = false;
+            window.clearInterval(tokenSyncTimer);
             binding.destroy();
             provider.destroy();
             document.destroy();
