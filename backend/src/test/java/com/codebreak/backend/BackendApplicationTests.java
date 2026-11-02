@@ -1,6 +1,6 @@
 package com.codebreak.backend;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.codebreak.backend.user.User;
 import io.minio.MinioClient;
 import org.junit.jupiter.api.Test;
@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class BackendApplicationTests {
 
     @Autowired
-    private ObjectMapper objectMapper;
+    private JsonMapper objectMapper;
 
     // The application creates its bucket during startup; keep this context test
     // isolated from external object storage infrastructure.
