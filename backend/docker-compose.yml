@@ -51,6 +51,12 @@ services:
         condition: service_started
     expose:
       - "1234"
+    healthcheck:
+      test: ["CMD", "node", "-e", "const s=require('node:net').connect(1234,'127.0.0.1',()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     networks:
       - app-internal
       - data-internal
@@ -90,7 +96,7 @@ services:
       frontend:
         condition: service_healthy
       collaboration:
-        condition: service_started
+        condition: service_healthy
     networks:
       - app-internal
 
