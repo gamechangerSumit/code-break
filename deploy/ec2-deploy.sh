@@ -52,10 +52,11 @@ ensure_secret POSTGRES_PASSWORD 32
 ensure_secret JWT_SECRET 48
 ensure_secret RUSTFS_ACCESS_KEY 16
 ensure_secret RUSTFS_SECRET_KEY 32
+ensure_secret GRAFANA_ADMIN_PASSWORD 32
 set_env APP_CORS_ALLOWED_ORIGINS "https://${DOMAIN_VALUE}"
 chmod 600 backend/.env
 
-COMPOSE=(docker compose --env-file backend/.env -f backend/docker-compose.yml)
+COMPOSE=(docker compose --profile monitoring --profile backup --env-file backend/.env -f backend/docker-compose.yml)
 "${COMPOSE[@]}" config --quiet
 "${COMPOSE[@]}" up -d --build --remove-orphans
 "${COMPOSE[@]}" ps
