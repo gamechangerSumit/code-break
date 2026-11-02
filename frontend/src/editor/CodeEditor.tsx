@@ -385,7 +385,7 @@ export default function CodeEditor({
 
         let binary = "";
         new TextEncoder().encode(filePath).forEach(byte => { binary += String.fromCharCode(byte); });
-        const encodedPath = btoa(binary).replace(/\\+/g, "-").replace(/\\//g, "_").replace(/=+$/g, "");
+        const encodedPath = btoa(binary).split("+").join("-").split("/").join("_").replace(/=+$/g, "");
         const documentName = `project-${projectId}-file-${encodedPath}`;
         const document = new Y.Doc();
         const provider = new HocuspocusProvider({
