@@ -8,4 +8,5 @@ public interface WorkspaceVersionRepository extends JpaRepository<WorkspaceVersi
     List<WorkspaceVersion> findTop100ByProjectIdAndFilePathOrderByCreatedAtDesc(Long projectId, String filePath);
     Optional<WorkspaceVersion> findByIdAndProjectId(Long id, Long projectId);
     long countByProjectIdAndFilePath(Long projectId, String filePath);
+    java.util.Optional<WorkspaceVersion> findFirstByProjectIdAndFilePathOrderByCreatedAtDesc(Long projectId, String filePath);
 }
