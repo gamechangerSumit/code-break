@@ -111,8 +111,18 @@ export default function WorkspaceTerminal({ projectId, files, readOnly }: Props)
             <b>$</b>
             <input autoComplete="off" spellCheck={false} value={command} onChange={event => setCommand(event.target.value)}
                 onKeyDown={event => {
-                    if (event.key === "ArrowUp") { event.preventDefault(); const next = history[history.length - 1 - Math.max(0, historyIndex)]; if (next) { setCommand(next); setHistoryIndex(current => Math.min(history.length - 1, current + 1)); } }
-                    if (event.key === "ArrowDown") { event.preventDefault(); const nextIndex = historyIndex - 1; setHistoryIndex(nextIndex); setCommand(nextIndex < 0 ? "" : history[history.length - 1 - nextIndex] ?? ""); }
+                    if (event.key === "ArrowUp") {
+                        event.preventDefault();
+                        const nextIndex = historyIndex < 0 ? history.length - 1 : Math.max(0, historyIndex - 1);
+                        setHistoryIndex(nextIndex);
+                        setCommand(history[nextIndex] ?? "");
+                    }
+                    if (event.key === "ArrowDown") {
+                        event.preventDefault();
+                        const nextIndex = historyIndex + 1;
+                        if (nextIndex >= history.length) { setHistoryIndex(-1); setCommand(""); }
+                        else { setHistoryIndex(nextIndex); setCommand(history[nextIndex] ?? ""); }
+                    }
                 }}
                 placeholder="help, ls, cat src/App.tsx, run main.py…" disabled={busy}/>
             <button type="submit" disabled={busy || !command.trim()}>Run</button>
