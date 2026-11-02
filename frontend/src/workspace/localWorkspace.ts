@@ -28,6 +28,22 @@ const IGNORED_DIRECTORIES = new Set([
 ]);
 
 const IGNORED_FILES = new Set([".DS_Store", "Thumbs.db"]);
+
+const SAFE_ENV_TEMPLATES = new Set([".env.example", ".env.sample"]);
+const SENSITIVE_FILE_NAMES = new Set([
+    "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519",
+    "credentials.json", "secrets.json",
+]);
+
+function isSensitiveFileName(name: string): boolean {
+    const lowerName = name.toLowerCase();
+
+    if (SAFE_ENV_TEMPLATES.has(lowerName)) return false;
+    if (lowerName === ".env" || lowerName.startsWith(".env.")) return true;
+    if (SENSITIVE_FILE_NAMES.has(lowerName)) return true;
+
+    return /\\.(pem|key|p12|pfx|keystore)$/i.test(name);
+}
 const MAX_FILE_SIZE = 2 * 1024 * 1024;
 
 export function isFileSystemAccessSupported(): boolean {
@@ -189,7 +205,10 @@ async function readDirectory(
             continue;
         }
 
-        if (IGNORED_FILES.has(entry.name)) {
+        if (
+            IGNORED_FILES.has(entry.name) ||
+            isSensitiveFileName(entry.name)
+        ) {
             continue;
         }
 
@@ -492,6 +511,13 @@ export async function renameWorkspaceFolder(
                 }
 
                 if (entry.kind === "file") {
+                    if (
+                        IGNORED_FILES.has(entry.name) ||
+                        isSensitiveFileName(entry.name)
+                    ) {
+                        continue;
+                    }
+
                     const file =
                         await (entry as FileSystemFileHandle).getFile();
 
