@@ -86,3 +86,13 @@ export async function getGithubConnection(token: string) {
         headers: headers(token, false),
     }));
 }
+
+export interface VersionComparison {
+    left: WorkspaceVersion; right: WorkspaceVersion; leftContent: string; rightContent: string;
+}
+export async function compareVersions(projectId: number, leftVersionId: number, rightVersionId: number, token: string) {
+    const query = new URLSearchParams({ leftVersionId: String(leftVersionId), rightVersionId: String(rightVersionId) });
+    return parse<VersionComparison>(await fetch(`${root}/projects/${projectId}/versions/compare?${query}`, {
+        headers: headers(token, false),
+    }));
+}
