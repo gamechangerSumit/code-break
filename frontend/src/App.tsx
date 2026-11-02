@@ -350,10 +350,42 @@ function App() {
                     return;
                 }
 
+                const existingFile = filesRef.current.find(
+                    (file) => file.path === path,
+                );
+
+                /*
+                 * New collaboration messages carry Monaco range deltas,
+                 * not a full document. Apply them against the latest local
+                 * copy, from right to left so earlier offsets stay valid.
+                 * Retain the legacy full-content format for older clients.
+                 */
+                let nextContent = message.content;
+                if (Array.isArray(message.changes) && message.changes.length > 0) {
+                    nextContent = [...message.changes]
+                        .sort((a, b) => b.rangeOffset - a.rangeOffset)
+                        .reduce((content, change) => {
+                            const start = change.rangeOffset;
+                            const end = start + change.rangeLength;
+                            if (
+                                !Number.isInteger(start) ||
+                                !Number.isInteger(change.rangeLength) ||
+                                start < 0 ||
+                                change.rangeLength < 0 ||
+                                end > content.length
+                            ) {
+                                return content;
+                            }
+                            return content.slice(0, start) +
+                                change.text +
+                                content.slice(end);
+                        }, existingFile?.content ?? "");
+                }
+
                 const nextFile =
                     makeExplorerFile(
                         path,
-                        message.content ?? "",
+                        nextContent ?? existingFile?.content ?? "",
                     );
 
                 const exists =
