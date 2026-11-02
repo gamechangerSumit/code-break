@@ -1,6 +1,9 @@
 package com.codebreak.backend.workspace;
 
 import lombok.RequiredArgsConstructor;
+import com.codebreak.backend.history.WorkspaceVersion;
+import com.codebreak.backend.history.WorkspaceVersionRepository;
+import java.time.LocalDateTime;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +20,8 @@ public class WorkspacePersistenceScheduler {
     private final MinioWorkspaceService minioWorkspaceService;
 
     private final WorkspaceFileMetadataRepository fileMetadataRepository;
+
+    private final WorkspaceVersionRepository versionRepository;
 
 
     // =====================================================
@@ -241,6 +246,29 @@ public class WorkspacePersistenceScheduler {
             return;
         }
 
+
+        // =================================================
+        // CAPTURE A RESTORABLE SNAPSHOT AT MOST ONCE/MINUTE
+        // =================================================
+
+        versionRepository.findFirstByProjectIdAndFilePathOrderByCreatedAtDesc(projectId, path)
+                .filter(previous -> !previous.getContent().equals(content))
+                .filter(previous -> previous.getCreatedAt().isBefore(LocalDateTime.now().minusMinutes(1)))
+                .ifPresentOrElse(previous -> versionRepository.save(WorkspaceVersion.builder()
+                        .projectId(projectId)
+                        .filePath(path)
+                        .versionNumber(previous.getVersionNumber() + 1)
+                        .content(content)
+                        .createdBy("autosave")
+                        .message("Automatic snapshot")
+                        .build()), () -> {
+                    if (versionRepository.countByProjectIdAndFilePath(projectId, path) == 0) {
+                        versionRepository.save(WorkspaceVersion.builder()
+                                .projectId(projectId).filePath(path).versionNumber(1L)
+                                .content(content).createdBy("autosave")
+                                .message("Initial automatic snapshot").build());
+                    }
+                });
 
         // =================================================
         // WRITE CONTENT TO MINIO
