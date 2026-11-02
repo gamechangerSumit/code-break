@@ -20,7 +20,7 @@ services:
       redis:
         condition: service_healthy
       rustfs:
-        condition: service_healthy
+        condition: service_started
     expose:
       - "8088"
 
@@ -79,12 +79,6 @@ services:
     volumes:
       - codebreak_rustfs_data:/data
     command: ["/data"]
-    healthcheck:
-      test: ["CMD-SHELL", "curl --fail --silent http://localhost:9000/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 20s
 
 volumes:
   codebreak_postgres_data:
