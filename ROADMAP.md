@@ -31,7 +31,8 @@ This document separates existing functionality from features that still require 
 
 ### P1 — Core coding workspace
 
-- Durable file version history, named snapshots, diff viewer and restore.
+- [x] Durable named file snapshots, snapshot timeline, current-content comparison and restore (project-member authorization; PostgreSQL persistence).
+- [ ] Automatic periodic snapshots and scalable line-based diff algorithm.
 - Multi-tab editor, split editor groups, breadcrumbs and command palette.
 - Integrated terminal and task runner.
 - Secure code execution in a separate sandbox service with CPU, memory, time, filesystem and network limits.
