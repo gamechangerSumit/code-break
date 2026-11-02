@@ -257,25 +257,26 @@ public class CollaborationController {
 
         // Validate the complete batch against the same original document
         // before applying anything. Monaco offsets all refer to that version.
-        List<CollaborationMessage.CodeChange> ascending =
-                new ArrayList<>(changes);
-        ascending.sort(
-                Comparator.comparing(
-                        CollaborationMessage.CodeChange::getRangeOffset,
-                        Comparator.nullsLast(Comparator.naturalOrder())
-                )
-        );
-
-        int previousEnd = -1;
-        int previousOffset = -1;
-        for (CollaborationMessage.CodeChange change : ascending) {
+        for (CollaborationMessage.CodeChange change : changes) {
             if (change == null ||
                     change.getRangeOffset() == null ||
                     change.getRangeLength() == null ||
                     change.getText() == null) {
                 throw new IllegalArgumentException("Incomplete edit operation");
             }
+        }
 
+        List<CollaborationMessage.CodeChange> ascending =
+                new ArrayList<>(changes);
+        ascending.sort(
+                Comparator.comparing(
+                        CollaborationMessage.CodeChange::getRangeOffset
+                )
+        );
+
+        int previousEnd = -1;
+        int previousOffset = -1;
+        for (CollaborationMessage.CodeChange change : ascending) {
             int offset = change.getRangeOffset();
             int length = change.getRangeLength();
             long end = (long) offset + length;
