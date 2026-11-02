@@ -6,7 +6,7 @@ Code Break is a collaborative coding workspace with a React/TypeScript frontend 
 
 - Frontend: React 19, TypeScript, Vite, Monaco Editor, STOMP/WebSocket
 - Backend: Java 21, Spring Boot, Spring Security, JWT, Spring Data JPA
-- Services: PostgreSQL 16, Redis 7, MinIO
+- Services: PostgreSQL 16, Redis 7, RustFS
 - Runtime: Docker Compose (local full-stack deployment)
 
 ## Run the full stack with Docker
@@ -22,11 +22,11 @@ Code Break is a collaborative coding workspace with a React/TypeScript frontend 
 4. Open [http://localhost](http://localhost). The API is reverse-proxied under `/api`; WebSocket traffic is reverse-proxied under `/ws`.
 5. Stop the stack with `docker compose --env-file .env down`. Add `-v` only if you intentionally want to delete persisted database/cache/object-storage volumes.
 
-The Compose stack persists PostgreSQL, Redis, and MinIO data in named volumes. The sample credentials are for local development only; do not expose the database, Redis, or MinIO administration ports publicly.
+The Compose stack persists PostgreSQL, Redis, and RustFS data in named volumes. The sample credentials are for local development only; do not expose the database, Redis, or RustFS administration ports publicly.
 
 ## Run services separately for development
 
-Start PostgreSQL, Redis, and RustFS using `docker compose up -d postgres redis minio` from `backend` (or run equivalent services yourself). Set the backend environment variables shown in `backend/.env.example`, then run:
+Start PostgreSQL, Redis, and RustFS using `docker compose up -d postgres redis rustfs` from `backend` (or run equivalent services yourself). Set the backend environment variables shown in `backend/.env.example`, then run:
 
 ```bash
 cd backend
