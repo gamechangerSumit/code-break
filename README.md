@@ -1,6 +1,6 @@
 # Code Break
 
-Code Break is a collaborative coding workspace with a React/TypeScript frontend and a Spring Boot backend. It includes project membership and roles, a Monaco-based editor, workspace file/folder management, real-time collaboration and chat, PostgreSQL persistence, Redis-backed workspace support, and MinIO object storage.
+Code Break is a collaborative coding workspace with a React/TypeScript frontend and a Spring Boot backend. It includes project membership and roles, a Monaco-based editor, workspace file/folder management, real-time collaboration and chat, PostgreSQL persistence, Redis-backed workspace support, and RustFS S3-compatible object storage.
 
 ## Stack
 
@@ -26,7 +26,7 @@ The Compose stack persists PostgreSQL, Redis, and MinIO data in named volumes. T
 
 ## Run services separately for development
 
-Start PostgreSQL, Redis, and MinIO using `docker compose up -d postgres redis minio` from `backend` (or run equivalent services yourself). Set the backend environment variables shown in `backend/.env.example`, then run:
+Start PostgreSQL, Redis, and RustFS using `docker compose up -d postgres redis minio` from `backend` (or run equivalent services yourself). Set the backend environment variables shown in `backend/.env.example`, then run:
 
 ```bash
 cd backend
