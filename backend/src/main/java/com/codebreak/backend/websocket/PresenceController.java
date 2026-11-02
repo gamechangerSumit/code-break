@@ -67,9 +67,10 @@ public class PresenceController {
         }
 
         PresenceState previous = sessions.get(sessionId);
-        if (previous == null || !previous.projectId().equals(update.projectId())) {
-            previous = new PresenceState(update.projectId(), principal.getName(),
-                    filePath, 1, 1, 1, 1, 1, 1, colorFor(principal.getName()));
+        if (previous == null
+                || !previous.projectId().equals(update.projectId())
+                || !previous.username().equals(principal.getName())) {
+            return;
         }
 
         PresenceState next = new PresenceState(
