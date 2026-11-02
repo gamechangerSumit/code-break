@@ -44,3 +44,14 @@ export async function requestAiAssistance(projectId: number, token: string, payl
         method: "POST", headers: headers(token), body: JSON.stringify(payload),
     }));
 }
+
+export interface ExecutionResult {
+    stdout: string; stderr: string; compileOutput: string; message: string;
+    status: string; time: string | number | null; memory: string | number | null;
+    exitCode: number | null;
+}
+export async function executeProjectCode(projectId: number, token: string, payload: { language: string; sourceCode: string; stdin?: string }) {
+    return parse<ExecutionResult>(await fetch(`${root}/projects/${projectId}/execute`, {
+        method: "POST", headers: headers(token), body: JSON.stringify(payload),
+    }));
+}
