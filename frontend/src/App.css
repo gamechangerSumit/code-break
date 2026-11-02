@@ -2510,3 +2510,13 @@ button {
 .editor-file-tab span:nth-child(2){overflow:hidden;text-overflow:ellipsis}
 .editor-file-tab-close{font-size:15px;line-height:1;padding:2px 4px;border-radius:4px}
 .editor-file-tab-close:hover{background:#384154;color:#fff}
+
+
+.editor-split-wrapper{display:flex;flex:1;min-height:0;min-width:0;overflow:hidden}
+.editor-split-wrapper.single{display:flex}
+.editor-split-wrapper.single>.editor{width:100%}
+.editor-split-wrapper:not(.single)>.editor{width:50%;flex:1 1 50%}
+.editor-split-secondary{width:50%;flex:1 1 50%;border-left:1px solid rgba(148,163,184,.22);display:flex;flex-direction:column}
+.split-editor-title{height:28px;flex:0 0 28px;display:flex;align-items:center;justify-content:space-between;padding:0 10px;background:#0e1a2d;color:#aab8ca;font-size:10px}
+.split-editor-title button{border:0;background:transparent;color:#91a9cb;font-size:10px;cursor:pointer}
+.editor-split-select{max-width:180px;background:#101b2b;color:#aebed2;border:1px solid rgba(148,163,184,.22);border-radius:5px;padding:5px;font-size:10px}
