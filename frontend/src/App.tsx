@@ -25,7 +25,8 @@ import {
 } from "lucide-react";
 
 import ActivityBar from "./components/ActivityBar";
-import CodeEditor from "./editor/CodeEditor";
+import CodeEditor, { type CodeEditorChange } from "./editor/CodeEditor";
+import { COLLABORATION_URL } from "./config";
 import FileExplorer, {
     type ExplorerFile,
 } from "./explorer/FileExplorer";
@@ -1317,7 +1318,7 @@ function App() {
 
     const handleCodeChange =
         useCallback(
-            (value: string) => {
+            (value: string, changes: CodeEditorChange[], yjsSynced = false) => {
                 if (
                     currentRole === "VIEWER" ||
                     !selectedFile
@@ -1343,7 +1344,7 @@ function App() {
 
                 setSelectedFile(nextFile);
                 setIsDirty(true);
-                sendChange(value);
+                if (!yjsSynced) sendChange(value, changes);
             },
             [
                 currentRole,
@@ -1354,11 +1355,11 @@ function App() {
         );
 
     const handleSplitCodeChange = useCallback(
-        (path: string, value: string, changes: Array<{ rangeOffset: number; rangeLength: number; text: string }>) => {
+        (path: string, value: string, changes: CodeEditorChange[], yjsSynced = false) => {
             if (currentRole === "VIEWER") return;
             const nextFile = makeExplorerFile(path, value);
             syncFiles(filesRef.current.map(file => file.path === path ? nextFile : file));
-            sendChange(value, changes, path);
+            if (!yjsSynced) sendChange(value, changes, path);
             setIsDirty(true);
         },
         [currentRole, syncFiles, sendChange],
@@ -2397,6 +2398,9 @@ function App() {
                         {selectedFile ? (
                             <CodeEditor
                                 filePath={selectedFile.path}
+                                projectId={selectedProject.id}
+                                collaborationUrl={COLLABORATION_URL}
+                                accessToken={localStorage.getItem("token") ?? ""}
                                 value={
                                     selectedFile.content
                                 }
@@ -2472,8 +2476,11 @@ function App() {
                             </div>
                             <CodeEditor
                                 filePath={splitFilePath}
+                                projectId={selectedProject.id}
+                                collaborationUrl={COLLABORATION_URL}
+                                accessToken={localStorage.getItem("token") ?? ""}
                                 value={files.find(file => file.path === splitFilePath)?.content ?? ""}
-                                onChange={(value, changes) => handleSplitCodeChange(splitFilePath, value, changes)}
+                                onChange={(value, changes, yjsSynced) => handleSplitCodeChange(splitFilePath, value, changes, yjsSynced)}
                                 onCursorChange={cursor => sendCursor({ filePath: splitFilePath, ...cursor })}
                                 remoteCursors={presenceUsers.filter(user => user.username !== username && user.filePath === splitFilePath).map(({ username: remoteUsername, lineNumber, column, selectionStartLine, selectionStartColumn, selectionEndLine, selectionEndColumn, color }) => ({
                                     username: remoteUsername, lineNumber, column, selectionStartLine, selectionStartColumn,
