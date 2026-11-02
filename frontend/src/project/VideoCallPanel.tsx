@@ -135,8 +135,13 @@ export default function VideoCallPanel({ projectId, username }: Props) {
         return () => {
             client.deactivate();
             clientRef.current = null;
-            peersRef.current.forEach(peer => peer.close());
-            peersRef.current.clear();
+            const peers = peersRef.current;
+            peers.forEach(peer => peer.close());
+            peers.clear();
+            localStreamRef.current?.getTracks().forEach(track => track.stop());
+            screenStreamRef.current?.getTracks().forEach(track => track.stop());
+            localStreamRef.current = null;
+            screenStreamRef.current = null;
         };
     }, [projectId, username, closePeer, createPeer, makeOffer, send]);
 
