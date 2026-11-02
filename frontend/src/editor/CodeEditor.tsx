@@ -371,9 +371,6 @@ export default function CodeEditor({
         }
 
         const decorations = remoteCursors.map((cursor, index) => {
-            const color = /^#[0-9a-fA-F]{6}$/.test(cursor.color)
-                ? cursor.color
-                : "#60a5fa";
             const hasSelection =
                 cursor.selectionStartLine !== cursor.selectionEndLine ||
                 cursor.selectionStartColumn !== cursor.selectionEndColumn;
