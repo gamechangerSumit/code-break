@@ -141,7 +141,7 @@ public class GithubIntegrationController {
         activity.record(projectId, auth.getName(), "GITHUB_IMPORT",
                 "Imported " + files.size() + " files from " + request.fullName());
         messagingTemplate.convertAndSend("/topic/project/" + projectId + "/workspace",
-                Map.of("type", "WORKSPACE_REFRESH", "projectId", projectId, "username", auth.getName()));
+                new WorkspaceRefreshSignal("WORKSPACE_REFRESH", projectId, auth.getName()));
         return new ImportResponse(request.fullName(), files.size(), totalBytes);
     }
 
@@ -156,6 +156,7 @@ public class GithubIntegrationController {
                 !lower.startsWith("dist/") && !lower.startsWith(".env");
     }
 
+    public record WorkspaceRefreshSignal(String type, Long projectId, String username) {}
     public record ImportRequest(String fullName, String branch) {}
     public record ImportResponse(String repository, int importedFiles, long bytes) {}
 
