@@ -15,13 +15,13 @@ Run from the repository root on the EC2 instance:
 bash deploy/backup.sh
 ```
 
-The script pauses the backend during capture, then creates a timestamped, permission-restricted directory under `backups/` containing:
+The script pauses backend writes during capture (the site may briefly return 502), then creates a timestamped, permission-restricted directory under `backups/` containing:
 - A PostgreSQL custom-format dump.
 - A compressed archive of the RustFS object data volume.
 - A compressed archive of Redis persisted workspace state.
 - SHA-256 checksums.
 
-Backups on the same EC2/EBS volume are not disaster recovery. Copy completed backup directories to a separate encrypted S3 bucket or another account/region, apply retention, and periodically test restores.
+Backups on the same EC2/EBS volume are not disaster recovery. Copy completed backup directories to a separate encrypted S3 bucket or another account/region, apply retention, and periodically test restores. For example, after configuring an IAM instance role with write access to a dedicated bucket: `aws s3 sync backups/ s3://YOUR-BACKUP-BUCKET/code-break/ --sse AES256`.
 
 ## PostgreSQL restore
 
