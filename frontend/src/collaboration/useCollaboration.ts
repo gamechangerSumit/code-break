@@ -389,8 +389,6 @@ export function useCollaboration({
     useEffect(
         () => {
 
-            setPresenceUsers([]);
-
             if (!projectId) {
 
                 setIsConnected(
@@ -452,6 +450,8 @@ export function useCollaboration({
 
             client.onConnect =
                 () => {
+
+                    setPresenceUsers([]);
 
                     setIsConnected(
                         true
