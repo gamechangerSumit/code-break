@@ -220,11 +220,6 @@ export default function CodeEditor({
                     }
 
 
-                    if (readOnly) {
-                        return;
-                    }
-
-
                     const nextValue =
                         editorInstance.getValue();
 
