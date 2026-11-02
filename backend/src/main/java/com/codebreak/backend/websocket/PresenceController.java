@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PresenceController {
 
+    static final int MAX_TRACKED_SESSIONS = 10_000;
     private static final String[] COLORS = {
             "#60a5fa", "#f472b6", "#34d399", "#fbbf24",
             "#a78bfa", "#fb923c", "#22d3ee", "#f87171"
@@ -31,6 +32,7 @@ public class PresenceController {
     // A user may have multiple browser tabs. Track each STOMP session,
     // then collapse sessions by username when publishing the room snapshot.
     private final Map<String, PresenceState> sessions = new ConcurrentHashMap<>();
+    private final Object sessionAdmissionLock = new Object();
 
     @MessageMapping("/presence/join")
     public void join(ProjectRequest request, Principal principal,
@@ -43,10 +45,15 @@ public class PresenceController {
         if (sessionId == null) {
             return;
         }
-        sessions.put(sessionId, new PresenceState(
-                request.projectId(), principal.getName(), null,
-                1, 1, 1, 1, 1, 1, colorFor(principal.getName())
-        ));
+        synchronized (sessionAdmissionLock) {
+            if (!sessions.containsKey(sessionId) && sessions.size() >= MAX_TRACKED_SESSIONS) {
+                return;
+            }
+            sessions.put(sessionId, new PresenceState(
+                    request.projectId(), principal.getName(), null,
+                    1, 1, 1, 1, 1, 1, colorFor(principal.getName())
+            ));
+        }
         broadcast(request.projectId());
     }
 
