@@ -27,7 +27,11 @@ public class CodeExecutionController {
             "python", 71,
             "java", 62,
             "cpp", 54,
-            "javascript", 63
+            "javascript", 63,
+            "c", 50,
+            "go", 60,
+            "rust", 73,
+            "bash", 46
     );
 
     @PostMapping
