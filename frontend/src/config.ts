@@ -12,3 +12,9 @@ export const WS_URL: string =
     (import.meta.env.PROD
         ? `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/ws`
         : "ws://localhost:8088/ws");
+
+export const COLLABORATION_URL: string =
+    import.meta.env.VITE_COLLABORATION_URL ??
+    (import.meta.env.PROD
+        ? `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/collaboration`
+        : "ws://localhost:1234/collaboration");
