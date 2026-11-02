@@ -9,7 +9,7 @@ class WorkspacePathTests {
 
     @Test
     void normalizesSeparatorsAndOuterSlashes() {
-        assertEquals("src/main/App.java", WorkspacePath.normalize("/src\\\\main\\\\App.java/"));
+        assertEquals("src/main/App.java", WorkspacePath.normalize("/src\\main\\App.java/"));
     }
 
     @Test
@@ -28,7 +28,7 @@ class WorkspacePathTests {
     @Test
     void rejectsEmptyInteriorSegmentsAndControlCharacters() {
         assertThrows(IllegalArgumentException.class, () -> WorkspacePath.normalize("src//Main.java"));
-        assertThrows(IllegalArgumentException.class, () -> WorkspacePath.normalize("src/\u0000secret"));
+        assertThrows(IllegalArgumentException.class, () -> WorkspacePath.normalize("src/" + Character.toString((char) 0) + "secret"));
     }
 
     @Test
