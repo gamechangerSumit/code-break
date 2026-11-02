@@ -5,6 +5,7 @@ import Editor, {
 import {
     useEffect,
     useRef,
+    useState,
 } from "react";
 
 import type {
@@ -68,6 +69,8 @@ export default function CodeEditor({
             null
         );
 
+    const [editorReady, setEditorReady] = useState(false);
+
 
     const changeSubscriptionRef =
         useRef<IDisposable | null>(
@@ -128,6 +131,7 @@ export default function CodeEditor({
         editorRef.current =
             editorInstance;
 
+        setEditorReady(true);
 
         latestValueRef.current =
             safeValue;
@@ -389,7 +393,7 @@ export default function CodeEditor({
                 );
             }
         };
-    }, [remoteCursors]);
+    }, [remoteCursors, editorReady]);
 
     // =====================================================
     // READ ONLY CHANGE
