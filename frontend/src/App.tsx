@@ -2482,6 +2482,7 @@ function App() {
                     <ProjectToolsPanel
                         projectId={selectedProject.id}
                         filePath={selectedFile?.path ?? null}
+                        code={selectedFile?.content ?? ""}
                         readOnly={currentRole === "VIEWER"}
                     />
 
