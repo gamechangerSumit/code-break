@@ -54,21 +54,21 @@ public class CodeExecutionController {
             if (runnerApiKey != null && !runnerApiKey.isBlank()) {
                 builder.defaultHeader("X-Auth-Token", runnerApiKey);
             }
+            Map<String, Object> payload = new java.util.HashMap<>();
+            payload.put("language_id", languageId);
+            payload.put("source_code", request.sourceCode());
+            payload.put("stdin", request.stdin() == null ? "" : request.stdin());
+            payload.put("cpu_time_limit", 2.0);
+            payload.put("cpu_extra_time", 0.5);
+            payload.put("wall_time_limit", 5.0);
+            payload.put("memory_limit", 131072);
+            payload.put("stack_limit", 65536);
+            payload.put("max_processes_and_or_threads", 30);
+            payload.put("enable_per_process_and_thread_time_limit", true);
+            payload.put("enable_per_process_and_thread_memory_limit", true);
             Map<?, ?> result = builder.build().post()
                     .uri("/submissions?base64_encoded=false&wait=true")
-                    .body(Map.of(
-                            "language_id", languageId,
-                            "source_code", request.sourceCode(),
-                            "stdin", request.stdin() == null ? "" : request.stdin(),
-                            "cpu_time_limit", 2.0,
-                            "cpu_extra_time", 0.5,
-                            "wall_time_limit", 5.0,
-                            "memory_limit", 131072,
-                            "stack_limit", 65536,
-                            "max_processes_and_or_threads", 30,
-                            "enable_per_process_and_thread_time_limit", true,
-                            "enable_per_process_and_thread_memory_limit", true
-                    )).retrieve().body(Map.class);
+                    .body(payload).retrieve().body(Map.class);
             if (result == null) throw new IllegalStateException("Empty runner response");
             return new ExecutionResponse(
                     text(result.get("stdout")), text(result.get("stderr")),
