@@ -2583,6 +2583,7 @@ function App() {
                         projectId={selectedProject.id}
                         filePath={selectedFile?.path ?? null}
                         code={selectedFile?.content ?? ""}
+                        files={files.map(file => ({ path: file.path, content: file.content }))}
                         readOnly={currentRole === "VIEWER"}
                         username={username}
                     />
