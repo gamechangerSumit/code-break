@@ -115,6 +115,13 @@ public class SecurityConfig {
                         )
                         .permitAll()
 
+                        // Health probes expose status only, never component details.
+                        .requestMatchers(
+                                "/actuator/health",
+                                "/actuator/health/**"
+                        )
+                        .permitAll()
+
 
                         // Everything else
                         .anyRequest()

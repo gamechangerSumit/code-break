@@ -59,7 +59,7 @@ cd ../backend && ./mvnw -B test
 
 ## Deploy to AWS EC2 (Ubuntu)
 
-The repository includes a production-oriented Compose stack, private service networks, persistent volumes, Caddy automatic HTTPS, and EC2 helper scripts.
+The repository includes a production-oriented Compose stack, private service networks, persistent volumes, Caddy automatic HTTPS, backend readiness probes, and EC2 helper scripts. Backup and restore procedures are documented in [deploy/README.md](deploy/README.md).
 
 ### 1. Prepare AWS
 
@@ -94,7 +94,7 @@ Log out and SSH back in so your user receives the Docker group membership. Then 
 DOMAIN=codebreak.example.com bash deploy/ec2-deploy.sh
 ```
 
-The deployment script creates `backend/.env` if missing, generates strong random database/JWT/object-storage secrets, restricts the file to the current user, validates Compose, and builds/starts the stack. Keep `backend/.env` private and backed up securely; never commit it.
+The deployment script creates `backend/.env` if missing, generates strong random database/JWT/object-storage secrets, restricts the file to the current user, validates Compose, builds/starts the stack, waits for backend readiness, and verifies HTTPS ingress. Keep `backend/.env` private and backed up securely; never commit it.
 
 ### 5. Verify and operate
 
@@ -119,5 +119,7 @@ docker compose --env-file backend/.env -f backend/docker-compose.yml down
 Never use `down -v` on a live deployment unless you intentionally want to delete the persistent database, Redis, object-storage, and Caddy volumes.
 
 ### Production operations
+
+Run `bash deploy/backup.sh` regularly and copy the generated backup directory off-host to encrypted storage. See [deploy/README.md](deploy/README.md) for restore instructions.
 
 This is a single-EC2 deployment baseline, not a highly available architecture. Configure automated EBS snapshots and application-level PostgreSQL/object-storage backups, test restores, monitor disk/RAM/CPU, and keep the OS and images patched. For higher availability, move PostgreSQL and object storage to managed/redundant services, add centralized secrets management and monitoring, and scale the application behind a load balancer. Review database migration strategy before changing `SPRING_JPA_HIBERNATE_DDL_AUTO` from its current default.

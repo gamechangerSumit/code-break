@@ -57,8 +57,14 @@ chmod 600 backend/.env
 
 COMPOSE=(docker compose --env-file backend/.env -f backend/docker-compose.yml)
 "${COMPOSE[@]}" config --quiet
-"${COMPOSE[@]}" up -d --build --remove-orphans
+"${COMPOSE[@]}" up -d --build --remove-orphans --wait --wait-timeout 300
 "${COMPOSE[@]}" ps
+
+if ! curl --fail --silent --resolve "${DOMAIN_VALUE}:443:127.0.0.1" "https://${DOMAIN_VALUE}/" >/dev/null; then
+  "${COMPOSE[@]}" logs --tail=120 caddy frontend backend
+  echo "HTTPS ingress check failed. Verify DNS and inbound TCP 80/443." >&2
+  exit 1
+fi
 
 echo
 echo "Deployment containers have been started."
