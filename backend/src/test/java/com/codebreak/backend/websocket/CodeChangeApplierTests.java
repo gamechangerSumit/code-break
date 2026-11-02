@@ -84,6 +84,29 @@ class CodeChangeApplierTests {
     }
 
     @Test
+    void rejectsDocumentsAndInsertedTextOverTwoMiB() {
+        String oversized = "x".repeat(CodeChangeApplier.MAX_DOCUMENT_BYTES + 1);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> CodeChangeApplier.apply(oversized, List.of())
+        );
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> CodeChangeApplier.apply(
+                        "",
+                        List.of(new CollaborationMessage.CodeChange(0, 0, oversized))
+                )
+        );
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> CodeChangeApplier.apply(
+                        "x",
+                        List.of(new CollaborationMessage.CodeChange(0, 1, oversized))
+                )
+        );
+    }
+
+    @Test
     void rejectsOversizedBatches() {
         List<CollaborationMessage.CodeChange> changes =
                 java.util.Collections.nCopies(
