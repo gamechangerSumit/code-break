@@ -2,12 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 import { Bell, Copy, History, Link2, RefreshCw, Sparkles } from "lucide-react";
 import {
     createProjectInvitation, createSnapshot, listProjectActivity, listVersions,
-    restoreVersion, requestAiAssistance, type ProjectActivity, type WorkspaceVersion,
+    restoreVersion, requestAiAssistance, executeProjectCode, type ProjectActivity, type WorkspaceVersion,
 } from "./projectToolsApi";
 import "./ProjectToolsPanel.css";
 
 interface Props { projectId: number; filePath: string | null; code: string; readOnly: boolean; }
-type Tab = "history" | "activity" | "invite" | "ai";
+type Tab = "history" | "activity" | "invite" | "ai" | "run";
 
 export default function ProjectToolsPanel({ projectId, filePath, code, readOnly }: Props) {
     const [tab, setTab] = useState<Tab>("history");
@@ -16,6 +16,8 @@ export default function ProjectToolsPanel({ projectId, filePath, code, readOnly 
     const [inviteUrl, setInviteUrl] = useState("");
     const [aiPrompt, setAiPrompt] = useState("");
     const [aiAnswer, setAiAnswer] = useState("");
+    const [stdin, setStdin] = useState("");
+    const [runOutput, setRunOutput] = useState("");
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
     const token = localStorage.getItem("token") ?? "";
@@ -45,6 +47,24 @@ export default function ProjectToolsPanel({ projectId, filePath, code, readOnly 
         catch (e) { setError(e instanceof Error ? e.message : "Restore failed"); }
         finally { setBusy(false); }
     };
+    const languageForFile = () => {
+        const extension = filePath?.split(".").pop()?.toLowerCase();
+        if (extension === "py") return "python";
+        if (extension === "java") return "java";
+        if (["cpp", "cc", "cxx"].includes(extension ?? "")) return "cpp";
+        if (["js", "mjs", "cjs"].includes(extension ?? "")) return "javascript";
+        return "";
+    };
+    const runCode = async () => {
+        const language = languageForFile();
+        if (!language || !code.trim()) return;
+        setBusy(true); setError(""); setRunOutput("");
+        try {
+            const result = await executeProjectCode(projectId, token, { language, sourceCode: code, stdin });
+            setRunOutput([result.status, result.stdout, result.stderr, result.compileOutput, result.message].filter(Boolean).join("\\n\\n"));
+        } catch (e) { setError(e instanceof Error ? e.message : "Execution failed"); }
+        finally { setBusy(false); }
+    };
     const askAi = async () => {
         if (!aiPrompt.trim()) return;
         setBusy(true); setError(""); setAiAnswer("");
@@ -69,6 +89,7 @@ export default function ProjectToolsPanel({ projectId, filePath, code, readOnly 
             <button className={tab === "activity" ? "active" : ""} onClick={() => setTab("activity")}><Bell size={13}/> Activity</button>
             <button className={tab === "invite" ? "active" : ""} onClick={() => setTab("invite")}><Link2 size={13}/> Invite</button>
             <button className={tab === "ai" ? "active" : ""} onClick={() => setTab("ai")}><Sparkles size={13}/> AI</button>
+            <button className={tab === "run" ? "active" : ""} onClick={() => setTab("run")}><span>▶</span> Run</button>
         </div>
         {error && <p className="project-tools-error">{error}</p>}
         {tab === "history" && <div className="project-tools-body">
@@ -93,6 +114,13 @@ export default function ProjectToolsPanel({ projectId, filePath, code, readOnly 
             <textarea className="project-tools-ai-prompt" value={aiPrompt} onChange={event => setAiPrompt(event.target.value)} rows={3} maxLength={12000} placeholder="What should I improve or debug?" />
             <button disabled={busy || !aiPrompt.trim()} onClick={() => void askAi()}><Sparkles size={13}/> {busy ? "Thinking..." : "Ask AI"}</button>
             {aiAnswer && <pre className="project-tools-ai-answer">{aiAnswer}</pre>}
+        </div>}
+        {tab === "run" && <div className="project-tools-body">
+            <p className="project-tools-empty">Runs code in a separately hosted, resource-limited Judge0-compatible sandbox. Supported here: Python, Java, C++ and JavaScript.</p>
+            <small>{languageForFile() ? `Detected language: ${languageForFile()}` : "Open a .py, .java, .cpp or .js file to run it."}</small>
+            <textarea className="project-tools-ai-prompt" value={stdin} onChange={event => setStdin(event.target.value)} rows={2} placeholder="Standard input (optional)" />
+            <button disabled={busy || !languageForFile() || !code.trim() || readOnly} onClick={() => void runCode()}>{busy ? "Running..." : "▶ Run code"}</button>
+            {runOutput && <pre className="project-tools-ai-answer">{runOutput}</pre>}
         </div>}
     </section>;
 }
