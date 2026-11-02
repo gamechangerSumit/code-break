@@ -5,11 +5,12 @@ import {
     restoreVersion, requestAiAssistance, executeProjectCode, connectGithub, listGithubRepositories, disconnectGithub, type GithubRepository, type ProjectActivity, type WorkspaceVersion,
 } from "./projectToolsApi";
 import "./ProjectToolsPanel.css";
+import VideoCallPanel from "./VideoCallPanel";
 
-interface Props { projectId: number; filePath: string | null; code: string; readOnly: boolean; }
-type Tab = "history" | "activity" | "invite" | "ai" | "run" | "preview" | "github";
+interface Props { projectId: number; filePath: string | null; code: string; readOnly: boolean; username: string; }
+type Tab = "history" | "activity" | "invite" | "ai" | "run" | "preview" | "github" | "call";
 
-export default function ProjectToolsPanel({ projectId, filePath, code, readOnly }: Props) {
+export default function ProjectToolsPanel({ projectId, filePath, code, readOnly, username }: Props) {
     const [tab, setTab] = useState<Tab>("history");
     const [versions, setVersions] = useState<WorkspaceVersion[]>([]);
     const [activity, setActivity] = useState<ProjectActivity[]>([]);
@@ -122,6 +123,7 @@ export default function ProjectToolsPanel({ projectId, filePath, code, readOnly 
             <button className={tab === "run" ? "active" : ""} onClick={() => setTab("run")}><span>▶</span> Run</button>
             <button className={tab === "preview" ? "active" : ""} onClick={() => setTab("preview")}>Preview</button>
             <button className={tab === "github" ? "active" : ""} onClick={() => setTab("github")}>GitHub</button>
+            <button className={tab === "call" ? "active" : ""} onClick={() => setTab("call")}>Call</button>
         </div>
         {error && <p className="project-tools-error">{error}</p>}
         {tab === "history" && <div className="project-tools-body">
@@ -170,5 +172,6 @@ export default function ProjectToolsPanel({ projectId, filePath, code, readOnly 
                 {githubRepos.map(repo => <a className="project-tools-repo" key={repo.fullName} href={repo.url} target="_blank" rel="noreferrer">{repo.fullName}{repo.isPrivate ? " · private" : ""}</a>)}
             </>}
         </div>}
+        {tab === "call" && <VideoCallPanel projectId={projectId} username={username} />}
     </section>;
 }
