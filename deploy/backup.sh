@@ -22,8 +22,12 @@ cleanup() {
   if [[ -d "${DEST}" ]]; then
     find "${DEST}" -maxdepth 1 -type f -size 0 -delete
   fi
+  "${COMPOSE[@]}" start backend >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
+
+echo "Pausing backend writes for a consistent multi-service backup..."
+"${COMPOSE[@]}" stop backend
 
 echo "Checking database readiness..."
 "${COMPOSE[@]}" exec -T postgres pg_isready -U postgres -d codebreak
@@ -47,9 +51,20 @@ docker run --rm -v "${RUSTFS_VOLUME}:/source:ro" -v "${DEST}:/backup" alpine:3.2
   sh -c 'tar -czf /backup/rustfs-data.tar.gz -C /source .'
 test -s "${DEST}/rustfs-data.tar.gz"
 
+echo "Archiving Redis persisted workspace state..."
+REDIS_ID="$("${COMPOSE[@]}" ps -q redis)"
+REDIS_VOLUME="$(docker inspect "${REDIS_ID}" --format '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Name}}{{end}}{{end}}')"
+if [[ -z "${REDIS_VOLUME}" ]]; then
+  echo "Could not identify the Redis data volume." >&2
+  exit 1
+fi
+docker run --rm -v "${REDIS_VOLUME}:/source:ro" -v "${DEST}:/backup" alpine:3.20 \
+  sh -c 'tar -czf /backup/redis-data.tar.gz -C /source .'
+test -s "${DEST}/redis-data.tar.gz"
+
 (
   cd "${DEST}"
-  sha256sum postgres.dump rustfs-data.tar.gz > SHA256SUMS
+  sha256sum postgres.dump rustfs-data.tar.gz redis-data.tar.gz > SHA256SUMS
 )
 chmod 600 "${DEST}"/*
 echo "Backup completed: ${DEST}"
