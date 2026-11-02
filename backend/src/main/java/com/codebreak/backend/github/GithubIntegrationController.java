@@ -141,7 +141,9 @@ public class GithubIntegrationController {
         if (path == null || path.isBlank() || path.startsWith("/") || path.contains("\\") ||
                 path.contains("..") || path.length() > 1024) return false;
         String lower = path.toLowerCase(Locale.ROOT);
-        return !lower.startsWith(".git/") && !lower.contains("/node_modules/") &&
+        return !lower.startsWith(".git/") && !lower.matches(".*(^|/)\\.env[^/]*.*") &&
+                !lower.endsWith(".pem") && !lower.endsWith(".key") && !lower.endsWith(".p12") &&
+                !lower.contains("/node_modules/") &&
                 !lower.startsWith("node_modules/") && !lower.startsWith("target/") &&
                 !lower.startsWith("dist/") && !lower.startsWith(".env");
     }
