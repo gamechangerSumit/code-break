@@ -28,7 +28,6 @@ public class WorkspaceVersion {
     @Column(name = "version_number", nullable = false)
     private Long versionNumber;
 
-    @Lob
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
