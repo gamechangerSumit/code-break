@@ -227,6 +227,8 @@ function App() {
 
     const [openTabs, setOpenTabs] = useState<string[]>([]);
 
+    const [splitFilePath, setSplitFilePath] = useState<string | null>(null);
+
     const [currentRole, setCurrentRole] =
         useState<ProjectRole | null>(null);
 
@@ -1351,6 +1353,17 @@ function App() {
             ],
         );
 
+    const handleSplitCodeChange = useCallback(
+        (path: string, value: string, changes: Array<{ rangeOffset: number; rangeLength: number; text: string }>) => {
+            if (currentRole === "VIEWER") return;
+            const nextFile = makeExplorerFile(path, value);
+            syncFiles(filesRef.current.map(file => file.path === path ? nextFile : file));
+            sendChange(value, changes, path);
+            setIsDirty(true);
+        },
+        [currentRole, syncFiles, sendChange],
+    );
+
     const handleDeleteFile =
         useCallback(
             async (file: ExplorerFile) => {
@@ -1930,6 +1943,7 @@ function App() {
             setFolders([]);
             setSelectedFile(null);
             setOpenTabs([]);
+            setSplitFilePath(null);
             setCurrentRole(null);
             setChatMessages([]);
             setWorkspaceName(null);
@@ -2366,6 +2380,7 @@ function App() {
                         </div>
                     )}
 
+                    <div className={splitFilePath ? "editor-split-wrapper" : "editor-split-wrapper single"}>
                     <div className="editor">
                         {selectedFile ? (
                             <CodeEditor
@@ -2436,6 +2451,26 @@ function App() {
                                 </div>
                             </div>
                         )}
+                    </div>
+                    {splitFilePath && files.find(file => file.path === splitFilePath) && (
+                        <div className="editor editor-split-secondary">
+                            <div className="split-editor-title">
+                                <span>{splitFilePath}</span>
+                                <button type="button" onClick={() => setSplitFilePath(null)}>Close split</button>
+                            </div>
+                            <CodeEditor
+                                filePath={splitFilePath}
+                                value={files.find(file => file.path === splitFilePath)?.content ?? ""}
+                                onChange={(value, changes) => handleSplitCodeChange(splitFilePath, value, changes)}
+                                onCursorChange={cursor => sendCursor({ filePath: splitFilePath, ...cursor })}
+                                remoteCursors={presenceUsers.filter(user => user.username !== username && user.filePath === splitFilePath).map(({ username: remoteUsername, lineNumber, column, selectionStartLine, selectionStartColumn, selectionEndLine, selectionEndColumn, color }) => ({
+                                    username: remoteUsername, lineNumber, column, selectionStartLine, selectionStartColumn,
+                                    selectionEndLine, selectionEndColumn, color,
+                                }))}
+                                readOnly={currentRole === "VIEWER"}
+                            />
+                        </div>
+                    )}
                     </div>
 
                     {selectedFile && (
