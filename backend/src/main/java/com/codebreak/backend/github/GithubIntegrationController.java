@@ -145,6 +145,96 @@ public class GithubIntegrationController {
         return new ImportResponse(request.fullName(), files.size(), totalBytes);
     }
 
+    @PostMapping("/projects/{projectId}/push")
+    public PushResponse pushWorkspace(@PathVariable Long projectId,
+                                      @RequestBody PushRequest request,
+                                      Authentication auth) {
+        members.requireWriteAccess(projectId, auth.getName());
+        if (request == null || request.fullName() == null ||
+                !request.fullName().matches("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Repository must be owner/name");
+        }
+        String branchName = request.branch() == null || request.branch().isBlank() ? "main" : request.branch().trim();
+        if (!branchName.matches("^[A-Za-z0-9._/-]{1,200}$") ||
+                branchName.contains("..") || branchName.startsWith("/") || branchName.endsWith("/")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid Git branch name");
+        }
+        String commitMessage = request.commitMessage() == null || request.commitMessage().isBlank()
+                ? "Update from Code Break" : request.commitMessage().trim();
+        if (commitMessage.length() > 200) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Commit message must be at most 200 characters");
+        }
+
+        GithubConnection connection = connections.findByUserId(currentUser(auth).getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "GitHub is not connected"));
+        RestClient client = githubClient(decrypt(connection.getEncryptedToken(), connection.getTokenIv()));
+        String[] parts = request.fullName().split("/", 2);
+
+        Map<?, ?> ref = client.get().uri("/repos/{owner}/{repo}/git/ref/heads/{branch}",
+                parts[0], parts[1], branchName).retrieve().body(Map.class);
+        if (ref == null || !(ref.get("object") instanceof Map<?, ?> refObject) || refObject.get("sha") == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "GitHub branch reference was invalid");
+        }
+        String parentSha = String.valueOf(refObject.get("sha"));
+        Map<?, ?> parentCommit = client.get().uri("/repos/{owner}/{repo}/git/commits/{sha}",
+                parts[0], parts[1], parentSha).retrieve().body(Map.class);
+        if (parentCommit == null || !(parentCommit.get("tree") instanceof Map<?, ?> parentTree) ||
+                parentTree.get("sha") == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Could not read GitHub base tree");
+        }
+
+        WorkspaceService.WorkspaceSnapshotResponse snapshot =
+                workspaceService.getWorkspace(projectId, auth.getName());
+        List<Map<String, Object>> treeItems = new ArrayList<>();
+        long totalBytes = 0;
+        int pushedFiles = 0;
+        for (WorkspaceService.WorkspaceFileResponse file : snapshot.files()) {
+            String filePath = file.path();
+            if (!safeRepositoryPath(filePath)) continue;
+            String content = workspaceService.getFileContent(projectId, filePath, auth.getName());
+            byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
+            totalBytes += bytes.length;
+            if (bytes.length > 512_000 || totalBytes > 5_000_000 || pushedFiles >= 200) {
+                throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE,
+                        "Push is limited to 200 files and 5 MB total");
+            }
+            Map<?, ?> blob = client.post().uri("/repos/{owner}/{repo}/git/blobs", parts[0], parts[1])
+                    .body(Map.of("content", Base64.getEncoder().encodeToString(bytes), "encoding", "base64"))
+                    .retrieve().body(Map.class);
+            if (blob == null || blob.get("sha") == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "GitHub did not create a file blob");
+            }
+            treeItems.add(Map.of("path", filePath, "mode", "100644", "type", "blob", "sha", String.valueOf(blob.get("sha"))));
+            pushedFiles++;
+        }
+
+        Map<?, ?> tree = client.post().uri("/repos/{owner}/{repo}/git/trees", parts[0], parts[1])
+                .body(Map.of("base_tree", String.valueOf(parentTree.get("sha")), "tree", treeItems))
+                .retrieve().body(Map.class);
+        if (tree == null || tree.get("sha") == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "GitHub did not create a commit tree");
+        }
+        Map<?, ?> commit = client.post().uri("/repos/{owner}/{repo}/git/commits", parts[0], parts[1])
+                .body(Map.of("message", commitMessage, "tree", String.valueOf(tree.get("sha")),
+                        "parents", List.of(parentSha)))
+                .retrieve().body(Map.class);
+        if (commit == null || commit.get("sha") == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "GitHub did not create a commit");
+        }
+        String commitSha = String.valueOf(commit.get("sha"));
+        client.patch().uri("/repos/{owner}/{repo}/git/refs/heads/{branch}",
+                        parts[0], parts[1], branchName)
+                .body(Map.of("sha", commitSha, "force", false))
+                .retrieve().toBodilessEntity();
+
+        activity.record(projectId, auth.getName(), "GITHUB_PUSH",
+                "Pushed " + pushedFiles + " files to " + request.fullName() + " (" + branchName + ")");
+        return new PushResponse(request.fullName(), branchName, commitSha, pushedFiles, totalBytes);
+    }
+
+    public record PushRequest(String fullName, String branch, String commitMessage) {}
+    public record PushResponse(String repository, String branch, String commitSha, int pushedFiles, long bytes) {}
+
     private boolean safeRepositoryPath(String path) {
         if (path == null || path.isBlank() || path.startsWith("/") || path.contains("\\") ||
                 path.contains("..") || path.length() > 1024) return false;
