@@ -35,6 +35,7 @@ import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 
 import MembersPanel from "./project/MembersPanel";
+import ProjectToolsPanel from "./project/ProjectToolsPanel";
 import {
     getProjectMembers,
     type Project,
@@ -2477,6 +2478,12 @@ function App() {
                             }
                         />
                     </div>
+
+                    <ProjectToolsPanel
+                        projectId={selectedProject.id}
+                        filePath={selectedFile?.path ?? null}
+                        readOnly={currentRole === "VIEWER"}
+                    />
 
                     <section className="chat-panel">
                         <div className="chat-header">
