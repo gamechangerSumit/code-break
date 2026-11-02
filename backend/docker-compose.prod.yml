@@ -1,0 +1,20 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN to the public DNS name}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - codebreak_caddy_data:/data
+      - codebreak_caddy_config:/config
+    depends_on:
+      - frontend
+
+volumes:
+  codebreak_caddy_data:
+  codebreak_caddy_config:
