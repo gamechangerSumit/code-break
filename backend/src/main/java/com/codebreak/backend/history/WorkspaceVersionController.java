@@ -25,6 +25,15 @@ public class WorkspaceVersionController {
         return ResponseEntity.ok(service.snapshot(projectId, request.path(), auth.getName(), request.message()));
     }
 
+    @GetMapping("/compare")
+    public WorkspaceVersionService.VersionComparison compare(
+            @PathVariable Long projectId,
+            @RequestParam Long leftVersionId,
+            @RequestParam Long rightVersionId,
+            Authentication auth) {
+        return service.compare(projectId, leftVersionId, rightVersionId, auth.getName());
+    }
+
     @GetMapping("/{versionId}")
     public WorkspaceVersionService.VersionContent get(
             @PathVariable Long projectId, @PathVariable Long versionId, Authentication auth) {
