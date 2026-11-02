@@ -53,6 +53,7 @@ public class AiAssistantController {
                     .body(Map.of(
                             "model", model,
                             "temperature", 0.2,
+                            "max_completion_tokens", 2048,
                             "messages", List.of(
                                     Map.of("role", "system", "content",
                                             "You are a careful coding assistant inside Code Break. Explain assumptions, provide safe, focused code suggestions, and never claim to have changed files. Return concise Markdown."),
