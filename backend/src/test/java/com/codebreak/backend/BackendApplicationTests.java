@@ -5,6 +5,7 @@ import com.codebreak.backend.user.User;
 import io.minio.MinioClient;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.time.LocalDateTime;
@@ -13,6 +14,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 class BackendApplicationTests {
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     // The application creates its bucket during startup; keep this context test
     // isolated from external object storage infrastructure.
@@ -34,7 +38,7 @@ class BackendApplicationTests {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        String json = new ObjectMapper().writeValueAsString(user);
+        String json = objectMapper.writeValueAsString(user);
 
         assertThat(json).contains("test-user", "test@example.com");
         assertThat(json).doesNotContain("password", "hashed-password");
