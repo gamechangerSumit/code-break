@@ -2319,6 +2319,7 @@ function App() {
                     <div className="editor">
                         {selectedFile ? (
                             <CodeEditor
+                                filePath={selectedFile.path}
                                 value={
                                     selectedFile.content
                                 }
