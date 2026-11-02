@@ -3,6 +3,8 @@ package com.codebreak.backend.github;
 import com.codebreak.backend.user.User;
 import com.codebreak.backend.user.UserRepository;
 import com.codebreak.backend.project.ProjectMemberService;
+import com.codebreak.backend.activity.ProjectActivityService;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import com.codebreak.backend.workspace.WorkspaceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,6 +31,8 @@ public class GithubIntegrationController {
     private final RestClient.Builder restClientBuilder;
     private final ProjectMemberService members;
     private final WorkspaceService workspaceService;
+    private final ProjectActivityService activity;
+    private final SimpMessagingTemplate messagingTemplate;
     @Value("${app.github.encryption-key:}") private String encryptionKey;
 
     @PostMapping("/connect")
@@ -134,6 +138,10 @@ public class GithubIntegrationController {
             }
         }
         workspaceService.importWorkspace(projectId, files, new ArrayList<>(folders), auth.getName());
+        activity.record(projectId, auth.getName(), "GITHUB_IMPORT",
+                "Imported " + files.size() + " files from " + request.fullName());
+        messagingTemplate.convertAndSend("/topic/project/" + projectId + "/workspace",
+                Map.of("type", "WORKSPACE_REFRESH", "projectId", projectId, "username", auth.getName()));
         return new ImportResponse(request.fullName(), files.size(), totalBytes);
     }
 
