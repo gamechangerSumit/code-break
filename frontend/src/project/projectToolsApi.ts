@@ -55,3 +55,9 @@ export async function executeProjectCode(projectId: number, token: string, paylo
         method: "POST", headers: headers(token), body: JSON.stringify(payload),
     }));
 }
+
+export async function acceptProjectInvitation(tokenValue: string, token: string) {
+    return parse<{ id: number; userId: number; username: string; role: string }>(await fetch(`${root}/invitations/accept`, {
+        method: "POST", headers: headers(token), body: JSON.stringify({ token: tokenValue }),
+    }));
+}
