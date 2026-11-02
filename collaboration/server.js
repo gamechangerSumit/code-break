@@ -66,18 +66,17 @@ const server = Server.configure({
     await redis.set(stateKey(documentName), encodedState);
 
     // Keep the existing Spring persistence scheduler as the single MinIO writer.
-    // Yjs document updates are staged in the same dirty-file Redis keys it already flushes.
-    if (context?.canWrite) {
-      const content = document.getText("monaco").toString();
-      const prefix = `codebreak:workspace:${projectId}`;
-      await redis
-        .multi()
-        .set(`${prefix}:dirty:${filePath}`, content, "EX", 1800)
-        .sadd(`${prefix}:dirty-files`, filePath)
-        .set(`${prefix}:active`, "true", "EX", 7200)
-        .sadd("codebreak:workspace:active-projects", String(projectId))
-        .exec();
-    }
+    // Only accepted Yjs updates reach this hook; stage the latest document content
+    // in the dirty-file Redis keys consumed by that scheduler.
+    const content = document.getText("monaco").toString();
+    const prefix = `codebreak:workspace:${projectId}`;
+    await redis
+      .multi()
+      .set(`${prefix}:dirty:${filePath}`, content, "EX", 1800)
+      .sadd(`${prefix}:dirty-files`, filePath)
+      .set(`${prefix}:active`, "true", "EX", 7200)
+      .sadd("codebreak:workspace:active-projects", String(projectId))
+      .exec();
   },
 
   async onDestroy() {
