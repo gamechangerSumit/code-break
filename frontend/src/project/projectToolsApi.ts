@@ -61,3 +61,16 @@ export async function acceptProjectInvitation(tokenValue: string, token: string)
         method: "POST", headers: headers(token), body: JSON.stringify({ token: tokenValue }),
     }));
 }
+
+export interface GithubRepository { fullName: string; url: string; isPrivate: boolean; defaultBranch: string; }
+export async function connectGithub(tokenValue: string, token: string) {
+    return parse<{ githubUsername: string; connectedAt: string }>(await fetch(`${root}/github/connect`, {
+        method: "POST", headers: headers(token), body: JSON.stringify({ token: tokenValue }),
+    }));
+}
+export async function listGithubRepositories(token: string) {
+    return parse<GithubRepository[]>(await fetch(`${root}/github/repositories`, { headers: headers(token, false) }));
+}
+export async function disconnectGithub(token: string) {
+    return parse<void>(await fetch(`${root}/github/connection`, { method: "DELETE", headers: headers(token, false) }));
+}
