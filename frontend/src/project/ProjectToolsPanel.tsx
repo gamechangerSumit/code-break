@@ -6,11 +6,12 @@ import {
 } from "./projectToolsApi";
 import "./ProjectToolsPanel.css";
 import VideoCallPanel from "./VideoCallPanel";
+import WorkspaceTerminal from "./WorkspaceTerminal";
 
-interface Props { projectId: number; filePath: string | null; code: string; readOnly: boolean; username: string; }
-type Tab = "history" | "activity" | "invite" | "ai" | "run" | "preview" | "github" | "call";
+interface Props { projectId: number; filePath: string | null; code: string; files: Array<{ path: string; content: string }>; readOnly: boolean; username: string; }
+type Tab = "history" | "activity" | "invite" | "ai" | "run" | "preview" | "github" | "call" | "terminal";
 
-export default function ProjectToolsPanel({ projectId, filePath, code, readOnly, username }: Props) {
+export default function ProjectToolsPanel({ projectId, filePath, code, files, readOnly, username }: Props) {
     const [tab, setTab] = useState<Tab>("history");
     const [versions, setVersions] = useState<WorkspaceVersion[]>([]);
     const [comparisonIds, setComparisonIds] = useState<number[]>([]);
@@ -173,6 +174,7 @@ export default function ProjectToolsPanel({ projectId, filePath, code, readOnly,
             <button className={tab === "preview" ? "active" : ""} onClick={() => setTab("preview")}>Preview</button>
             <button className={tab === "github" ? "active" : ""} onClick={() => setTab("github")}>GitHub</button>
             <button className={tab === "call" ? "active" : ""} onClick={() => setTab("call")}>Call</button>
+            <button className={tab === "terminal" ? "active" : ""} onClick={() => setTab("terminal")}>Terminal</button>
         </div>
         {error && <p className="project-tools-error">{error}</p>}
         {tab === "history" && <div className="project-tools-body">
@@ -238,5 +240,6 @@ export default function ProjectToolsPanel({ projectId, filePath, code, readOnly,
             </>}
         </div>}
         {tab === "call" && <VideoCallPanel projectId={projectId} username={username} />}
+        {tab === "terminal" && <WorkspaceTerminal projectId={projectId} files={files} readOnly={readOnly} />}
     </section>;
 }
