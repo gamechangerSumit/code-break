@@ -36,14 +36,6 @@ public class RedisWorkspaceService {
             Duration.ofHours(2);
 
 
-    /*
-     * A dirty editor value stays in Redis for at most
-     * 30 minutes without another update.
-     */
-    private static final Duration DIRTY_TTL =
-            Duration.ofMinutes(30);
-
-
     private final StringRedisTemplate redisTemplate;
 
 
@@ -147,19 +139,13 @@ public class RedisWorkspaceService {
             }
 
 
-            if (
-                    isActive(projectId)
-            ) {
-
-                active.add(
-                        projectIdValue
-                );
-
+            // Dirty editor content must be flushed even after the
+            // activity heartbeat expires. Never drop a pending project
+            // from the scheduler index solely because it became idle.
+            if (!getDirtyFiles(projectId).isEmpty()) {
+                active.add(projectIdValue);
             } else {
-
-                stale.add(
-                        projectIdValue
-                );
+                stale.add(projectIdValue);
             }
         }
 
@@ -212,18 +198,11 @@ public class RedisWorkspaceService {
         }
 
 
+        // No TTL: only a successful durable MinIO + metadata flush
+        // may remove this value. Expiring it by time can silently lose edits.
         redisTemplate.opsForValue().set(
-
-                dirtyKey(
-                        projectId,
-                        normalizedPath
-                ),
-
-                content == null
-                        ? ""
-                        : content,
-
-                DIRTY_TTL
+                dirtyKey(projectId, normalizedPath),
+                content == null ? "" : content
         );
 
 
