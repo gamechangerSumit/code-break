@@ -1,11 +1,12 @@
 import { type FormEvent, useState } from "react";
 import { ArrowRight, Code2, Eye, EyeOff, LockKeyhole, Mail, UserRound } from "lucide-react";
 
+import { API_URL } from "../config";
+
 interface RegisterProps {
     onBackToLogin: () => void;
 }
 
-const API_URL = "http://localhost:8088";
 
 async function getErrorMessage(
     response: Response
