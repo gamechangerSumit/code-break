@@ -67,9 +67,9 @@ jobs:
           cache: maven
       - name: Start MinIO for integration context
         run: |
-          docker run -d --name codebreak-minio -p 9000:9000 \\
-            -e MINIO_ROOT_USER=minioadmin \\
-            -e MINIO_ROOT_PASSWORD=minioadmin \\
+          docker run -d --name codebreak-minio -p 9000:9000 \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
             minio/minio:latest server /data
           for attempt in $(seq 1 30); do
             if curl --fail --silent http://localhost:9000/minio/health/live; then
@@ -77,5 +77,6 @@ jobs:
             fi
             sleep 2
           done
+          curl --fail --silent http://localhost:9000/minio/health/live
       - run: chmod +x mvnw
       - run: ./mvnw -B test
