@@ -80,3 +80,9 @@ export async function importGithubRepository(projectId: number, token: string, f
         method: "POST", headers: headers(token), body: JSON.stringify({ fullName, branch }),
     }));
 }
+
+export async function getGithubConnection(token: string) {
+    return parse<{ githubUsername: string; connectedAt: string }>(await fetch(`${root}/github/connection`, {
+        headers: headers(token, false),
+    }));
+}
