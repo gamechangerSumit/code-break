@@ -74,3 +74,9 @@ export async function listGithubRepositories(token: string) {
 export async function disconnectGithub(token: string) {
     return parse<void>(await fetch(`${root}/github/connection`, { method: "DELETE", headers: headers(token, false) }));
 }
+
+export async function importGithubRepository(projectId: number, token: string, fullName: string, branch = "main") {
+    return parse<{ repository: string; importedFiles: number; bytes: number }>(await fetch(`${root}/github/projects/${projectId}/import`, {
+        method: "POST", headers: headers(token), body: JSON.stringify({ fullName, branch }),
+    }));
+}
