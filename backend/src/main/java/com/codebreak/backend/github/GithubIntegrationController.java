@@ -2,6 +2,8 @@ package com.codebreak.backend.github;
 
 import com.codebreak.backend.user.User;
 import com.codebreak.backend.user.UserRepository;
+import com.codebreak.backend.project.ProjectMemberService;
+import com.codebreak.backend.workspace.WorkspaceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -15,6 +17,8 @@ import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.security.SecureRandom;
 import java.util.*;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 
 @RestController
 @RequestMapping("/api/github")
@@ -23,6 +27,8 @@ public class GithubIntegrationController {
     private final GithubConnectionRepository connections;
     private final UserRepository users;
     private final RestClient.Builder restClientBuilder;
+    private final ProjectMemberService members;
+    private final WorkspaceService workspaceService;
     @Value("${app.github.encryption-key:}") private String encryptionKey;
 
     @PostMapping("/connect")
@@ -69,6 +75,79 @@ public class GithubIntegrationController {
                         repo.get("default_branch") == null ? "main" : String.valueOf(repo.get("default_branch"))))
                 .toList();
     }
+
+    @PostMapping("/projects/{projectId}/import")
+    public ImportResponse importRepository(@PathVariable Long projectId,
+                                           @RequestBody ImportRequest request,
+                                           Authentication auth) {
+        members.requireWriteAccess(projectId, auth.getName());
+        if (request == null || request.fullName() == null ||
+                !request.fullName().matches("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Repository must be owner/name");
+        }
+        User user = currentUser(auth);
+        GithubConnection connection = connections.findByUserId(user.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "GitHub is not connected"));
+        String token = decrypt(connection.getEncryptedToken(), connection.getTokenIv());
+        String[] parts = request.fullName().split("/", 2);
+        String branch = request.branch() == null || request.branch().isBlank() ? "main" : request.branch().trim();
+        RestClient client = githubClient(token);
+        Map<?, ?> treeResponse = client.get()
+                .uri("/repos/{owner}/{repo}/git/trees/{branch}?recursive=1", parts[0], parts[1], branch)
+                .retrieve().body(Map.class);
+        if (treeResponse == null || Boolean.TRUE.equals(treeResponse.get("truncated")) ||
+                !(treeResponse.get("tree") instanceof List<?> tree)) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "GitHub repository tree is unavailable or too large");
+        }
+        List<WorkspaceService.WorkspaceImportFile> files = new ArrayList<>();
+        Set<String> folders = new LinkedHashSet<>();
+        long totalBytes = 0;
+        for (Object item : tree) {
+            if (!(item instanceof Map<?, ?> entry) || !"blob".equals(entry.get("type"))) continue;
+            String filePath = String.valueOf(entry.get("path"));
+            if (!safeRepositoryPath(filePath)) continue;
+            Object sizeValue = entry.get("size");
+            long size = sizeValue instanceof Number n ? n.longValue() : 0;
+            if (size < 0 || size > 512_000 || files.size() >= 200 || totalBytes + size > 5_000_000) {
+                throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE,
+                        "Import is limited to 200 files and 5 MB total");
+            }
+            String blobUrl = String.valueOf(entry.get("url"));
+            URI uri = URI.create(blobUrl);
+            if (!"api.github.com".equalsIgnoreCase(uri.getHost())) {
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Unexpected GitHub blob URL");
+            }
+            Map<?, ?> blob = client.get().uri(uri).retrieve().body(Map.class);
+            if (blob == null || !"base64".equals(blob.get("encoding")) || blob.get("content") == null) continue;
+            byte[] decoded;
+            try { decoded = Base64.getMimeDecoder().decode(String.valueOf(blob.get("content"))); }
+            catch (IllegalArgumentException exception) { continue; }
+            totalBytes += decoded.length;
+            if (totalBytes > 5_000_000) throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "Import exceeds 5 MB");
+            String content = new String(decoded, StandardCharsets.UTF_8);
+            files.add(new WorkspaceService.WorkspaceImportFile(filePath,
+                    filePath.substring(filePath.lastIndexOf('/') + 1), content));
+            int slash = filePath.lastIndexOf('/');
+            while (slash > 0) {
+                folders.add(filePath.substring(0, slash));
+                slash = filePath.lastIndexOf('/', slash - 1);
+            }
+        }
+        workspaceService.importWorkspace(projectId, files, new ArrayList<>(folders), auth.getName());
+        return new ImportResponse(request.fullName(), files.size(), totalBytes);
+    }
+
+    private boolean safeRepositoryPath(String path) {
+        if (path == null || path.isBlank() || path.startsWith("/") || path.contains("\\") ||
+                path.contains("..") || path.length() > 1024) return false;
+        String lower = path.toLowerCase(Locale.ROOT);
+        return !lower.startsWith(".git/") && !lower.contains("/node_modules/") &&
+                !lower.startsWith("node_modules/") && !lower.startsWith("target/") &&
+                !lower.startsWith("dist/") && !lower.startsWith(".env");
+    }
+
+    public record ImportRequest(String fullName, String branch) {}
+    public record ImportResponse(String repository, int importedFiles, long bytes) {}
 
     @DeleteMapping("/connection")
     @ResponseStatus(HttpStatus.NO_CONTENT)
