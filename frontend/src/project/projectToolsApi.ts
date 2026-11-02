@@ -96,3 +96,10 @@ export async function compareVersions(projectId: number, leftVersionId: number, 
         headers: headers(token, false),
     }));
 }
+
+export async function pushGithubWorkspace(projectId: number, token: string, fullName: string, branchName: string, commitMessage: string) {
+    return parse<{ repository: string; branch: string; commitSha: string; pushedFiles: number; bytes: number }>(await fetch(`${root}/github/projects/${projectId}/push`, {
+        method: "POST", headers: headers(token),
+        body: JSON.stringify({ fullName, branch: branchName, commitMessage }),
+    }));
+}
