@@ -5,11 +5,53 @@ on:
     branches: ["main", "release/**"]
   pull_request:
     branches: ["main"]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  lockfile:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ github.token }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Resolve dependencies and update lockfile
+        working-directory: frontend
+        run: pnpm install --no-frozen-lockfile
+      - name: Generate collaboration service lockfile
+        working-directory: collaboration
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Commit lockfiles and trigger a clean CI run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/pnpm-lock.yaml collaboration/package-lock.json
+          if git diff --cached --quiet; then
+            echo "Dependency lockfile is already current."
+            exit 0
+          fi
+          git commit -m "chore: update frontend dependency lockfile"
+          git push origin "HEAD:${HEAD_BRANCH}"
+          gh workflow run ci.yml --ref "${HEAD_BRANCH}"
+
   frontend:
     name: Frontend lint and production build
     runs-on: ubuntu-latest
@@ -74,18 +116,37 @@ jobs:
       - run: chmod +x mvnw
       - run: ./mvnw -B test
 
+  collaboration:
+    name: Yjs CRDT collaboration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: collaboration/package-lock.json
+      - run: npm ci --prefix collaboration
+      - run: npm test --prefix collaboration
+      - run: node --check collaboration/server.js
+
   containers:
     name: Docker Compose stack smoke test
     runs-on: ubuntu-latest
-    needs: [frontend, backend]
+    needs: [frontend, backend, collaboration]
     steps:
       - uses: actions/checkout@v4
       - name: Validate EC2 deployment scripts
-        run: bash -n deploy/ec2-bootstrap.sh deploy/ec2-deploy.sh
+        run: bash -n deploy/ec2-bootstrap.sh deploy/ec2-deploy.sh deploy/backup/restore-postgres.sh && sh -n deploy/backup/backup-loop.sh
       - name: Validate Compose configuration
         run: docker compose --env-file backend/.env.example -f backend/docker-compose.yml config --quiet
       - name: Build and start complete stack
-        run: docker compose --env-file backend/.env.example -f backend/docker-compose.yml up -d --build
+        run: docker compose --profile monitoring --profile backup --env-file backend/.env.example -f backend/docker-compose.yml up -d --build
+      - name: Diagnose failed containers
+        if: failure()
+        run: |
+          docker compose --profile monitoring --profile backup --env-file backend/.env.example -f backend/docker-compose.yml ps
+          docker compose --profile monitoring --profile backup --env-file backend/.env.example -f backend/docker-compose.yml logs --tail=200 collaboration backend caddy
       - name: Verify frontend becomes reachable
         run: |
           for attempt in $(seq 1 60); do
@@ -95,9 +156,9 @@ jobs:
             fi
             sleep 5
           done
-          docker compose --env-file backend/.env.example -f backend/docker-compose.yml ps
-          docker compose --env-file backend/.env.example -f backend/docker-compose.yml logs --tail=100
+          docker compose --profile monitoring --profile backup --env-file backend/.env.example -f backend/docker-compose.yml ps
+          docker compose --profile monitoring --profile backup --env-file backend/.env.example -f backend/docker-compose.yml logs --tail=100
           exit 1
       - name: Stop stack
         if: always()
-        run: docker compose --env-file backend/.env.example -f backend/docker-compose.yml down -v
+        run: docker compose --profile monitoring --profile backup --env-file backend/.env.example -f backend/docker-compose.yml down -v

@@ -121,3 +121,33 @@ Never use `down -v` on a live deployment unless you intentionally want to delete
 ### Production operations
 
 This is a single-EC2 deployment baseline, not a highly available architecture. Configure automated EBS snapshots and application-level PostgreSQL/object-storage backups, test restores, monitor disk/RAM/CPU, and keep the OS and images patched. For higher availability, move PostgreSQL and object storage to managed/redundant services, add centralized secrets management and monitoring, and scale the application behind a load balancer. Review database migration strategy before changing `SPRING_JPA_HIBERNATE_DDL_AUTO` from its current default.
+
+
+### Optional platform capabilities
+
+The project tools panel includes workspace history and side-by-side version comparison, project activity, invitations, AI assistance, sandboxed code execution, sandboxed HTML preview, GitHub repository import/push, and peer-to-peer calls. Monaco documents synchronize through a dedicated Yjs/Hocuspocus CRDT service with Redis-backed state persistence; the previous STOMP edit path remains a fallback while a CRDT session connects.
+
+Configure optional integrations in `backend/.env` before starting the stack:
+
+- `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL`: AI coding assistant. The provider key stays on the backend.
+- `CODE_RUNNER_URL`, `CODE_RUNNER_API_KEY`: private Judge0-compatible runner. Keep the runner on a private network; the backend applies language allowlisting and per-submission CPU/memory/time limits. No public code runner is bundled.
+- `GITHUB_TOKEN_ENCRYPTION_KEY`: generate with `openssl rand -base64 32`. GitHub personal access tokens are encrypted at rest with AES-256-GCM. Use fine-grained tokens with minimum required scopes.
+- `GRAFANA_ADMIN_PASSWORD`: generated automatically by the EC2 deployment script if left as the example placeholder.
+
+### Monitoring and backups
+
+The EC2 deployment script enables the optional `monitoring` and `backup` Compose profiles. Prometheus scrapes the backend's internal Actuator endpoint. Grafana and Prometheus bind only to EC2 loopback ports 3000 and 9090; access them through an SSH tunnel, for example:
+
+```bash
+ssh -L 3000:127.0.0.1:3000 -L 9090:127.0.0.1:9090 ubuntu@EC2_PUBLIC_IP
+```
+
+The backup service runs daily, keeps 14 days of PostgreSQL custom-format dumps, and copies RustFS bucket objects to a persistent backup volume. By default backups are stored on the EC2 backup volume. For off-host copies, set `BACKUP_S3_BUCKET` and `AWS_DEFAULT_REGION`, attach an EC2 instance profile with least-privilege `s3:ListBucket`, `s3:GetObject`, `s3:PutObject`, and `s3:DeleteObject` permissions for that bucket, and use a bucket in a separate failure domain/account with default encryption and versioning. The backup loop copies the archive to S3 using instance-role credentials. Test restores regularly. A PostgreSQL restore helper is available at `deploy/backup/restore-postgres.sh`.
+
+This deployment remains a single-node baseline. It can be vertically resized, but it is not yet horizontally scalable or highly available: the current STOMP simple broker and JVM collaboration locks are single-instance, and the Yjs service currently uses one Hocuspocus instance with Redis-backed persistence rather than a multi-node pub/sub topology. Do not add backend replicas until a shared STOMP broker, shared session/state design, Yjs server fan-out/sharding, and multi-instance integration tests are complete. For production growth, use an ALB, multiple stateless app instances, a managed PostgreSQL service, Redis with HA, redundant object storage, a shared message broker, and a TURN service for WebRTC.
+
+### Current capability boundaries
+
+- The integrated workspace terminal provides safe commands (`pwd`, `ls`, `cat`, `grep`, `echo`, `run`, `clear`) over project files. It is deliberately not an arbitrary OS shell or interactive PTY; commands that execute source use the bounded Judge0-compatible runner. Configure a private runner before enabling execution.
+- WebRTC calling uses STUN by default. Configure a TURN relay for reliable connectivity across symmetric NATs and restrictive enterprise networks.
+- Backups are local to the EC2/EBS deployment by default. Add off-host encrypted copies and routinely test recovery before treating them as disaster recovery.

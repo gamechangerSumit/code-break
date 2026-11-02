@@ -1,4 +1,7 @@
 {$DOMAIN} {
     encode zstd gzip
+    handle /collaboration* {
+        reverse_proxy collaboration:1234
+    }
     reverse_proxy frontend:80
 }

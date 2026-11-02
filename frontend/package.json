@@ -18,12 +18,15 @@
     "@stomp/stompjs": "^7.3.0",
     "@tailwindcss/vite": "^4.3.3",
     "lucide-react": "^1.40.0",
-    "monaco-editor": "^0.56.0",
+    "monaco-editor": "0.55.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-resizable-panels": "^4.12.3",
     "sonner": "^2.0.8",
-    "tailwindcss": "^4.3.3"
+    "tailwindcss": "^4.3.3",
+    "@hocuspocus/provider": "3.4.0",
+    "yjs": "13.6.27",
+    "y-monaco": "0.1.6"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

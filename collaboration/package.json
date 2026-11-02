@@ -1,0 +1,16 @@
+{
+  "name": "codebreak-yjs-collaboration",
+  "private": true,
+  "version": "1.0.0",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@hocuspocus/server": "3.4.0",
+    "ioredis": "5.6.1",
+    "yjs": "13.6.27",
+    "y-protocols": "1.0.6"
+  }
+}

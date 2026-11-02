@@ -25,7 +25,8 @@ import {
 } from "lucide-react";
 
 import ActivityBar from "./components/ActivityBar";
-import CodeEditor from "./editor/CodeEditor";
+import CodeEditor, { type CodeEditorChange } from "./editor/CodeEditor";
+import { COLLABORATION_URL } from "./config";
 import FileExplorer, {
     type ExplorerFile,
 } from "./explorer/FileExplorer";
@@ -35,6 +36,8 @@ import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 
 import MembersPanel from "./project/MembersPanel";
+import ProjectToolsPanel from "./project/ProjectToolsPanel";
+import { acceptProjectInvitation } from "./project/projectToolsApi";
 import {
     getProjectMembers,
     type Project,
@@ -223,6 +226,10 @@ function App() {
     const [selectedFile, setSelectedFile] =
         useState<ExplorerFile | null>(null);
 
+    const [openTabs, setOpenTabs] = useState<string[]>([]);
+
+    const [splitFilePath, setSplitFilePath] = useState<string | null>(null);
+
     const [currentRole, setCurrentRole] =
         useState<ProjectRole | null>(null);
 
@@ -253,6 +260,23 @@ function App() {
 
     const filesRef =
         useRef<ExplorerFile[]>([]);
+
+    useEffect(() => {
+        if (!authenticated) return;
+        const invitePrefix = "/invite/";
+        const invitePath = window.location.pathname;
+        if (!invitePath.startsWith(invitePrefix)) return;
+        const invitationToken = invitePath.slice(invitePrefix.length);
+        if (!/^[A-Za-z0-9_-]+$/.test(invitationToken)) return;
+        const accessToken = localStorage.getItem("token");
+        if (!accessToken) return;
+        window.history.replaceState({}, "", "/");
+        void acceptProjectInvitation(invitationToken, accessToken)
+            .then(() => window.location.reload())
+            .catch((err: unknown) => {
+                window.alert(err instanceof Error ? err.message : "Could not accept invitation.");
+            });
+    }, [authenticated]);
 
     const foldersRef =
         useRef<string[]>([]);
@@ -1294,11 +1318,8 @@ function App() {
 
     const handleCodeChange =
         useCallback(
-            (value: string) => {
-                if (
-                    currentRole === "VIEWER" ||
-                    !selectedFile
-                ) {
+            (value: string, changes: CodeEditorChange[], yjsSynced = false) => {
+                if (!selectedFile || (currentRole === "VIEWER" && !yjsSynced)) {
                     return;
                 }
 
@@ -1320,7 +1341,7 @@ function App() {
 
                 setSelectedFile(nextFile);
                 setIsDirty(true);
-                sendChange(value);
+                if (!yjsSynced && currentRole !== "VIEWER") sendChange(value, changes);
             },
             [
                 currentRole,
@@ -1329,6 +1350,17 @@ function App() {
                 sendChange,
             ],
         );
+
+    const handleSplitCodeChange = useCallback(
+        (path: string, value: string, changes: CodeEditorChange[], yjsSynced = false) => {
+            if (currentRole === "VIEWER" && !yjsSynced) return;
+            const nextFile = makeExplorerFile(path, value);
+            syncFiles(filesRef.current.map(file => file.path === path ? nextFile : file));
+            if (!yjsSynced && currentRole !== "VIEWER") sendChange(value, changes, path);
+            setIsDirty(true);
+        },
+        [currentRole, syncFiles, sendChange],
+    );
 
     const handleDeleteFile =
         useCallback(
@@ -1888,6 +1920,7 @@ function App() {
             (file: ExplorerFile) => {
                 setError("");
                 setSelectedFile(file);
+                setOpenTabs(current => current.includes(file.path) ? current : [...current, file.path]);
                 setIsDirty(false);
             },
             [],
@@ -1907,6 +1940,8 @@ function App() {
             setFiles([]);
             setFolders([]);
             setSelectedFile(null);
+            setOpenTabs([]);
+            setSplitFilePath(null);
             setCurrentRole(null);
             setChatMessages([]);
             setWorkspaceName(null);
@@ -2114,6 +2149,7 @@ function App() {
                     className="topbar-icon-button notification-button"
                     title="Notifications"
                     aria-label="Notifications"
+                    onClick={() => setActivePanel("collaboration")}
                 >
                     <Bell size={16} />
                     <span className="notification-dot" />
@@ -2215,6 +2251,33 @@ function App() {
                 </div>
 
                 <section className="editor-container">
+                    <div className="editor-tabs" role="tablist" aria-label="Open files">
+                        {openTabs.map(tabPath => {
+                            const tabFile = files.find(file => file.path === tabPath);
+                            if (!tabFile) return null;
+                            return <button
+                                key={tabPath}
+                                type="button"
+                                role="tab"
+                                aria-selected={selectedFile?.path === tabPath}
+                                className={selectedFile?.path === tabPath ? "editor-file-tab active" : "editor-file-tab"}
+                                onClick={() => handleSelectFile(tabFile)}
+                            >
+                                <FileCode2 size={12} />
+                                <span>{tabFile.name}</span>
+                                <span className="editor-file-tab-close" onClick={event => {
+                                    event.stopPropagation();
+                                    const nextTabs = openTabs.filter(item => item !== tabPath);
+                                    setOpenTabs(nextTabs);
+                                    if (selectedFile?.path === tabPath) {
+                                        const nextFile = files.find(file => file.path === nextTabs[nextTabs.length - 1]);
+                                        setSelectedFile(nextFile ?? null);
+                                        setIsDirty(false);
+                                    }
+                                }}>×</span>
+                            </button>;
+                        })}
+                    </div>
                     <div className="editor-tab">
                         <div className="editor-tab-left">
                             {selectedFile ? (
@@ -2276,6 +2339,17 @@ function App() {
                                         </>
                                     )}
                                 </span>
+                                <select
+                                    className="editor-split-select"
+                                    aria-label="Open side-by-side editor"
+                                    value={splitFilePath ?? ""}
+                                    onChange={event => setSplitFilePath(event.target.value || null)}
+                                >
+                                    <option value="">Split editor…</option>
+                                    {files.filter(file => file.path !== selectedFile.path).map(file =>
+                                        <option key={file.path} value={file.path}>{file.path}</option>
+                                    )}
+                                </select>
                             </div>
                         )}
                     </div>
@@ -2316,10 +2390,14 @@ function App() {
                         </div>
                     )}
 
+                    <div className={splitFilePath ? "editor-split-wrapper" : "editor-split-wrapper single"}>
                     <div className="editor">
                         {selectedFile ? (
                             <CodeEditor
                                 filePath={selectedFile.path}
+                                projectId={selectedProject.id}
+                                collaborationUrl={COLLABORATION_URL}
+                                accessToken={localStorage.getItem("token") ?? ""}
                                 value={
                                     selectedFile.content
                                 }
@@ -2386,6 +2464,29 @@ function App() {
                                 </div>
                             </div>
                         )}
+                    </div>
+                    {splitFilePath && files.find(file => file.path === splitFilePath) && (
+                        <div className="editor editor-split-secondary">
+                            <div className="split-editor-title">
+                                <span>{splitFilePath}</span>
+                                <button type="button" onClick={() => setSplitFilePath(null)}>Close split</button>
+                            </div>
+                            <CodeEditor
+                                filePath={splitFilePath}
+                                projectId={selectedProject.id}
+                                collaborationUrl={COLLABORATION_URL}
+                                accessToken={localStorage.getItem("token") ?? ""}
+                                value={files.find(file => file.path === splitFilePath)?.content ?? ""}
+                                onChange={(value, changes, yjsSynced) => handleSplitCodeChange(splitFilePath, value, changes, yjsSynced)}
+                                onCursorChange={cursor => sendCursor({ filePath: splitFilePath, ...cursor })}
+                                remoteCursors={presenceUsers.filter(user => user.username !== username && user.filePath === splitFilePath).map(({ username: remoteUsername, lineNumber, column, selectionStartLine, selectionStartColumn, selectionEndLine, selectionEndColumn, color }) => ({
+                                    username: remoteUsername, lineNumber, column, selectionStartLine, selectionStartColumn,
+                                    selectionEndLine, selectionEndColumn, color,
+                                }))}
+                                readOnly={currentRole === "VIEWER"}
+                            />
+                        </div>
+                    )}
                     </div>
 
                     {selectedFile && (
@@ -2477,6 +2578,15 @@ function App() {
                             }
                         />
                     </div>
+
+                    <ProjectToolsPanel
+                        projectId={selectedProject.id}
+                        filePath={selectedFile?.path ?? null}
+                        code={selectedFile?.content ?? ""}
+                        files={files.map(file => ({ path: file.path, content: file.content }))}
+                        readOnly={currentRole === "VIEWER"}
+                        username={username}
+                    />
 
                     <section className="chat-panel">
                         <div className="chat-header">

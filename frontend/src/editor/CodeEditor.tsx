@@ -12,6 +12,9 @@ import type {
     editor,
     IDisposable,
 } from "monaco-editor";
+import * as Y from "yjs";
+import { HocuspocusProvider } from "@hocuspocus/provider";
+import { MonacoBinding } from "y-monaco";
 
 
 export interface CodeEditorChange {
@@ -40,8 +43,13 @@ interface CodeEditorProps {
 
     onChange: (
         value: string,
-        changes: CodeEditorChange[]
+        changes: CodeEditorChange[],
+        yjsSynced?: boolean
     ) => void;
+
+    projectId?: number;
+    collaborationUrl?: string;
+    accessToken?: string;
 
     readOnly?: boolean;
 
@@ -102,6 +110,9 @@ export default function CodeEditor({
     readOnly = false,
     remoteCursors = [],
     onCursorChange,
+    projectId,
+    collaborationUrl,
+    accessToken,
 }: CodeEditorProps) {
 
     const editorRef =
@@ -119,6 +130,7 @@ export default function CodeEditor({
 
     const cursorSubscriptionsRef = useRef<IDisposable[]>([]);
     const decorationsRef = useRef<string[]>([]);
+    const yjsSyncedRef = useRef(false);
 
 
     const suppressChangeRef =
@@ -208,11 +220,6 @@ export default function CodeEditor({
                     }
 
 
-                    if (readOnly) {
-                        return;
-                    }
-
-
                     const nextValue =
                         editorInstance.getValue();
 
@@ -238,7 +245,8 @@ export default function CodeEditor({
 
                     onChangeRef.current(
                         nextValue,
-                        changes
+                        changes,
+                        yjsSyncedRef.current
                     );
                 }
             );
@@ -359,6 +367,53 @@ export default function CodeEditor({
         ]
     );
 
+
+    // =====================================================
+    // YJS CRDT SESSION
+    // =====================================================
+
+    useEffect(() => {
+        const editorInstance = editorRef.current;
+        const model = editorInstance?.getModel();
+        if (!editorReady || !editorInstance || !model || !projectId ||
+            !filePath || !collaborationUrl || !accessToken) return;
+
+        let binary = "";
+        new TextEncoder().encode(filePath).forEach(byte => { binary += String.fromCharCode(byte); });
+        const encodedPath = btoa(binary).split("+").join("-").split("/").join("_").replace(/=+$/g, "");
+        const documentName = `project-${projectId}-file-${encodedPath}`;
+        const document = new Y.Doc();
+        const provider = new HocuspocusProvider({
+            url: collaborationUrl,
+            name: documentName,
+            document,
+            token: accessToken,
+        });
+        const text = document.getText("monaco");
+        const binding = new MonacoBinding(text, model, new Set([editorInstance]), provider.awareness);
+        const initialContent = latestValueRef.current;
+        yjsSyncedRef.current = false;
+        const tokenSyncTimer = window.setInterval(() => { void provider.sendToken(); }, 120000);
+
+        provider.on("synced", (event: { state: boolean }) => {
+            if (!event.state) return;
+            if (text.length === 0 && initialContent.length > 0) {
+                text.insert(0, initialContent);
+            }
+            yjsSyncedRef.current = true;
+        });
+        provider.on("status", (event: { status: string }) => {
+            if (event.status !== "connected") yjsSyncedRef.current = false;
+        });
+
+        return () => {
+            yjsSyncedRef.current = false;
+            window.clearInterval(tokenSyncTimer);
+            binding.destroy();
+            provider.destroy();
+            document.destroy();
+        };
+    }, [editorReady, projectId, filePath, collaborationUrl, accessToken, readOnly]);
 
     // =====================================================
     // REMOTE CURSOR DECORATIONS
