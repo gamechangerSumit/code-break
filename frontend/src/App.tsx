@@ -362,24 +362,47 @@ function App() {
                  */
                 let nextContent = message.content;
                 if (Array.isArray(message.changes) && message.changes.length > 0) {
-                    nextContent = [...message.changes]
-                        .sort((a, b) => b.rangeOffset - a.rangeOffset)
+                    const baseContent = existingFile?.content ?? "";
+                    const changes = [...message.changes].sort(
+                        (a, b) => a.rangeOffset - b.rangeOffset,
+                    );
+
+                    // Validate the complete batch before applying any edit.
+                    // A partial application would permanently desynchronize
+                    // collaborators because Monaco offsets refer to one model
+                    // version, not a sequence of independently rebased edits.
+                    let previousEnd = -1;
+                    for (const change of changes) {
+                        const start = change.rangeOffset;
+                        const length = change.rangeLength;
+                        const end = start + length;
+                        if (
+                            !Number.isInteger(start) ||
+                            !Number.isInteger(length) ||
+                            start < 0 ||
+                            length < 0 ||
+                            end > baseContent.length ||
+                            start < previousEnd ||
+                            typeof change.text !== "string"
+                        ) {
+                            console.warn(
+                                "[COLLAB] Ignoring invalid remote change batch.",
+                                message.filePath,
+                            );
+                            return;
+                        }
+                        previousEnd = end;
+                    }
+
+                    nextContent = [...changes]
+                        .reverse()
                         .reduce((content, change) => {
                             const start = change.rangeOffset;
                             const end = start + change.rangeLength;
-                            if (
-                                !Number.isInteger(start) ||
-                                !Number.isInteger(change.rangeLength) ||
-                                start < 0 ||
-                                change.rangeLength < 0 ||
-                                end > content.length
-                            ) {
-                                return content;
-                            }
                             return content.slice(0, start) +
                                 change.text +
                                 content.slice(end);
-                        }, existingFile?.content ?? "");
+                        }, baseContent);
                 }
 
                 const nextFile =
