@@ -271,11 +271,9 @@ function App() {
         if (!accessToken) return;
         window.history.replaceState({}, "", "/");
         void acceptProjectInvitation(invitationToken, accessToken)
-            .then(() => {
-                setError("Invitation accepted. Open the new project from your dashboard.");
-            })
+            .then(() => window.location.reload())
             .catch((err: unknown) => {
-                setError(err instanceof Error ? err.message : "Could not accept invitation.");
+                window.alert(err instanceof Error ? err.message : "Could not accept invitation.");
             });
     }, [authenticated]);
 
@@ -2153,6 +2151,7 @@ function App() {
                     className="topbar-icon-button notification-button"
                     title="Notifications"
                     aria-label="Notifications"
+                    onClick={() => setActivePanel("collaboration")}
                 >
                     <Bell size={16} />
                     <span className="notification-dot" />
