@@ -262,9 +262,11 @@ function App() {
 
     useEffect(() => {
         if (!authenticated) return;
-        const match = window.location.pathname.match(/^\\/invite\\/([A-Za-z0-9_-]+)$/);
-        if (!match) return;
-        const invitationToken = match[1];
+        const invitePrefix = "/invite/";
+        const invitePath = window.location.pathname;
+        if (!invitePath.startsWith(invitePrefix)) return;
+        const invitationToken = invitePath.slice(invitePrefix.length);
+        if (!/^[A-Za-z0-9_-]+$/.test(invitationToken)) return;
         const accessToken = localStorage.getItem("token");
         if (!accessToken) return;
         window.history.replaceState({}, "", "/");
