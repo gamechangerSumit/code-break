@@ -179,6 +179,9 @@ volumes:
   codebreak_rustfs_data:
   codebreak_caddy_data:
   codebreak_caddy_config:
+  codebreak_prometheus_data:
+  codebreak_grafana_data:
+  codebreak_backups:
 
 networks:
   app-internal:
