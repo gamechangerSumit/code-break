@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Bell, Copy, History, Link2, RefreshCw, Sparkles } from "lucide-react";
 import {
     createProjectInvitation, createSnapshot, listProjectActivity, listVersions,
-    restoreVersion, requestAiAssistance, executeProjectCode, connectGithub, listGithubRepositories, disconnectGithub, importGithubRepository, type GithubRepository, type ProjectActivity, type WorkspaceVersion,
+    restoreVersion, requestAiAssistance, executeProjectCode, connectGithub, listGithubRepositories, disconnectGithub, importGithubRepository, getGithubConnection, type GithubRepository, type ProjectActivity, type WorkspaceVersion,
 } from "./projectToolsApi";
 import "./ProjectToolsPanel.css";
 import VideoCallPanel from "./VideoCallPanel";
@@ -33,6 +33,15 @@ export default function ProjectToolsPanel({ projectId, filePath, code, readOnly,
         try {
             if (tab === "history" && filePath) setVersions(await listVersions(projectId, filePath, token));
             if (tab === "activity") setActivity(await listProjectActivity(projectId, token));
+            if (tab === "github") {
+                try {
+                    const connection = await getGithubConnection(token);
+                    setGithubUser(connection.githubUsername);
+                    setGithubRepos(await listGithubRepositories(token));
+                } catch {
+                    setGithubUser(""); setGithubRepos([]);
+                }
+            }
         } catch (e) { setError(e instanceof Error ? e.message : "Unable to load project tools"); }
     }, [projectId, filePath, tab, token]);
 
