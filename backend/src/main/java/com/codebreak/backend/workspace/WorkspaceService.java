@@ -621,6 +621,7 @@ public class WorkspaceService {
                 username
         );
 
+        WorkspaceImportValidator.validate(incomingFiles, incomingFolders);
 
         Project project =
                 getProject(
