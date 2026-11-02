@@ -19,7 +19,7 @@ public final class WorkspacePath {
             return "";
         }
 
-        String normalized = path.trim().replace('\\\\', '/');
+        String normalized = path.trim().replace('\\', '/');
         while (normalized.startsWith("/")) {
             normalized = normalized.substring(1);
         }
