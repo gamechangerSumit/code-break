@@ -181,6 +181,10 @@ public class MinioWorkspaceService {
             String path
     ) {
 
+        if (projectId == null || projectId <= 0) {
+            throw new IllegalArgumentException("A positive project ID is required");
+        }
+
         String normalizedPath =
                 normalizePath(path);
 
