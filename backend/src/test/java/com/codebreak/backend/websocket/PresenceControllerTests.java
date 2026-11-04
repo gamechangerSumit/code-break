@@ -72,6 +72,24 @@ class PresenceControllerTests {
         );
     }
 
+    @Test
+    void removesSessionFromPreviousProjectWhenItJoinsAnotherProject() {
+        SimpMessageHeaderAccessor headers = headers("session-1");
+        controller.join(new PresenceController.ProjectRequest(42L), alice, headers);
+        clearInvocations(messagingTemplate);
+
+        controller.join(new PresenceController.ProjectRequest(43L), alice, headers);
+
+        verify(messagingTemplate).convertAndSend(
+                eq("/topic/project/42/presence"),
+                any(PresenceController.PresenceSnapshot.class)
+        );
+        verify(messagingTemplate).convertAndSend(
+                eq("/topic/project/43/presence"),
+                any(PresenceController.PresenceSnapshot.class)
+        );
+    }
+
     private SimpMessageHeaderAccessor headers(String sessionId) {
         SimpMessageHeaderAccessor headers = SimpMessageHeaderAccessor.create();
         headers.setSessionId(sessionId);
