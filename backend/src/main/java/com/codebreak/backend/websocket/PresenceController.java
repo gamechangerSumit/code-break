@@ -45,14 +45,19 @@ public class PresenceController {
         if (sessionId == null) {
             return;
         }
+        PresenceState previous;
         synchronized (sessionAdmissionLock) {
-            if (!sessions.containsKey(sessionId) && sessions.size() >= MAX_TRACKED_SESSIONS) {
+            previous = sessions.get(sessionId);
+            if (previous == null && sessions.size() >= MAX_TRACKED_SESSIONS) {
                 return;
             }
             sessions.put(sessionId, new PresenceState(
                     request.projectId(), principal.getName(), null,
                     1, 1, 1, 1, 1, 1, colorFor(principal.getName())
             ));
+        }
+        if (previous != null && !previous.projectId().equals(request.projectId())) {
+            broadcast(previous.projectId());
         }
         broadcast(request.projectId());
     }
