@@ -91,6 +91,21 @@ class PresenceControllerTests {
     }
 
     @Test
+    void ignoresCursorUpdatesWithWorkspaceTraversalPaths() {
+        SimpMessageHeaderAccessor headers = headers("session-1");
+        controller.join(new PresenceController.ProjectRequest(42L), alice, headers);
+        clearInvocations(messagingTemplate);
+
+        controller.cursor(
+                new PresenceController.CursorUpdate(42L, "../secrets.txt", 10, 2, 10, 2, 10, 2),
+                alice,
+                headers
+        );
+
+        verifyNoInteractions(messagingTemplate);
+    }
+
+    @Test
     void ignoresCursorUpdatesAfterSessionLeaves() {
         SimpMessageHeaderAccessor headers = headers("session-1");
         controller.join(new PresenceController.ProjectRequest(42L), alice, headers);
