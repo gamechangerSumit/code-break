@@ -201,6 +201,16 @@ public class WorkspaceService {
                         : content;
 
 
+        try {
+            WorkspaceImportValidator.validateFileContent(cleanContent);
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.PAYLOAD_TOO_LARGE,
+                    exception.getMessage(),
+                    exception
+            );
+        }
+
         Project project =
                 getProject(
                         projectId
