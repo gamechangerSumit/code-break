@@ -124,10 +124,14 @@ public class WorkspaceHistoryController {
         if (path == null || path.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File path is required");
         }
-        String normalized = path.replace('\\', '/').replaceAll("^/+|/+$", "");
-        if (normalized.isBlank() || normalized.contains("../") || normalized.equals("..") || normalized.contains("/..")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid file path");
+        try {
+            String normalized = WorkspacePath.normalize(path);
+            if (normalized.isBlank()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File path is required");
+            }
+            return normalized;
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid file path", exception);
         }
-        return normalized;
     }
 }
