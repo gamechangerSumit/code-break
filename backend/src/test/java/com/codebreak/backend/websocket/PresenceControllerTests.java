@@ -91,6 +91,22 @@ class PresenceControllerTests {
     }
 
     @Test
+    void ignoresCursorUpdatesAfterSessionLeaves() {
+        SimpMessageHeaderAccessor headers = headers("session-1");
+        controller.join(new PresenceController.ProjectRequest(42L), alice, headers);
+        controller.leave(new PresenceController.ProjectRequest(42L), headers);
+        clearInvocations(messagingTemplate);
+
+        controller.cursor(
+                new PresenceController.CursorUpdate(42L, "src/App.tsx", 10, 2, 10, 2, 10, 2),
+                alice,
+                headers
+        );
+
+        verifyNoInteractions(messagingTemplate);
+    }
+
+    @Test
     void doesNotRebroadcastAnUnchangedCursor() {
         SimpMessageHeaderAccessor headers = headers("session-1");
         controller.join(new PresenceController.ProjectRequest(42L), alice, headers);
