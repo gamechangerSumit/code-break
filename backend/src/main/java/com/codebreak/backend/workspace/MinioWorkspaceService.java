@@ -201,17 +201,7 @@ public class MinioWorkspaceService {
     // NORMALIZE PATH
     // =====================================================
 
-    private String normalizePath(
-            String path
-    ) {
-
-        if (path == null) {
-            return "";
-        }
-
-        return path
-                .replace("\\", "/")
-                .replaceAll("^/+", "")
-                .replaceAll("/+$", "");
+    private String normalizePath(String path) {
+        return WorkspacePath.normalize(path);
     }
 }
