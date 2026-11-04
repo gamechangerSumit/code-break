@@ -17,6 +17,14 @@ public final class WorkspaceImportValidator {
     private WorkspaceImportValidator() {
     }
 
+    public static int validateFileContent(String content) {
+        int bytes = (content == null ? "" : content).getBytes(StandardCharsets.UTF_8).length;
+        if (bytes > MAX_FILE_BYTES) {
+            throw new IllegalArgumentException("Workspace file exceeds the 2 MiB limit");
+        }
+        return bytes;
+    }
+
     public static void validate(
             List<WorkspaceService.WorkspaceImportFile> files,
             List<String> folders
@@ -42,11 +50,7 @@ public final class WorkspaceImportValidator {
                     throw new IllegalArgumentException("Workspace import file name is too long");
                 }
 
-                int fileBytes = (file.content() == null ? "" : file.content())
-                        .getBytes(StandardCharsets.UTF_8).length;
-                if (fileBytes > MAX_FILE_BYTES) {
-                    throw new IllegalArgumentException("Workspace import file exceeds the 2 MiB limit");
-                }
+                int fileBytes = validateFileContent(file.content());
                 totalBytes += fileBytes;
                 if (totalBytes > MAX_TOTAL_FILE_BYTES) {
                     throw new IllegalArgumentException("Workspace import exceeds the 50 MiB total content limit");
