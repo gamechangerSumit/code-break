@@ -18,6 +18,14 @@ class WorkspaceImportValidatorTests {
     }
 
     @Test
+    void validatesSingleFileContentForDirectSavesAndStorageReads() {
+        assertDoesNotThrow(() -> WorkspaceImportValidator.validateFileContent("hello"));
+        String oversized = "x".repeat(WorkspaceImportValidator.MAX_FILE_BYTES + 1);
+        assertThrows(IllegalArgumentException.class,
+                () -> WorkspaceImportValidator.validateFileContent(oversized));
+    }
+
+    @Test
     void rejectsTooManyFilesOrFolders() {
         var file = new WorkspaceService.WorkspaceImportFile("a.txt", "a.txt", "");
         assertThrows(IllegalArgumentException.class, () ->
