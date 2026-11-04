@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PresenceController {
 
+    static final int MAX_TRACKED_SESSIONS = 10_000;
     private static final String[] COLORS = {
             "#60a5fa", "#f472b6", "#34d399", "#fbbf24",
             "#a78bfa", "#fb923c", "#22d3ee", "#f87171"
@@ -31,6 +32,7 @@ public class PresenceController {
     // A user may have multiple browser tabs. Track each STOMP session,
     // then collapse sessions by username when publishing the room snapshot.
     private final Map<String, PresenceState> sessions = new ConcurrentHashMap<>();
+    private final Object sessionAdmissionLock = new Object();
 
     @MessageMapping("/presence/join")
     public void join(ProjectRequest request, Principal principal,
@@ -43,10 +45,20 @@ public class PresenceController {
         if (sessionId == null) {
             return;
         }
-        sessions.put(sessionId, new PresenceState(
-                request.projectId(), principal.getName(), null,
-                1, 1, 1, 1, 1, 1, colorFor(principal.getName())
-        ));
+        PresenceState previous;
+        synchronized (sessionAdmissionLock) {
+            previous = sessions.get(sessionId);
+            if (previous == null && sessions.size() >= MAX_TRACKED_SESSIONS) {
+                return;
+            }
+            sessions.put(sessionId, new PresenceState(
+                    request.projectId(), principal.getName(), null,
+                    1, 1, 1, 1, 1, 1, colorFor(principal.getName())
+            ));
+        }
+        if (previous != null && !previous.projectId().equals(request.projectId())) {
+            broadcast(previous.projectId());
+        }
         broadcast(request.projectId());
     }
 
@@ -56,7 +68,12 @@ public class PresenceController {
         if (update == null || update.projectId() == null || principal == null) {
             return;
         }
-        String filePath = update.filePath() == null ? "" : update.filePath().trim();
+        String filePath;
+        try {
+            filePath = com.codebreak.backend.workspace.WorkspacePath.normalize(update.filePath());
+        } catch (IllegalArgumentException exception) {
+            return;
+        }
         if (filePath.isEmpty() || filePath.length() > 512) {
             return;
         }
@@ -66,21 +83,31 @@ public class PresenceController {
             return;
         }
 
-        PresenceState previous = sessions.get(sessionId);
-        if (previous == null || !previous.projectId().equals(update.projectId())) {
-            previous = new PresenceState(update.projectId(), principal.getName(),
-                    filePath, 1, 1, 1, 1, 1, 1, colorFor(principal.getName()));
-        }
+        java.util.concurrent.atomic.AtomicBoolean changed = new java.util.concurrent.atomic.AtomicBoolean();
+        sessions.computeIfPresent(sessionId, (id, previous) -> {
+            // Keep the membership check and update atomic with leave/disconnect.
+            // A plain get()+put() could resurrect a session removed in between.
+            if (!previous.projectId().equals(update.projectId())
+                    || !previous.username().equals(principal.getName())) {
+                return previous;
+            }
 
-        PresenceState next = new PresenceState(
-                update.projectId(), principal.getName(), filePath,
-                clamp(update.lineNumber()), clamp(update.column()),
-                clamp(update.selectionStartLine()), clamp(update.selectionStartColumn()),
-                clamp(update.selectionEndLine()), clamp(update.selectionEndColumn()),
-                colorFor(principal.getName())
-        );
-        sessions.put(sessionId, next);
-        broadcast(update.projectId());
+            PresenceState next = new PresenceState(
+                    update.projectId(), principal.getName(), filePath,
+                    clamp(update.lineNumber()), clamp(update.column()),
+                    clamp(update.selectionStartLine()), clamp(update.selectionStartColumn()),
+                    clamp(update.selectionEndLine()), clamp(update.selectionEndColumn()),
+                    colorFor(principal.getName())
+            );
+            if (!next.equals(previous)) {
+                changed.set(true);
+                return next;
+            }
+            return previous;
+        });
+        if (changed.get()) {
+            broadcast(update.projectId());
+        }
     }
 
     @MessageMapping("/presence/leave")

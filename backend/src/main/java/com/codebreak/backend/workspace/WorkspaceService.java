@@ -201,6 +201,16 @@ public class WorkspaceService {
                         : content;
 
 
+        try {
+            WorkspaceImportValidator.validateFileContent(cleanContent);
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.PAYLOAD_TOO_LARGE,
+                    exception.getMessage(),
+                    exception
+            );
+        }
+
         Project project =
                 getProject(
                         projectId
@@ -621,6 +631,7 @@ public class WorkspaceService {
                 username
         );
 
+        WorkspaceImportValidator.validate(incomingFiles, incomingFolders);
 
         Project project =
                 getProject(
@@ -1566,63 +1577,12 @@ public class WorkspaceService {
     private String normalizePath(
             String path
     ) {
-
-        if (path == null) {
-            return "";
+        try {
+            return WorkspacePath.normalize(path);
+        } catch (IllegalArgumentException exception) {
+            throw badRequest(exception.getMessage());
         }
-
-
-        String normalized =
-                path
-                        .trim()
-                        .replace(
-                                "\\",
-                                "/"
-                        );
-
-
-        while (
-                normalized.startsWith("/")
-        ) {
-
-            normalized =
-                    normalized.substring(1);
-        }
-
-
-        while (
-                normalized.endsWith("/")
-        ) {
-
-            normalized =
-                    normalized.substring(
-                            0,
-                            normalized.length() - 1
-                    );
-        }
-
-
-        if (
-                normalized.isBlank()
-        ) {
-            return "";
-        }
-
-
-        if (
-                normalized.contains("..") ||
-                        normalized.contains("//")
-        ) {
-
-            throw badRequest(
-                    "Invalid workspace path"
-            );
-        }
-
-
-        return normalized;
     }
-
 
     // =====================================================
     // BAD REQUEST

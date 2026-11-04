@@ -228,6 +228,15 @@ export function useChat({
                     return;
                 }
 
+                // Bound the offline queue so a long disconnect cannot
+                // grow memory without limit. Keep the newest messages.
+                if (pendingMessagesRef.current.length >= 100) {
+                    pendingMessagesRef.current.shift();
+                    console.warn(
+                        "[CHAT] Oldest queued message dropped after 100-message offline limit."
+                    );
+                }
+
                 pendingMessagesRef.current.push({
                     destination: "/app/chat",
                     body,

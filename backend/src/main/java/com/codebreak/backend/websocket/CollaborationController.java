@@ -9,11 +9,8 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
-import java.util.ArrayList;
-import java.util.Comparator;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Controller
 @RequiredArgsConstructor
@@ -29,7 +26,7 @@ public class CollaborationController {
 
 
     /**
-     * Per-project/per-file JVM locks.
+     * Bounded striped JVM locks selected by project and file path.
      *
      * This prevents two websocket messages for the same file
      * from reading the same old content and overwriting each other.
@@ -39,8 +36,16 @@ public class CollaborationController {
      * For multiple backend instances a distributed Redis lock
      * or CRDT/OT layer should be introduced later.
      */
-    private final Map<String, Object> fileLocks =
-            new ConcurrentHashMap<>();
+    private static final int FILE_LOCK_STRIPES = 256;
+    private final Object[] fileLocks = createFileLocks();
+
+    private static Object[] createFileLocks() {
+        Object[] locks = new Object[FILE_LOCK_STRIPES];
+        for (int index = 0; index < locks.length; index++) {
+            locks[index] = new Object();
+        }
+        return locks;
+    }
 
 
     // =====================================================
@@ -97,11 +102,7 @@ public class CollaborationController {
                         filePath;
 
 
-        Object lock =
-                fileLocks.computeIfAbsent(
-                        lockKey,
-                        ignored -> new Object()
-                );
+        Object lock = fileLocks[Math.floorMod(lockKey.hashCode(), FILE_LOCK_STRIPES)];
 
 
         synchronized (lock) {
@@ -167,6 +168,11 @@ public class CollaborationController {
                         message.getContent();
             }
 
+
+            if (mergedContent.getBytes(StandardCharsets.UTF_8).length
+                    > CodeChangeApplier.MAX_DOCUMENT_BYTES) {
+                return;
+            }
 
             // =============================================
             // SAVE TEMPORARY AUTHORITATIVE STATE
@@ -240,136 +246,8 @@ public class CollaborationController {
             String currentContent,
             List<CollaborationMessage.CodeChange> incomingChanges
     ) {
-
-        if (incomingChanges == null ||
-                incomingChanges.isEmpty()) {
-
-            return currentContent;
-        }
-
-
-        String result =
-                currentContent;
-
-
-        /*
-         * Monaco offsets are based on the document state at the
-         * time the change event was generated.
-         *
-         * Applying changes from right to left prevents earlier
-         * replacements from shifting the offsets of later ones.
-         */
-        List<CollaborationMessage.CodeChange> changes =
-                new ArrayList<>(
-                        incomingChanges
-                );
-
-
-        changes.sort(
-                Comparator.comparing(
-                        CollaborationMessage.CodeChange::getRangeOffset,
-                        Comparator.nullsLast(
-                                Comparator.reverseOrder()
-                        )
-                )
-        );
-
-
-        for (
-                CollaborationMessage.CodeChange change
-                : changes
-        ) {
-
-            if (change == null) {
-                continue;
-            }
-
-
-            Integer offsetValue =
-                    change.getRangeOffset();
-
-            Integer lengthValue =
-                    change.getRangeLength();
-
-
-            int offset =
-                    offsetValue == null
-                            ? 0
-                            : offsetValue;
-
-
-            int length =
-                    lengthValue == null
-                            ? 0
-                            : lengthValue;
-
-
-            String text =
-                    change.getText() == null
-                            ? ""
-                            : change.getText();
-
-
-            if (offset < 0) {
-                throw new IllegalArgumentException(
-                        "Invalid edit offset"
-                );
-            }
-
-
-            if (length < 0) {
-                throw new IllegalArgumentException(
-                        "Invalid edit length"
-                );
-            }
-
-
-            if (
-                    offset >
-                            result.length()
-            ) {
-
-                throw new IllegalArgumentException(
-                        "Edit offset is outside document"
-                );
-            }
-
-
-            long endLong =
-                    (long) offset +
-                            length;
-
-
-            if (
-                    endLong >
-                            result.length()
-            ) {
-
-                throw new IllegalArgumentException(
-                        "Edit range is outside document"
-                );
-            }
-
-
-            int end =
-                    (int) endLong;
-
-
-            result =
-                    result.substring(
-                            0,
-                            offset
-                    ) +
-                            text +
-                            result.substring(
-                                    end
-                            );
-        }
-
-
-        return result;
+        return CodeChangeApplier.apply(currentContent, incomingChanges);
     }
-
 
     // =====================================================
     // WORKSPACE STRUCTURE EVENTS
@@ -858,53 +736,7 @@ public class CollaborationController {
     private String normalizePath(
             String path
     ) {
-
-        if (path == null) {
-            return "";
-        }
-
-
-        String normalized =
-                path
-                        .trim()
-                        .replace(
-                                "\\",
-                                "/"
-                        );
-
-
-        while (
-                normalized.startsWith("/")
-        ) {
-            normalized =
-                    normalized.substring(1);
-        }
-
-
-        while (
-                normalized.endsWith("/")
-        ) {
-            normalized =
-                    normalized.substring(
-                            0,
-                            normalized.length() - 1
-                    );
-        }
-
-
-        if (
-                normalized.isBlank() ||
-                        normalized.contains("..") ||
-                        normalized.contains("//")
-        ) {
-
-            throw new IllegalArgumentException(
-                    "Invalid workspace path"
-            );
-        }
-
-
-        return normalized;
+        return com.codebreak.backend.workspace.WorkspacePath.normalize(path);
     }
 
 

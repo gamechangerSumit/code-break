@@ -2,12 +2,17 @@ name: CI
 
 on:
   push:
-    branches: ["main", "release/**"]
+    branches: ["main", "release/**", "production-hardening"]
   pull_request:
     branches: ["main"]
 
 permissions:
   contents: read
+
+# Cancel obsolete runs for the same PR or branch when a newer commit arrives.
+concurrency:
+  group: code-break-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   frontend:

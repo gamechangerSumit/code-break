@@ -2,6 +2,9 @@ package com.codebreak.backend.history;
 
 import com.codebreak.backend.project.ProjectMemberService;
 import com.codebreak.backend.workspace.WorkspaceService;
+import com.codebreak.backend.workspace.WorkspacePath;
+
+import java.nio.charset.StandardCharsets;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,7 +18,7 @@ import java.util.Map;
 @RequestMapping("/api/projects/{projectId}/history")
 @RequiredArgsConstructor
 public class WorkspaceHistoryController {
-    private static final int MAX_SNAPSHOT_CHARS = 1_000_000;
+    private static final int MAX_SNAPSHOT_BYTES = 1024 * 1024;
 
     private final WorkspaceSnapshotRepository snapshots;
     private final ProjectMemberService members;
@@ -51,8 +54,8 @@ public class WorkspaceHistoryController {
         }
         String content = workspace.getFileContent(projectId, normalized, username);
         if (content == null) content = "";
-        if (content.length() > MAX_SNAPSHOT_CHARS) {
-            throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "Snapshot exceeds 1 MB");
+        if (content.getBytes(StandardCharsets.UTF_8).length > MAX_SNAPSHOT_BYTES) {
+            throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "Snapshot exceeds 1 MiB");
         }
         WorkspaceSnapshot saved = snapshots.save(WorkspaceSnapshot.builder()
                 .projectId(projectId)
@@ -121,10 +124,14 @@ public class WorkspaceHistoryController {
         if (path == null || path.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File path is required");
         }
-        String normalized = path.replace('\\', '/').replaceAll("^/+|/+$", "");
-        if (normalized.isBlank() || normalized.contains("../") || normalized.equals("..") || normalized.contains("/..")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid file path");
+        try {
+            String normalized = WorkspacePath.normalize(path);
+            if (normalized.isBlank()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File path is required");
+            }
+            return normalized;
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid file path", exception);
         }
-        return normalized;
     }
 }

@@ -124,6 +124,7 @@ export default function CodeEditor({
     const suppressChangeRef =
         useRef(false);
 
+    const previousFilePathRef = useRef(filePath);
 
     const latestValueRef =
         useRef<string>(
@@ -303,55 +304,66 @@ export default function CodeEditor({
 
 
             /*
-             * Parent value changed because of:
-             *
-             * - selecting another file
-             * - loading workspace content
-             * - receiving remote content
-             * - role/workspace refresh
-             *
-             * This is NOT a user edit.
-             *
-             * Therefore suppress Monaco's change callback.
+             * A file switch needs a complete model replacement. For
+             * same-file updates (remote edits or fetched content), apply
+             * only the smallest changed range. This avoids resetting the
+             * entire Monaco model, which can destroy undo history and
+             * disturb the user's cursor/selection on every keystroke.
              */
+            suppressChangeRef.current = true;
 
-            suppressChangeRef.current =
-                true;
+            try {
+                if (previousFilePathRef.current !== filePath) {
+                    editorInstance.setValue(safeValue);
+                    previousFilePathRef.current = filePath;
+                } else {
+                    const model = editorInstance.getModel();
+                    if (model) {
+                        const currentLength = currentValue.length;
+                        const nextLength = safeValue.length;
+                        let prefix = 0;
 
+                        while (
+                            prefix < currentLength &&
+                            prefix < nextLength &&
+                            currentValue.charCodeAt(prefix) === safeValue.charCodeAt(prefix)
+                        ) {
+                            prefix += 1;
+                        }
 
-            const position =
-                editorInstance.getPosition();
+                        let suffix = 0;
+                        while (
+                            suffix < currentLength - prefix &&
+                            suffix < nextLength - prefix &&
+                            currentValue.charCodeAt(currentLength - suffix - 1) ===
+                                safeValue.charCodeAt(nextLength - suffix - 1)
+                        ) {
+                            suffix += 1;
+                        }
 
+                        if (prefix !== currentLength || prefix !== nextLength) {
+                            const start = model.getPositionAt(prefix);
+                            const end = model.getPositionAt(currentLength - suffix);
+                            editorInstance.executeEdits("external-sync", [{
+                                range: {
+                                    startLineNumber: start.lineNumber,
+                                    startColumn: start.column,
+                                    endLineNumber: end.lineNumber,
+                                    endColumn: end.column,
+                                },
+                                text: safeValue.slice(prefix, nextLength - suffix),
+                                forceMoveMarkers: true,
+                            }]);
+                        }
+                    } else {
+                        editorInstance.setValue(safeValue);
+                    }
+                }
 
-            const selection =
-                editorInstance.getSelection();
-
-
-            editorInstance.setValue(
-                safeValue
-            );
-
-
-            if (position) {
-                editorInstance.setPosition(
-                    position
-                );
+                latestValueRef.current = safeValue;
+            } finally {
+                suppressChangeRef.current = false;
             }
-
-
-            if (selection) {
-                editorInstance.setSelection(
-                    selection
-                );
-            }
-
-
-            latestValueRef.current =
-                safeValue;
-
-
-            suppressChangeRef.current =
-                false;
 
         },
         [

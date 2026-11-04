@@ -870,12 +870,22 @@ export function useCollaboration({
 
 
             // =========================================
-            // DISCONNECT
+            // TRANSPORT CLOSE / DISCONNECT
             // =========================================
+
+            /*
+             * onDisconnect covers a graceful STOMP disconnect. A dropped
+             * network connection closes the underlying WebSocket first;
+             * reflect that immediately so the UI does not keep showing a
+             * stale "Connected" state while STOMP is reconnecting.
+             */
+            client.onWebSocketClose = () => {
+                setIsConnected(false);
+                setPresenceUsers([]);
+            };
 
             client.onDisconnect =
                 () => {
-
                     setIsConnected(false);
                     setPresenceUsers([]);
                 };

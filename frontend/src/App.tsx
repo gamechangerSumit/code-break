@@ -26,7 +26,9 @@ import {
 } from "lucide-react";
 
 import ActivityBar from "./components/ActivityBar";
-import CodeEditor from "./editor/CodeEditor";
+import CodeEditor, {
+    type CodeEditorChange,
+} from "./editor/CodeEditor";
 import FileExplorer, {
     type ExplorerFile,
 } from "./explorer/FileExplorer";
@@ -348,10 +350,77 @@ function App() {
                     return;
                 }
 
+                const existingFile = filesRef.current.find(
+                    (file) => file.path === path,
+                );
+
+                /*
+                 * New collaboration messages carry Monaco range deltas,
+                 * not a full document. Apply them against the latest local
+                 * copy, from right to left so earlier offsets stay valid.
+                 * Retain the legacy full-content format for older clients.
+                 */
+                // The backend currently broadcasts its authoritative merged
+                // document alongside the deltas. Prefer that snapshot: applying
+                // offsets to a stale client copy can corrupt concurrent edits.
+                // Delta-only messages remain supported for compatible transports.
+                let nextContent =
+                    typeof message.content === "string"
+                        ? message.content
+                        : existingFile?.content ?? "";
+
+                if (
+                    typeof message.content !== "string" &&
+                    Array.isArray(message.changes) &&
+                    message.changes.length > 0
+                ) {
+                    const baseContent = existingFile?.content ?? "";
+                    const changes = [...message.changes].sort(
+                        (a, b) => a.rangeOffset - b.rangeOffset,
+                    );
+
+                    // Validate the complete batch before applying any edit.
+                    // A partial application would permanently desynchronize
+                    // collaborators because Monaco offsets refer to one model
+                    // version, not a sequence of independently rebased edits.
+                    let previousEnd = -1;
+                    for (const change of changes) {
+                        const start = change.rangeOffset;
+                        const length = change.rangeLength;
+                        const end = start + length;
+                        if (
+                            !Number.isInteger(start) ||
+                            !Number.isInteger(length) ||
+                            start < 0 ||
+                            length < 0 ||
+                            end > baseContent.length ||
+                            start < previousEnd ||
+                            typeof change.text !== "string"
+                        ) {
+                            console.warn(
+                                "[COLLAB] Ignoring invalid remote change batch.",
+                                message.filePath,
+                            );
+                            return;
+                        }
+                        previousEnd = end;
+                    }
+
+                    nextContent = [...changes]
+                        .reverse()
+                        .reduce((content, change) => {
+                            const start = change.rangeOffset;
+                            const end = start + change.rangeLength;
+                            return content.slice(0, start) +
+                                change.text +
+                                content.slice(end);
+                        }, baseContent);
+                }
+
                 const nextFile =
                     makeExplorerFile(
                         path,
-                        message.content ?? "",
+                        nextContent ?? existingFile?.content ?? "",
                     );
 
                 const exists =
@@ -645,10 +714,34 @@ function App() {
                     return;
                 }
 
-                const nextFiles =
+                const snapshotFiles =
                     buildExplorerFiles(
                         snapshot.files ?? [],
                     );
+
+                /*
+                 * Workspace snapshots contain file metadata, not file
+                 * contents. Preserve content already loaded in the
+                 * editor instead of replacing it with empty strings.
+                 *
+                 * A snapshot can arrive after the selected file content
+                 * request has completed (for example after a websocket
+                 * reconnect). Clearing that content here made the editor
+                 * appear blank until the user reopened the file.
+                 */
+                const existingContentByPath = new Map(
+                    filesRef.current.map((file) => [
+                        file.path,
+                        file.content,
+                    ]),
+                );
+
+                const nextFiles = snapshotFiles.map((file) =>
+                    makeExplorerFile(
+                        file.path,
+                        existingContentByPath.get(file.path) ?? file.content,
+                    ),
+                );
 
                 const nextFolders =
                     buildExplorerFolders(
@@ -1299,7 +1392,10 @@ function App() {
 
     const handleCodeChange =
         useCallback(
-            (value: string) => {
+            (
+                value: string,
+                changes: CodeEditorChange[],
+            ) => {
                 if (
                     currentRole === "VIEWER" ||
                     !selectedFile
@@ -1325,7 +1421,7 @@ function App() {
 
                 setSelectedFile(nextFile);
                 setIsDirty(true);
-                sendChange(value);
+                sendChange(value, changes);
             },
             [
                 currentRole,
