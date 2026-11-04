@@ -566,46 +566,8 @@ public class RedisWorkspaceService {
     // PATH NORMALIZATION
     // =====================================================
 
-    private String normalizePath(
-            String path
-    ) {
-
-        if (path == null) {
-            return "";
-        }
-
-
-        String normalized =
-                path
-                        .trim()
-                        .replace(
-                                "\\",
-                                "/"
-                        );
-
-
-        while (
-                normalized.startsWith("/")
-        ) {
-
-            normalized =
-                    normalized.substring(1);
-        }
-
-
-        while (
-                normalized.endsWith("/")
-        ) {
-
-            normalized =
-                    normalized.substring(
-                            0,
-                            normalized.length() - 1
-                    );
-        }
-
-
-        return normalized;
+    private String normalizePath(String path) {
+        return WorkspacePath.normalize(path);
     }
 
 
