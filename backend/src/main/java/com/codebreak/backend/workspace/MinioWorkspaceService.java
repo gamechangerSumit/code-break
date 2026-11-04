@@ -9,7 +9,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
@@ -47,6 +46,7 @@ public class MinioWorkspaceService {
                         path
                 );
 
+        WorkspaceImportValidator.validateFileContent(content);
         byte[] bytes =
                 (content == null
                         ? ""
@@ -114,14 +114,11 @@ public class MinioWorkspaceService {
                         )
         ) {
 
-            ByteArrayOutputStream output =
-                    new ByteArrayOutputStream();
-
-            inputStream.transferTo(output);
-
-            return output.toString(
-                    StandardCharsets.UTF_8
-            );
+            byte[] bytes = inputStream.readNBytes(WorkspaceImportValidator.MAX_FILE_BYTES + 1);
+            if (bytes.length > WorkspaceImportValidator.MAX_FILE_BYTES) {
+                throw new IllegalStateException("Stored workspace file exceeds the 2 MiB limit");
+            }
+            return new String(bytes, StandardCharsets.UTF_8);
 
         } catch (Exception exception) {
 
