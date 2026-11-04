@@ -9,6 +9,11 @@ on:
 permissions:
   contents: read
 
+# Cancel obsolete runs for the same PR or branch when a newer commit arrives.
+concurrency:
+  group: code-break-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   frontend:
     name: Frontend lint and production build
