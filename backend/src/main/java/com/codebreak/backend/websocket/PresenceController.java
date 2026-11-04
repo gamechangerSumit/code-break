@@ -92,6 +92,10 @@ public class PresenceController {
                 clamp(update.selectionEndLine()), clamp(update.selectionEndColumn()),
                 colorFor(principal.getName())
         );
+        if (next.equals(previous)) {
+            return;
+        }
+
         sessions.put(sessionId, next);
         broadcast(update.projectId());
     }
