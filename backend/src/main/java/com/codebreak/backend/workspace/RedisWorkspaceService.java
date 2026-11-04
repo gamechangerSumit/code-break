@@ -466,59 +466,31 @@ public class RedisWorkspaceService {
             return;
         }
 
-
         Set<String> dirtyFiles =
-                redisTemplate.opsForSet()
-                        .members(
-                                dirtySetKey(projectId)
-                        );
+                redisTemplate.opsForSet().members(dirtySetKey(projectId));
 
-
-        if (
-                dirtyFiles != null &&
-                        !dirtyFiles.isEmpty()
-        ) {
-
-            for (
-                    String path
-                    : dirtyFiles
-            ) {
-
-                if (
-                        path == null ||
-                                path.isBlank()
-                ) {
+        if (dirtyFiles != null && !dirtyFiles.isEmpty()) {
+            for (String path : dirtyFiles) {
+                if (path == null || path.isBlank()) {
                     continue;
                 }
 
-
+                // Cleanup must also work for legacy/corrupt entries.
+                // Do not normalize untrusted set members just to delete
+                // their corresponding Redis key.
                 redisTemplate.delete(
-                        dirtyKey(
-                                projectId,
-                                path
-                        )
+                        PREFIX + projectId + DIRTY_PREFIX + path
                 );
             }
         }
 
-
-        redisTemplate.delete(
-                dirtySetKey(projectId)
+        redisTemplate.delete(dirtySetKey(projectId));
+        redisTemplate.delete(activeKey(projectId));
+        redisTemplate.opsForSet().remove(
+                ACTIVE_PROJECTS,
+                String.valueOf(projectId)
         );
-
-
-        redisTemplate.delete(
-                activeKey(projectId)
-        );
-
-
-        redisTemplate.opsForSet()
-                .remove(
-                        ACTIVE_PROJECTS,
-                        String.valueOf(projectId)
-                );
     }
-
 
     // =====================================================
     // REDIS KEYS
