@@ -22,6 +22,23 @@ class MinioWorkspaceServiceTests {
     }
 
     @Test
+    void rejectsNonPositiveProjectIdsWhenBuildingObjectKeys() {
+        MinioClient minioClient = mock(MinioClient.class);
+        MinioWorkspaceService service = new MinioWorkspaceService(minioClient);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.buildObjectKey(0L, "src/Main.java")
+        );
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.buildObjectKey(-1L, "src/Main.java")
+        );
+
+        verifyNoInteractions(minioClient);
+    }
+
+    @Test
     void rejectsTraversalPathsBeforeMinioAccess() {
         MinioClient minioClient = mock(MinioClient.class);
         MinioWorkspaceService service = new MinioWorkspaceService(minioClient);
