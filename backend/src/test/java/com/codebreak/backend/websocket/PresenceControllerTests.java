@@ -90,6 +90,21 @@ class PresenceControllerTests {
         );
     }
 
+    @Test
+    void doesNotRebroadcastAnUnchangedCursor() {
+        SimpMessageHeaderAccessor headers = headers("session-1");
+        controller.join(new PresenceController.ProjectRequest(42L), alice, headers);
+        PresenceController.CursorUpdate cursor = new PresenceController.CursorUpdate(
+                42L, "src/App.tsx", 10, 2, 10, 2, 10, 2
+        );
+
+        controller.cursor(cursor, alice, headers);
+        clearInvocations(messagingTemplate);
+        controller.cursor(cursor, alice, headers);
+
+        verifyNoInteractions(messagingTemplate);
+    }
+
     private SimpMessageHeaderAccessor headers(String sessionId) {
         SimpMessageHeaderAccessor headers = SimpMessageHeaderAccessor.create();
         headers.setSessionId(sessionId);
