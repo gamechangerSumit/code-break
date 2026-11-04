@@ -78,26 +78,31 @@ public class PresenceController {
             return;
         }
 
-        PresenceState previous = sessions.get(sessionId);
-        if (previous == null
-                || !previous.projectId().equals(update.projectId())
-                || !previous.username().equals(principal.getName())) {
-            return;
-        }
+        java.util.concurrent.atomic.AtomicBoolean changed = new java.util.concurrent.atomic.AtomicBoolean();
+        sessions.computeIfPresent(sessionId, (id, previous) -> {
+            // Keep the membership check and update atomic with leave/disconnect.
+            // A plain get()+put() could resurrect a session removed in between.
+            if (!previous.projectId().equals(update.projectId())
+                    || !previous.username().equals(principal.getName())) {
+                return previous;
+            }
 
-        PresenceState next = new PresenceState(
-                update.projectId(), principal.getName(), filePath,
-                clamp(update.lineNumber()), clamp(update.column()),
-                clamp(update.selectionStartLine()), clamp(update.selectionStartColumn()),
-                clamp(update.selectionEndLine()), clamp(update.selectionEndColumn()),
-                colorFor(principal.getName())
-        );
-        if (next.equals(previous)) {
-            return;
+            PresenceState next = new PresenceState(
+                    update.projectId(), principal.getName(), filePath,
+                    clamp(update.lineNumber()), clamp(update.column()),
+                    clamp(update.selectionStartLine()), clamp(update.selectionStartColumn()),
+                    clamp(update.selectionEndLine()), clamp(update.selectionEndColumn()),
+                    colorFor(principal.getName())
+            );
+            if (!next.equals(previous)) {
+                changed.set(true);
+                return next;
+            }
+            return previous;
+        });
+        if (changed.get()) {
+            broadcast(update.projectId());
         }
-
-        sessions.put(sessionId, next);
-        broadcast(update.projectId());
     }
 
     @MessageMapping("/presence/leave")
