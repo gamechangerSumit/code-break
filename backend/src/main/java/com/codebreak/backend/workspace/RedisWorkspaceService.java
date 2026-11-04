@@ -292,28 +292,22 @@ public class RedisWorkspaceService {
                 : paths
         ) {
 
-            if (
-                    path == null ||
-                            path.isBlank()
-            ) {
+            if (path == null || path.isBlank()) {
                 expired.add(path);
                 continue;
             }
 
+            String normalizedPath;
+            try {
+                normalizedPath = normalizePath(path);
+            } catch (IllegalArgumentException exception) {
+                expired.add(path);
+                continue;
+            }
 
-            if (
-                    redisTemplate.hasKey(
-                            dirtyKey(
-                                    projectId,
-                                    path
-                            )
-                    )
-            ) {
-
-                valid.add(path);
-
+            if (redisTemplate.hasKey(dirtyKey(projectId, normalizedPath))) {
+                valid.add(normalizedPath);
             } else {
-
                 expired.add(path);
             }
         }
