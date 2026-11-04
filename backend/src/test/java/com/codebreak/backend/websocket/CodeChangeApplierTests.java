@@ -34,6 +34,28 @@ class CodeChangeApplierTests {
     }
 
     @Test
+    void appliesAdjacentEditsAndInsertionAtEndOfDocument() {
+        List<CollaborationMessage.CodeChange> changes = List.of(
+                new CollaborationMessage.CodeChange(0, 1, "A"),
+                new CollaborationMessage.CodeChange(1, 1, "B"),
+                new CollaborationMessage.CodeChange(2, 0, "!")
+        );
+
+        assertEquals("AB!", CodeChangeApplier.apply("ab", changes));
+    }
+
+    @Test
+    void usesUtf16OffsetsForSupplementaryUnicodeCharacters() {
+        assertEquals(
+                "aXb",
+                CodeChangeApplier.apply(
+                        "a😀b",
+                        List.of(new CollaborationMessage.CodeChange(1, 2, "X"))
+                )
+        );
+    }
+
+    @Test
     void rejectsNullOrIncompleteOperations() {
         assertThrows(
                 IllegalArgumentException.class,
