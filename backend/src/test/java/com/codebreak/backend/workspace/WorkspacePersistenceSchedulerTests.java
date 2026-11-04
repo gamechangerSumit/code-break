@@ -40,7 +40,7 @@ class WorkspacePersistenceSchedulerTests {
         verify(minio, times(2)).saveFile(7L, "src/Main.java", "class Main {}");
         verify(repository, times(1)).save(metadata);
         verify(redis, times(1)).compareAndClearDirty(7L, "src/Main.java", "class Main {}");
-        verify(metadata).setSize("class Main {}".getBytes(java.nio.charset.StandardCharsets.UTF_8).length);
+        verify(metadata).setSize((long) "class Main {}".getBytes(java.nio.charset.StandardCharsets.UTF_8).length);
         verify(metadata).setVersion(4L);
     }
 
