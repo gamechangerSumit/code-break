@@ -68,7 +68,12 @@ public class PresenceController {
         if (update == null || update.projectId() == null || principal == null) {
             return;
         }
-        String filePath = update.filePath() == null ? "" : update.filePath().trim();
+        String filePath;
+        try {
+            filePath = com.codebreak.backend.workspace.WorkspacePath.normalize(update.filePath());
+        } catch (IllegalArgumentException exception) {
+            return;
+        }
         if (filePath.isEmpty() || filePath.length() > 512) {
             return;
         }
