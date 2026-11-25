@@ -36,6 +36,21 @@ class CollaborationControllerTests {
     }
 
     @Test
+    void ignoresWorkspaceTraversalPathBeforeAccessingWorkspaceServices() {
+        CollaborationMessage message = new CollaborationMessage();
+        message.setProjectId(42L);
+        message.setFilePath("../secrets.txt");
+        message.setContent("malicious");
+
+        controller.edit(message, alice);
+
+        verifyNoInteractions(projectMemberService);
+        verifyNoInteractions(workspaceService);
+        verifyNoInteractions(redisWorkspaceService);
+        verifyNoInteractions(messagingTemplate);
+    }
+
+    @Test
     void ignoresOverlappingEditBatchWithoutMutatingDocumentOrBroadcasting() {
         when(workspaceService.getFileContent(42L, "src/App.tsx", "alice"))
                 .thenReturn("hello");
