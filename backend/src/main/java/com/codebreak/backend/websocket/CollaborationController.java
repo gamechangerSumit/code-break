@@ -146,11 +146,13 @@ public class CollaborationController {
                             !changes.isEmpty()
             ) {
 
-                mergedContent =
-                        applyChanges(
-                                currentContent,
-                                changes
-                        );
+                try {
+                    mergedContent = applyChanges(currentContent, changes);
+                } catch (IllegalArgumentException exception) {
+                    // A malformed or stale edit batch must not terminate the
+                    // user's STOMP session or mutate the authoritative document.
+                    return;
+                }
 
             } else if (
                     message.getContent() != null
