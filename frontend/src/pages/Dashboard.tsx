@@ -21,6 +21,7 @@ import {
     getProjects,
     createProject,
     deleteProject,
+    joinProject,
 } from "../project/projectApi";
 
 import type {
@@ -309,52 +310,7 @@ export default function Dashboard({
 
         try {
 
-            const response =
-                await fetch(
-                    "http://localhost:8088/api/projects/join",
-                    {
-                        method: "POST",
-
-                        headers: {
-                            "Content-Type":
-                                "application/json",
-
-                            Authorization:
-                                `Bearer ${token}`,
-                        },
-
-                        body: JSON.stringify({
-                            joinCode: code,
-                        }),
-                    }
-                );
-
-            if (!response.ok) {
-
-                let message =
-                    "Failed to join project";
-
-                try {
-
-                    const data =
-                        await response.json();
-
-                    if (data.message) {
-                        message =
-                            data.message;
-                    }
-
-                    if (data.error) {
-                        message =
-                            data.error;
-                    }
-
-                } catch {
-                    // Ignore JSON parsing error
-                }
-
-                throw new Error(message);
-            }
+            await joinProject(code, token);
 
             setJoinCode("");
             setShowJoinForm(false);

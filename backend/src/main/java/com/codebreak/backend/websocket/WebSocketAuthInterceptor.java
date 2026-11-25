@@ -79,19 +79,11 @@ public class WebSocketAuthInterceptor
                     );
 
 
-            System.out.println(
-                    "[WS AUTH] CONNECT received"
-            );
-
 
             if (
                     authorization == null ||
                             authorization.isBlank()
             ) {
-
-                System.err.println(
-                        "[WS AUTH] Authorization header missing"
-                );
 
                 throw new AccessDeniedException("WebSocket authentication is required");
 
@@ -104,10 +96,6 @@ public class WebSocketAuthInterceptor
                     )
             ) {
 
-                System.err.println(
-                        "[WS AUTH] Invalid Authorization format"
-                );
-
                 throw new AccessDeniedException("Invalid WebSocket authorization format");
 
             }
@@ -119,18 +107,13 @@ public class WebSocketAuthInterceptor
                     ).trim();
 
 
-            if (
-                    token.isBlank()
-            ) {
-
-                System.err.println(
-                        "[WS AUTH] Empty JWT"
-                );
-
+            if (token.isBlank()) {
                 throw new AccessDeniedException("WebSocket token is empty");
-
             }
 
+            if (token.length() > 8192) {
+                throw new AccessDeniedException("WebSocket token is too large");
+            }
 
             try {
 
@@ -145,10 +128,6 @@ public class WebSocketAuthInterceptor
                         username == null ||
                                 username.isBlank()
                 ) {
-
-                    System.err.println(
-                            "[WS AUTH] JWT username missing"
-                    );
 
                     throw new AccessDeniedException("JWT username is missing");
 
@@ -172,11 +151,6 @@ public class WebSocketAuthInterceptor
                         authentication
                 );
 
-
-                System.out.println(
-                        "[WS AUTH] Authenticated user: "
-                                + username
-                );
 
 
             } catch (
@@ -217,30 +191,6 @@ public class WebSocketAuthInterceptor
                     throw new AccessDeniedException("Invalid project subscription", exception);
                 }
             }
-        }
-
-
-        // =========================================
-        // EVERY MESSAGE
-        // =========================================
-
-        Principal principal =
-                accessor.getUser();
-
-
-        if (
-                principal != null
-        ) {
-
-            System.out.println(
-                    "[WS AUTH] User="
-                            + principal.getName()
-                            + " Command="
-                            + accessor.getCommand()
-                            + " Destination="
-                            + accessor.getDestination()
-            );
-
         }
 
 

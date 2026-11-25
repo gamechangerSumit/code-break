@@ -10,6 +10,7 @@ frontend/.env.*
 !frontend/.env.example
 
 # Dependencies and build output
+backend/bin/
 node_modules/
 dist/
 build/

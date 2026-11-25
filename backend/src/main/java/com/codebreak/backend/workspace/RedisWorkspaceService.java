@@ -36,14 +36,6 @@ public class RedisWorkspaceService {
             Duration.ofHours(2);
 
 
-    /*
-     * A dirty editor value stays in Redis for at most
-     * 30 minutes without another update.
-     */
-    private static final Duration DIRTY_TTL =
-            Duration.ofMinutes(30);
-
-
     private final StringRedisTemplate redisTemplate;
 
 
@@ -147,19 +139,13 @@ public class RedisWorkspaceService {
             }
 
 
-            if (
-                    isActive(projectId)
-            ) {
-
-                active.add(
-                        projectIdValue
-                );
-
+            // Dirty editor content must be flushed even after the
+            // activity heartbeat expires. Never drop a pending project
+            // from the scheduler index solely because it became idle.
+            if (!getDirtyFiles(projectId).isEmpty()) {
+                active.add(projectIdValue);
             } else {
-
-                stale.add(
-                        projectIdValue
-                );
+                stale.add(projectIdValue);
             }
         }
 
@@ -212,18 +198,11 @@ public class RedisWorkspaceService {
         }
 
 
+        // No TTL: only a successful durable MinIO + metadata flush
+        // may remove this value. Expiring it by time can silently lose edits.
         redisTemplate.opsForValue().set(
-
-                dirtyKey(
-                        projectId,
-                        normalizedPath
-                ),
-
-                content == null
-                        ? ""
-                        : content,
-
-                DIRTY_TTL
+                dirtyKey(projectId, normalizedPath),
+                content == null ? "" : content
         );
 
 
@@ -313,28 +292,22 @@ public class RedisWorkspaceService {
                 : paths
         ) {
 
-            if (
-                    path == null ||
-                            path.isBlank()
-            ) {
+            if (path == null || path.isBlank()) {
                 expired.add(path);
                 continue;
             }
 
+            String normalizedPath;
+            try {
+                normalizedPath = normalizePath(path);
+            } catch (IllegalArgumentException exception) {
+                expired.add(path);
+                continue;
+            }
 
-            if (
-                    redisTemplate.hasKey(
-                            dirtyKey(
-                                    projectId,
-                                    path
-                            )
-                    )
-            ) {
-
-                valid.add(path);
-
+            if (redisTemplate.hasKey(dirtyKey(projectId, normalizedPath))) {
+                valid.add(normalizedPath);
             } else {
-
                 expired.add(path);
             }
         }
@@ -388,6 +361,51 @@ public class RedisWorkspaceService {
                         )
                 )
         );
+    }
+
+
+    // =====================================================
+    // COMPARE AND CLEAR ONE DIRTY FILE
+    //
+    // A persistence flush must not delete a newer edit that
+    // arrived after the scheduler read the previous value.
+    // The Lua script compares and removes atomically.
+    // =====================================================
+
+    public boolean compareAndClearDirty(
+            Long projectId,
+            String path,
+            String expectedContent
+    ) {
+
+        if (projectId == null || path == null || path.isBlank()) {
+            return false;
+        }
+
+        String normalizedPath = normalizePath(path);
+        String valueKey = dirtyKey(projectId, normalizedPath);
+        String setKey = dirtySetKey(projectId);
+
+        org.springframework.data.redis.core.script.DefaultRedisScript<Long> script =
+                new org.springframework.data.redis.core.script.DefaultRedisScript<>();
+
+        script.setScriptText(
+                "if redis.call('GET', KEYS[1]) == ARGV[1] then " +
+                "redis.call('DEL', KEYS[1]); " +
+                "redis.call('SREM', KEYS[2], ARGV[2]); " +
+                "return 1; " +
+                "else return 0; end"
+        );
+        script.setResultType(Long.class);
+
+        Long result = redisTemplate.execute(
+                script,
+                java.util.List.of(valueKey, setKey),
+                expectedContent == null ? "" : expectedContent,
+                normalizedPath
+        );
+
+        return Long.valueOf(1L).equals(result);
     }
 
 
@@ -448,59 +466,31 @@ public class RedisWorkspaceService {
             return;
         }
 
-
         Set<String> dirtyFiles =
-                redisTemplate.opsForSet()
-                        .members(
-                                dirtySetKey(projectId)
-                        );
+                redisTemplate.opsForSet().members(dirtySetKey(projectId));
 
-
-        if (
-                dirtyFiles != null &&
-                        !dirtyFiles.isEmpty()
-        ) {
-
-            for (
-                    String path
-                    : dirtyFiles
-            ) {
-
-                if (
-                        path == null ||
-                                path.isBlank()
-                ) {
+        if (dirtyFiles != null && !dirtyFiles.isEmpty()) {
+            for (String path : dirtyFiles) {
+                if (path == null || path.isBlank()) {
                     continue;
                 }
 
-
+                // Cleanup must also work for legacy/corrupt entries.
+                // Do not normalize untrusted set members just to delete
+                // their corresponding Redis key.
                 redisTemplate.delete(
-                        dirtyKey(
-                                projectId,
-                                path
-                        )
+                        PREFIX + projectId + DIRTY_PREFIX + path
                 );
             }
         }
 
-
-        redisTemplate.delete(
-                dirtySetKey(projectId)
+        redisTemplate.delete(dirtySetKey(projectId));
+        redisTemplate.delete(activeKey(projectId));
+        redisTemplate.opsForSet().remove(
+                ACTIVE_PROJECTS,
+                String.valueOf(projectId)
         );
-
-
-        redisTemplate.delete(
-                activeKey(projectId)
-        );
-
-
-        redisTemplate.opsForSet()
-                .remove(
-                        ACTIVE_PROJECTS,
-                        String.valueOf(projectId)
-                );
     }
-
 
     // =====================================================
     // REDIS KEYS
@@ -542,46 +532,8 @@ public class RedisWorkspaceService {
     // PATH NORMALIZATION
     // =====================================================
 
-    private String normalizePath(
-            String path
-    ) {
-
-        if (path == null) {
-            return "";
-        }
-
-
-        String normalized =
-                path
-                        .trim()
-                        .replace(
-                                "\\",
-                                "/"
-                        );
-
-
-        while (
-                normalized.startsWith("/")
-        ) {
-
-            normalized =
-                    normalized.substring(1);
-        }
-
-
-        while (
-                normalized.endsWith("/")
-        ) {
-
-            normalized =
-                    normalized.substring(
-                            0,
-                            normalized.length() - 1
-                    );
-        }
-
-
-        return normalized;
+    private String normalizePath(String path) {
+        return WorkspacePath.normalize(path);
     }
 
 

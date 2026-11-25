@@ -65,24 +65,8 @@ public class WorkspacePersistenceScheduler {
             }
 
 
-            /*
-             * Project activity can expire between
-             * getActiveProjects() and this check.
-             */
-            if (
-                    !redisWorkspaceService.isActive(
-                            projectId
-                    )
-            ) {
-
-                redisWorkspaceService.clear(
-                        projectId
-                );
-
-                continue;
-            }
-
-
+            // The Redis project index now represents pending dirty work,
+            // not just recent activity. Flush it regardless of heartbeat TTL.
             flushProject(
                     projectId
             );
@@ -292,10 +276,19 @@ public class WorkspacePersistenceScheduler {
         //   2. PostgreSQL metadata save succeeded
         // =================================================
 
-        redisWorkspaceService.clearDirty(
+        boolean cleared = redisWorkspaceService.compareAndClearDirty(
                 projectId,
-                path
+                path,
+                content
         );
+
+        if (!cleared) {
+            System.out.println(
+                    "[WORKSPACE FLUSH] Newer edit detected; queued for next flush: " +
+                            "Project=" + projectId +
+                            " Path=" + path
+            );
+        }
 
 
         System.out.println(
