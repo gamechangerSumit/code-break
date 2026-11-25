@@ -56,6 +56,22 @@ class PresenceControllerTests {
     }
 
     @Test
+    void ignoresCursorUpdatesWhenSessionBelongsToAnotherUser() {
+        SimpMessageHeaderAccessor headers = headers("session-1");
+        controller.join(new PresenceController.ProjectRequest(42L), alice, headers);
+        clearInvocations(messagingTemplate);
+        Principal bob = () -> "bob";
+
+        controller.cursor(
+                new PresenceController.CursorUpdate(42L, "src/App.tsx", 10, 2, 10, 2, 10, 2),
+                bob,
+                headers
+        );
+
+        verifyNoInteractions(messagingTemplate);
+    }
+
+    @Test
     void ignoresCursorUpdatesWhenSessionBelongsToAnotherProject() {
         SimpMessageHeaderAccessor headers = headers("session-1");
         controller.join(new PresenceController.ProjectRequest(42L), alice, headers);
