@@ -298,10 +298,17 @@ public class CollaborationController {
         }
 
 
-        message.setUsername(
-                username
-        );
+        message.setUsername(username);
 
+        // Validate an optional file path before dispatching to any
+        // workspace operation. Invalid paths are rejected at the boundary.
+        if (message.getFilePath() != null && !message.getFilePath().isBlank()) {
+            try {
+                message.setFilePath(normalizePath(message.getFilePath()));
+            } catch (IllegalArgumentException exception) {
+                return;
+            }
+        }
 
         // =================================================
         // LEGACY COMPLETE SYNC
