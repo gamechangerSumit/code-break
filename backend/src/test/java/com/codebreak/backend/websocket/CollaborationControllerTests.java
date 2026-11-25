@@ -51,6 +51,47 @@ class CollaborationControllerTests {
     }
 
     @Test
+    void ignoresWorkspaceFileTraversalPathBeforeSavingOrBroadcasting() {
+        CollaborationMessage message = new CollaborationMessage();
+        message.setType("WORKSPACE_FILE");
+        message.setProjectId(42L);
+        message.setFilePath("../secrets.txt");
+        message.setContent("malicious");
+
+        controller.workspace(message, alice);
+
+        verify(projectMemberService).requireWriteAccess(42L, "alice");
+        verifyNoInteractions(workspaceService);
+        verifyNoInteractions(redisWorkspaceService);
+        verifyNoInteractions(messagingTemplate);
+    }
+
+    @Test
+    void appliesValidEditBatchAndBroadcastsAuthoritativeContent() {
+        when(workspaceService.getFileContent(42L, "src/App.tsx", "alice"))
+                .thenReturn("hello");
+
+        CollaborationMessage message = new CollaborationMessage();
+        message.setProjectId(42L);
+        message.setFilePath("src/App.tsx");
+        message.setChanges(List.of(
+                new CollaborationMessage.CodeChange(1, 2, "i")
+        ));
+
+        controller.edit(message, alice);
+
+        verify(redisWorkspaceService).saveDirtyContent(42L, "src/App.tsx", "hio");
+        verify(redisWorkspaceService).markActive(42L);
+        verify(messagingTemplate).convertAndSend(
+                eq("/topic/project/42/code"),
+                argThat((CollaborationMessage outgoing) ->
+                        "hio".equals(outgoing.getContent())
+                                && "alice".equals(outgoing.getUsername())
+                                && "src/App.tsx".equals(outgoing.getFilePath()))
+        );
+    }
+
+    @Test
     void ignoresOverlappingEditBatchWithoutMutatingDocumentOrBroadcasting() {
         when(workspaceService.getFileContent(42L, "src/App.tsx", "alice"))
                 .thenReturn("hello");
