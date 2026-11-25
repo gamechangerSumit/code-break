@@ -75,10 +75,13 @@ public class CollaborationController {
         String username =
                 principal.getName();
 
-        String filePath =
-                normalizePath(
-                        message.getFilePath()
-                );
+        String filePath;
+        try {
+            filePath = normalizePath(message.getFilePath());
+        } catch (IllegalArgumentException exception) {
+            // Reject invalid workspace paths without disrupting the STOMP session.
+            return;
+        }
 
 
         if (filePath.isBlank()) {
