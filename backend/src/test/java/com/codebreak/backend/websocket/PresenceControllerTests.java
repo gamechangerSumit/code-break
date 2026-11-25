@@ -31,9 +31,14 @@ class PresenceControllerTests {
         controller.join(new PresenceController.ProjectRequest(42L), alice, headers);
         clearInvocations(messagingTemplate);
 
+        org.springframework.messaging.Message<byte[]> message =
+                org.springframework.messaging.support.MessageBuilder.withPayload(new byte[0])
+                        .setHeaders(headers)
+                        .build();
         org.springframework.web.socket.messaging.SessionDisconnectEvent event =
                 new org.springframework.web.socket.messaging.SessionDisconnectEvent(
-                        this, headers.getMessageHeaders(), "session-1", null
+                        this, message, "session-1",
+                        org.springframework.web.socket.CloseStatus.NORMAL
                 );
         controller.onDisconnect(event);
 
