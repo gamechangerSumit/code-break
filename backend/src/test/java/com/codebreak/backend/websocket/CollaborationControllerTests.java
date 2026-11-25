@@ -80,12 +80,12 @@ class CollaborationControllerTests {
 
         controller.edit(message, alice);
 
-        verify(redisWorkspaceService).saveDirtyContent(42L, "src/App.tsx", "hio");
+        verify(redisWorkspaceService).saveDirtyContent(42L, "src/App.tsx", "hilo");
         verify(redisWorkspaceService).markActive(42L);
         verify(messagingTemplate).convertAndSend(
                 eq("/topic/project/42/code"),
                 argThat((CollaborationMessage outgoing) ->
-                        "hio".equals(outgoing.getContent())
+                        "hilo".equals(outgoing.getContent())
                                 && "alice".equals(outgoing.getUsername())
                                 && "src/App.tsx".equals(outgoing.getFilePath()))
         );
