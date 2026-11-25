@@ -26,6 +26,25 @@ class PresenceControllerTests {
     }
 
     @Test
+    void disconnectRemovesPresenceAndPublishesUpdatedSnapshot() {
+        SimpMessageHeaderAccessor headers = headers("session-1");
+        controller.join(new PresenceController.ProjectRequest(42L), alice, headers);
+        clearInvocations(messagingTemplate);
+
+        org.springframework.web.socket.messaging.SessionDisconnectEvent event =
+                new org.springframework.web.socket.messaging.SessionDisconnectEvent(
+                        this, headers.getMessageHeaders(), "session-1", null
+                );
+        controller.onDisconnect(event);
+
+        verify(messagingTemplate).convertAndSend(
+                eq("/topic/project/42/presence"),
+                argThat(message -> message instanceof PresenceController.PresenceSnapshot snapshot
+                        && snapshot.users().isEmpty())
+        );
+    }
+
+    @Test
     void ignoresCursorUpdatesFromSessionsThatHaveNotJoined() {
         SimpMessageHeaderAccessor headers = headers("session-1");
 
